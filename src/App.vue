@@ -3,10 +3,10 @@ import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed, ref } from 'vue'
 import { adjustStatusValue } from '@/ccfolia/firestore-writer'
 import { useCcfoliaCharacters } from '@/composables/useCcfoliaCharacters'
-import { useCcfoliaSession } from '@/composables/useCcfoliaSession'
+import { useFirestoreReady } from '@/composables/useFirestoreReady'
 
 const { characters, usingFallback } = useCcfoliaCharacters(1000)
-const { ready: sessionReady } = useCcfoliaSession()
+const { ready: sessionReady } = useFirestoreReady()
 
 // 单/多部位 MVP 只看第一条 status(HP)
 function primaryHp(char: CcfoliaCharacter) {
@@ -53,7 +53,7 @@ const empty = computed(() => characters.value.length === 0)
     </div>
 
     <div v-if="!sessionReady" class="text-xs text-buff">
-      等待 ccfolia 会话…(先在 ccfolia 改一次数据)
+      等待 Firebase SDK 挂钩…
     </div>
 
     <div v-if="empty" class="text-xs opacity-60">
@@ -71,7 +71,7 @@ const empty = computed(() => characters.value.length === 0)
         <button
           class="rounded bg-debuff/20 px-1.5 py-0.5 text-debuff font-mono disabled:opacity-30"
           :disabled="!sessionReady || busyId === char._id"
-          :title="sessionReady ? 'HP -1' : '等 ccfolia 会话建立'"
+          :title="sessionReady ? 'HP -1' : '等 Firebase SDK'"
           @click="onDamage(char)"
         >
           -1
