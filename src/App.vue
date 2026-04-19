@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue';
-import viteLogoUrl from './assets/vite.svg';
-import vueLogoUrl from './assets/vue.svg';
+import viteLogoUrl from './assets/vite.svg'
+import vueLogoUrl from './assets/vue.svg'
+import HelloWorld from './components/HelloWorld.vue'
 </script>
 
 <template>
   <div>
     <a href="https://vite.dev" target="_blank">
-      <img :src="viteLogoUrl" class="logo" alt="Vite logo" />
+      <img :src="viteLogoUrl" class="logo" alt="Vite logo">
     </a>
     <a href="https://vuejs.org/" target="_blank">
-      <img :src="vueLogoUrl" class="logo vue" alt="Vue logo" />
+      <img :src="vueLogoUrl" class="logo vue" alt="Vue logo">
     </a>
   </div>
   <HelloWorld msg="Vite + Vue" />
