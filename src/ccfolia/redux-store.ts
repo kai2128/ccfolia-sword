@@ -102,6 +102,27 @@ export function getReduxStore(): CcfoliaStore | null {
   return null
 }
 
+// 订阅 store 的某个子树,只在引用变化时通知 listener。
+// RTK 的 Immer 保证:子树没动就复用同一个对象;所以 Object.is 比较就够。
+// 返 unsubscribe 函数。传进来的 store 可以先 getReduxStore() 拿,调用方保证非 null。
+export function subscribeSlice<T>(
+  store: CcfoliaStore,
+  select: (state: unknown) => T,
+  listener: (value: T) => void,
+  opts: { emitInitial?: boolean } = {},
+): () => void {
+  let last = select(store.getState())
+  if (opts.emitInitial)
+    listener(last)
+  return store.subscribe(() => {
+    const next = select(store.getState())
+    if (!Object.is(next, last)) {
+      last = next
+      listener(next)
+    }
+  })
+}
+
 // 乐观更新角色:直接写 store。Firestore onSnapshot 之后会再刷一次同值,幂等。
 // character/update 对应 createEntitySliceGroupBy 自动生成的 reducer,
 // payload 是 { id, entity }(entity 是完整替换,不是浅合并)。

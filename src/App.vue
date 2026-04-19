@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed, ref } from 'vue'
-import { adjustStatusValue } from '@/ccfolia/firestore-writer'
+import { adjustStatusValue, attachBuff, detachBuff, listBuffs } from '@/ccfolia/firestore-writer'
 import { useCcfoliaCharacters } from '@/composables/useCcfoliaCharacters'
 import { useFirestoreReady } from '@/composables/useFirestoreReady'
 
@@ -38,13 +38,13 @@ function setError(msg: string | null) {
   }
 }
 
-async function onDamage(char: CcfoliaCharacter) {
+async function runWriting(char: CcfoliaCharacter, fn: () => Promise<unknown>) {
   if (!sessionReady.value || busyId.value)
     return
   busyId.value = char._id
   setError(null)
   try {
-    await adjustStatusValue(char, primaryHpIndex(char), -1)
+    await fn()
   }
   catch (e) {
     setError(e instanceof Error ? e.message : String(e))
@@ -52,6 +52,31 @@ async function onDamage(char: CcfoliaCharacter) {
   finally {
     busyId.value = null
   }
+}
+
+function onDamage(char: CcfoliaCharacter) {
+  return runWriting(char, () => adjustStatusValue(char, primaryHpIndex(char), -1))
+}
+
+// Phase 2 闭环验证用:挂一个测试 buff(minimal payload),刷新后应保留。
+function onAttachTestBuff(char: CcfoliaCharacter) {
+  return runWriting(char, () => attachBuff(char, {
+    name: '测试 buff',
+    category: 'buff',
+    lifecycle: { kind: 'manual' },
+    modifiers: [],
+  }))
+}
+
+function onClearBuffs(char: CcfoliaCharacter) {
+  return runWriting(char, async () => {
+    for (const b of listBuffs(char))
+      await detachBuff(char, b.id)
+  })
+}
+
+function buffCount(char: CcfoliaCharacter) {
+  return listBuffs(char).length
 }
 
 const empty = computed(() => characters.value.length === 0)
@@ -91,6 +116,23 @@ const empty = computed(() => characters.value.length === 0)
           @click="onDamage(char)"
         >
           -1
+        </button>
+        <button
+          class="rounded bg-buff/20 px-1.5 py-0.5 text-buff font-mono disabled:opacity-30"
+          :disabled="!sessionReady || busyId === char._id"
+          :title="`挂测试 buff(当前 ${buffCount(char)} 个)`"
+          @click="onAttachTestBuff(char)"
+        >
+          +B
+        </button>
+        <button
+          v-if="buffCount(char) > 0"
+          class="rounded bg-surface/80 px-1.5 py-0.5 font-mono opacity-70 disabled:opacity-30"
+          :disabled="!sessionReady || busyId === char._id"
+          :title="`清空 ${buffCount(char)} 个 buff`"
+          @click="onClearBuffs(char)"
+        >
+          ×{{ buffCount(char) }}
         </button>
       </li>
     </ul>
