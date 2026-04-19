@@ -14,12 +14,13 @@ export interface CcfoliaParam {
 
 export interface CcfoliaCharacter {
   _id: string
+  roomId: string // 写回 Firestore 时拼文档路径需要
   name: string
   memo?: string
   iconUrl?: string
   status: CcfoliaStatus[]
   params: CcfoliaParam[]
   // ccfolia 内部还挂了更多字段(color/secret/active/owner 等),
-  // 目前 sword 只需要 id/name/status/params,其他按需再加。
+  // 目前 sword 只需要 id/roomId/name/status/params,其他按需再加。
   [extra: string]: unknown
 }
