@@ -6,7 +6,7 @@ export type BuffCategory = 'buff' | 'debuff' | 'neutral'
 
 export type BuffLifecycle
   = | { kind: 'permanent' }
-    | { kind: 'turns', remainingTurns: number }
+    | { kind: 'turns', remaining: number }
     | { kind: 'once', consumed: boolean }
     | { kind: 'manual' }
 
