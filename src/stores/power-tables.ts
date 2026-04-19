@@ -34,13 +34,15 @@ export const usePowerTablesStore = defineStore('powerTables', {
       return lookupPowerDamage(t, power, dice2d6Total)
     },
     importJson(json: string): number {
+      // 先全部校验再整体应用 — 校验失败时 store 不留半成品
       const parsed = JSON.parse(json) as PowerTable | PowerTable[]
       const list = Array.isArray(parsed) ? parsed : [parsed]
       for (const t of list) {
         if (!isValidPowerTable(t))
           throw new Error(`invalid power table payload: ${t && (t as { id?: unknown }).id}`)
-        this.tables[t.id] = t
       }
+      for (const t of list)
+        this.tables[t.id] = t
       return list.length
     },
     exportJson(): string {

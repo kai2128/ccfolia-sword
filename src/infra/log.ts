@@ -17,17 +17,27 @@ export interface LogEntry {
   data?: unknown
 }
 
-const RING_SIZE = 500
+const DEFAULT_RING_SIZE = 500
+const RING_MIN = 50
+const RING_MAX = 5000
+let ringSize = DEFAULT_RING_SIZE
 const ring: LogEntry[] = []
 const levelOrder: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 }
 
 // 镜像到 console 的最低级别(低于这个就只进 ring,不打 console)
 let mirrorLevel: LogLevel = 'info'
 
+// settings store 调它改容量,超出范围夹紧。缩容时立即裁剪已有条目。
+export function setRingSize(n: number) {
+  ringSize = Math.max(RING_MIN, Math.min(RING_MAX, Math.floor(n)))
+  while (ring.length > ringSize)
+    ring.shift()
+}
+
 function write(level: LogLevel, tag: string, msg: string, data?: unknown) {
   const entry: LogEntry = { t: Date.now(), level, tag, msg, data }
   ring.push(entry)
-  if (ring.length > RING_SIZE)
+  if (ring.length > ringSize)
     ring.shift()
 
   if (levelOrder[level] < levelOrder[mirrorLevel])

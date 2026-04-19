@@ -5,6 +5,7 @@ import App from './App.vue'
 import { initWebpackHook } from './ccfolia/webpack-hook'
 import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
+import { useSettingsStore } from './stores/settings'
 // UnoCSS 入口:触发 CSS 生成;vite-plugin-monkey 的 cssSideEffects
 // 钩子把生成的 CSS 堆到 window.__CCS_CSS__,在 Shadow DOM 内注入。
 import 'virtual:uno.css'
@@ -24,6 +25,10 @@ function mount() {
 
   const app = createApp(App)
   app.use(pinia)
+
+  // pinia 挂完,把持久化的 logMaxLines 推到日志环
+  useSettingsStore().applyLogMaxLines()
+
   app.mount(mountPoint)
 }
 

@@ -37,13 +37,15 @@ export const useCharactersStore = defineStore('characters', {
     },
     importJson(json: string): number {
       // 接受两种:单对象 或 数组。返回导入条数。
+      // 先全部校验,再整体应用 — 校验失败时 store 不留半成品
       const parsed = JSON.parse(json) as StoredCharacter | StoredCharacter[]
       const list = Array.isArray(parsed) ? parsed : [parsed]
       for (const c of list) {
         if (!isValidStoredCharacter(c))
           throw new Error(`invalid character payload: ${c && (c as { id?: unknown }).id}`)
-        this.templates[c.id] = c
       }
+      for (const c of list)
+        this.templates[c.id] = c
       return list.length
     },
     exportJson(): string {

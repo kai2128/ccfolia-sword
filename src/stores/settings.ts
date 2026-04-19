@@ -1,6 +1,7 @@
 // 用户偏好 store。MVP 占位,字段按需扩充。
 
 import { defineStore } from 'pinia'
+import { setRingSize } from '@/infra/log'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
 interface SettingsState {
@@ -23,7 +24,13 @@ export const useSettingsStore = defineStore('settings', {
       this.theme = theme
     },
     setLogMaxLines(n: number) {
-      this.logMaxLines = Math.max(50, Math.min(5000, n))
+      // log.setRingSize 自己会夹紧范围,这里只存原值
+      this.logMaxLines = n
+      setRingSize(n)
+    },
+    // 启动时由使用方调一次,把持久化的值推到日志环;避免 log.ts 反向依赖 store
+    applyLogMaxLines() {
+      setRingSize(this.logMaxLines)
     },
   },
   persist: {
