@@ -21,17 +21,33 @@ function primaryHpIndex(char: CcfoliaCharacter) {
 
 const busyId = ref<string | null>(null)
 const lastError = ref<string | null>(null)
+let errorTimer: number | null = null
+
+// 5 秒后自动清错误条,不用用户手动关。再出错会刷新计时。
+function setError(msg: string | null) {
+  lastError.value = msg
+  if (errorTimer !== null) {
+    window.clearTimeout(errorTimer)
+    errorTimer = null
+  }
+  if (msg) {
+    errorTimer = window.setTimeout(() => {
+      lastError.value = null
+      errorTimer = null
+    }, 5000)
+  }
+}
 
 async function onDamage(char: CcfoliaCharacter) {
   if (!sessionReady.value || busyId.value)
     return
   busyId.value = char._id
-  lastError.value = null
+  setError(null)
   try {
     await adjustStatusValue(char, primaryHpIndex(char), -1)
   }
   catch (e) {
-    lastError.value = e instanceof Error ? e.message : String(e)
+    setError(e instanceof Error ? e.message : String(e))
   }
   finally {
     busyId.value = null
