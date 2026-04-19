@@ -13,7 +13,11 @@
 // 用 `_getProvider(app, "firestore").getImmediate({identifier:"(default)"})`
 // 拿 ccfolia 自己初始化的 db 实例(getFirestore 被 tree-shake 掉了,不能用)。
 
+import { createLogger } from '@/infra/log'
+
 declare const unsafeWindow: Window & typeof globalThis
+
+const log = createLogger('webpack')
 
 type AnyFn = (...args: unknown[]) => unknown
 type WebpackFactory = (mod: { exports: unknown }, exports: unknown, req: WebpackRequire) => void
@@ -58,6 +62,7 @@ export function initWebpackHook() {
   // ccfolia bundle 可能已经加载(热刷/开发时),先看全局有没有
   const existing = (w as unknown as Record<string, ChunkData[] | undefined>)[CHUNK_KEY]
   if (Array.isArray(existing)) {
+    log.info('chunk array already present, injecting late', { existingLen: existing.length })
     injectFakeChunk(existing)
     return
   }
@@ -67,6 +72,7 @@ export function initWebpackHook() {
     Object.defineProperty(w, CHUNK_KEY, {
       configurable: true,
       set(chunkArr: ChunkData[]) {
+        log.info('chunk setter fired', { chunkLen: chunkArr.length })
         Object.defineProperty(w, CHUNK_KEY, {
           value: chunkArr,
           writable: true,
@@ -78,9 +84,10 @@ export function initWebpackHook() {
         return undefined
       },
     })
+    log.debug('setter installed on webpackChunkccfolia')
   }
-  catch {
-    // 多半是 ccfolia 比我们早到
+  catch (e) {
+    log.error('failed to install chunk setter (ccfolia loaded first?)', e)
   }
 }
 
@@ -94,6 +101,7 @@ function injectFakeChunk(chunkArr: ChunkData[]) {
     {},
     (req) => {
       wreq = req
+      log.info('__webpack_require__ captured', { modules: Object.keys(req.m ?? {}).length })
       // 第一次扫通常是空的:webpack 刚安装模块工厂,还没执行到 initializer。
       // 用退避重试,直到找到或次数耗尽。
       scheduleScan()
@@ -104,14 +112,21 @@ function injectFakeChunk(chunkArr: ChunkData[]) {
 const SCAN_DELAYS = [0, 50, 150, 400, 1000, 2000, 5000, 10000, 20000]
 
 function scheduleScan(idx = 0) {
-  if (api || idx >= SCAN_DELAYS.length)
+  if (api)
     return
+  if (idx >= SCAN_DELAYS.length) {
+    log.error('scan gave up — firebase SDK not located', { attempts: SCAN_DELAYS.length })
+    return
+  }
   window.setTimeout(() => {
     let done = false
     try {
-      done = scanModules()
+      done = scanModules(idx)
     }
-    catch { /* ignore — 不让异常炸 ccfolia 的 JSONP 栈 */ }
+    catch (e) {
+      // 不让异常炸 ccfolia 的 JSONP 栈
+      log.error('scanModules threw', e)
+    }
     if (!done)
       scheduleScan(idx + 1)
   }, SCAN_DELAYS[idx])
@@ -120,7 +135,7 @@ function scheduleScan(idx = 0) {
 // 扫 wreq.m 里的 factory 源码找 firestore / app 两个模块。
 // 这个 webpack 构建不挂 wreq.c(模块 cache 在 runtime 闭包里),
 // 但 wreq(id) 对已执行模块走私有 cache,不重跑 factory,成本很低。
-function scanModules(): boolean {
+function scanModules(attempt: number): boolean {
   if (!wreq)
     return false
   const factories = wreq.m ?? {}
@@ -163,8 +178,16 @@ function scanModules(): boolean {
     catch { /* ignore */ }
   }
 
-  if (!foundFs || !foundAppMod)
+  if (!foundFs || !foundAppMod) {
+    log.debug('scan miss', {
+      attempt,
+      fsCandidates: fsCandidates.length,
+      appCandidates: appCandidates.length,
+      foundFs: !!foundFs,
+      foundAppMod: !!foundAppMod,
+    })
     return false
+  }
 
   // ccfolia 用 initializeFirestore 初始化了默认实例。绕开 getFirestore
   // (tree-shake 掉了),直接从 component provider 拿已存在的 db。
@@ -176,13 +199,17 @@ function scanModules(): boolean {
     }
     db = provider.getImmediate({ identifier: '(default)' })
   }
-  catch {
+  catch (e) {
+    log.warn('getImmediate(firestore) failed — retrying', e)
     return false
   }
-  if (!db || typeof db !== 'object')
+  if (!db || typeof db !== 'object') {
+    log.warn('getImmediate returned non-object', { db })
     return false
+  }
 
   api = { db, firestore: foundFs, app: foundAppMod }
+  log.info('firebase SDK api ready', { attempt })
   apiListeners.forEach(l => l(api!))
   apiListeners.clear()
   return true

@@ -8,9 +8,13 @@
 // mangle 成局部变量,外面够不着。fiber 爬虫是已验证可行的方案(fiber-reader
 // 已经这么拿 character)。
 
+import { createLogger } from '@/infra/log'
+
 type FiberNode = any
 
 declare const unsafeWindow: Window & typeof globalThis
+
+const log = createLogger('redux')
 
 export interface CcfoliaStore {
   dispatch: (action: unknown) => unknown
@@ -91,6 +95,7 @@ export function getReduxStore(): CcfoliaStore | null {
       cachedStore = store
       debug.found++
       debug.store = store
+      log.info('redux store located', { via: el.tagName.toLowerCase() })
       return store
     }
   }
@@ -116,7 +121,9 @@ export function optimisticUpdateCharacter(char: { _id: string } & Record<string,
     return true
   }
   catch (e) {
-    debug.lastError = e instanceof Error ? e.message : String(e)
+    const msg = e instanceof Error ? e.message : String(e)
+    debug.lastError = msg
+    log.error('dispatch failed', { action: action.type, error: msg })
     return false
   }
 }

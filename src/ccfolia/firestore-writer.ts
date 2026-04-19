@@ -8,8 +8,11 @@
 // api 没 ready 就抛 — UI 已经 gate 过 `useFirestoreReady`,正常不会走到这。
 
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
+import { createLogger } from '@/infra/log'
 import { optimisticUpdateCharacter } from './redux-store'
 import { getFirestoreApi } from './webpack-hook'
+
+const log = createLogger('writer')
 
 // 从 /rooms/<id>/... 这样的路径取 roomId。character 对象里的 roomId 字段
 // 对某些匿名用户 / 旧角色会是 null,不可靠。
@@ -26,15 +29,24 @@ export interface PatchStatusArgs {
 
 export async function patchStatus({ roomId, charId, newStatus }: PatchStatusArgs): Promise<void> {
   const api = getFirestoreApi()
-  if (!api)
+  if (!api) {
+    log.error('patchStatus called before SDK ready')
     throw new Error('Firebase SDK 还没挂钩完成')
+  }
   const { db, firestore: { doc, setDoc, serverTimestamp } } = api
   const ref = doc(db as never, 'rooms', roomId, 'characters', charId)
-  await setDoc(
-    ref as never,
-    { status: newStatus, updatedAt: serverTimestamp() },
-    { merge: true },
-  )
+  try {
+    await setDoc(
+      ref as never,
+      { status: newStatus, updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+    log.debug('setDoc ok', { roomId, charId })
+  }
+  catch (e) {
+    log.error('setDoc failed', { roomId, charId, error: e })
+    throw e
+  }
 }
 
 export async function adjustStatusValue(
