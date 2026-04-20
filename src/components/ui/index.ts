@@ -10,3 +10,14 @@ export { PortalTargetKey, usePortalTarget } from './portal'
 export { default as Switch } from './Switch.vue'
 export { default as Tabs } from './Tabs.vue'
 export { TabsContent, TabsIndicator, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
+export { default as Select } from './Select.vue'
+export {
+  SelectContent,
+  SelectItem,
+  SelectItemText,
+  SelectPortal,
+  SelectRoot,
+  SelectTrigger,
+  SelectValue,
+  SelectViewport,
+} from 'reka-ui'
