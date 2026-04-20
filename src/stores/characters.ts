@@ -4,10 +4,24 @@
 import type { RuntimeCharacter, StoredCharacter } from '@/types/character'
 import { defineStore } from 'pinia'
 import { denormalizeCharacter, normalizeCharacter } from '@/core/character/normalize'
+import { validateStoredCharacter } from '@/core/character/validate'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
 interface CharactersState {
   templates: Record<string, StoredCharacter>
+}
+
+export interface ImportResult {
+  imported: number // 新增条数
+  skipped: number // id 冲突跳过条数
+  total: number // 输入总条数
+}
+
+export class ImportValidationError extends Error {
+  constructor(public field: string, message: string) {
+    super(message)
+    this.name = 'ImportValidationError'
+  }
 }
 
 export const useCharactersStore = defineStore('characters', {
@@ -35,18 +49,27 @@ export const useCharactersStore = defineStore('characters', {
     clear() {
       this.templates = {}
     },
-    importJson(json: string): number {
-      // 接受两种:单对象 或 数组。返回导入条数。
-      // 先全部校验,再整体应用 — 校验失败时 store 不留半成品
+    // 导入策略:id 冲突默认 skip(不覆盖已有)。校验失败抛 ImportValidationError,
+    // UI 把 field/message 显示给用户,store 不留半成品。
+    importJson(json: string): ImportResult {
       const parsed = JSON.parse(json) as StoredCharacter | StoredCharacter[]
       const list = Array.isArray(parsed) ? parsed : [parsed]
-      for (const c of list) {
-        if (!isValidStoredCharacter(c))
-          throw new Error(`invalid character payload: ${c && (c as { id?: unknown }).id}`)
+      for (let i = 0; i < list.length; i++) {
+        const r = validateStoredCharacter(list[i])
+        if (!r.ok)
+          throw new ImportValidationError(`[${i}].${r.field}`, r.message)
       }
-      for (const c of list)
+      let imported = 0
+      let skipped = 0
+      for (const c of list) {
+        if (this.templates[c.id]) {
+          skipped++
+          continue
+        }
         this.templates[c.id] = c
-      return list.length
+        imported++
+      }
+      return { imported, skipped, total: list.length }
     },
     exportJson(): string {
       return JSON.stringify(Object.values(this.templates), null, 2)
@@ -57,14 +80,3 @@ export const useCharactersStore = defineStore('characters', {
     key: 'ccs:store:characters',
   },
 })
-
-// 最小校验 —— 不做字段全覆盖,只拦明显格式错误的 JSON
-function isValidStoredCharacter(c: unknown): c is StoredCharacter {
-  if (!c || typeof c !== 'object')
-    return false
-  const o = c as Record<string, unknown>
-  return typeof o.id === 'string'
-    && typeof o.name === 'string'
-    && (o.faction === 'friendly' || o.faction === 'enemy' || o.faction === 'neutral')
-    && (o.control === 'pc' || o.control === 'gm')
-}
