@@ -69,5 +69,13 @@ export function createShadowMount(): MountResult {
   portalTarget.style.pointerEvents = 'auto'
   shadow.append(portalTarget)
 
+  // React 重渲染可能卸载 host —— 监听 body 子节点变化,发现 host 不在就 re-append。
+  // Shadow DOM 上挂的 Vue app 不会被销毁(re-append 保留子树),所以状态不丢。
+  const observer = new MutationObserver(() => {
+    if (!document.body.contains(host))
+      document.body.append(host)
+  })
+  observer.observe(document.body, { childList: true })
+
   return { host, shadow, mountPoint, portalTarget }
 }
