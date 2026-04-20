@@ -1,7 +1,10 @@
 // Shadow DOM 挂载 + CSS 注入
 // 详见 docs/design/02-ui-framework.md / 04-styling.md
 
-// :host 边界 reset,防止 ccfolia 全局样式穿透
+// :host 边界 reset,防止 ccfolia 全局样式穿透。
+// button/input 的重置:Shadow DOM 里 UA 默认样式还在(:host all:initial 只作用于宿主元素),
+// 而 UnoCSS preflight 在 Shadow 内覆盖不全,这里显式扳回 Tailwind 风格基线,
+// 避免 reka 裸 button / input 带 UA 灰白底 + 边框。
 const HOST_RESET = `
 :host {
   all: initial;
@@ -11,12 +14,27 @@ const HOST_RESET = `
   color: #e0e0e0;
 }
 *, *::before, *::after { box-sizing: border-box; }
+button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button:disabled { cursor: not-allowed; }
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
 `
 
 export interface MountResult {
   host: HTMLElement
   shadow: ShadowRoot
   mountPoint: HTMLElement
+  /** Reka UI Portal 组件的挂载点,留在 Shadow 内防止样式/事件逃出 */
+  portalTarget: HTMLElement
 }
 
 export function createShadowMount(): MountResult {
@@ -44,5 +62,12 @@ export function createShadowMount(): MountResult {
   mountPoint.style.pointerEvents = 'auto'
   shadow.append(mountPoint)
 
-  return { host, shadow, mountPoint }
+  // Portal 挂载点:所有 Reka Portal 组件的 :to 目标。放在 mountPoint 之后,
+  // 保证 overlay 天然盖在普通 UI 之上
+  const portalTarget = document.createElement('div')
+  portalTarget.id = 'ccs-portal'
+  portalTarget.style.pointerEvents = 'auto'
+  shadow.append(portalTarget)
+
+  return { host, shadow, mountPoint, portalTarget }
 }

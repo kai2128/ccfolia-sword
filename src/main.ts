@@ -3,6 +3,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { createApp } from 'vue'
 import App from './App.vue'
 import { initWebpackHook } from './ccfolia/webpack-hook'
+import { PortalTargetKey } from './components/ui/portal'
 import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
 import { useSettingsStore } from './stores/settings'
@@ -18,13 +19,15 @@ installLogPanel()
 initWebpackHook()
 
 function mount() {
-  const { mountPoint } = createShadowMount()
+  const { mountPoint, portalTarget } = createShadowMount()
 
   const pinia = createPinia()
   pinia.use(piniaPluginPersistedstate)
 
   const app = createApp(App)
   app.use(pinia)
+  // 所有 Reka Portal 通过 inject 取这个目标,避免 overlay 逃出 Shadow DOM
+  app.provide(PortalTargetKey, portalTarget)
 
   // pinia 挂完,把持久化的 logMaxLines 推到日志环
   useSettingsStore().applyLogMaxLines()

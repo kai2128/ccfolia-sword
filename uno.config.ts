@@ -17,7 +17,7 @@ export default defineConfig({
       mp: '#3498db',
       buff: '#f1c40f',
       debuff: '#9b59b6',
-      accent: '#2ecc71',
+      accent: '#4b6ef7e6',
       surface: '#2a2a2a',
       bg: '#1e1e1e',
     },

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { adjustStatusValue, attachBuff, detachBuff, listBuffs } from '@/ccfolia/firestore-writer'
 import { useCcfoliaCharacters } from '@/composables/useCcfoliaCharacters'
 import { useFirestoreReady } from '@/composables/useFirestoreReady'
+import UiDemo from './components/UiDemo.vue'
 
 const { characters, usingFallback } = useCcfoliaCharacters(1000)
 const { ready: sessionReady } = useFirestoreReady()
@@ -80,13 +81,24 @@ function buffCount(char: CcfoliaCharacter) {
 }
 
 const empty = computed(() => characters.value.length === 0)
+
+const showUiDemo = ref(false)
 </script>
 
 <template>
+  <UiDemo v-if="showUiDemo" class="fixed bottom-4 left-4" />
+
   <div class="fixed bottom-4 right-4 max-h-80 w-72 flex flex-col gap-2 overflow-auto card">
     <div class="flex items-center gap-2">
       <div class="i-lucide-sword text-5 text-hp" />
       <span class="text-sm font-medium">ccfolia-sword</span>
+      <button
+        class="rounded px-1.5 py-0.5 text-xs opacity-60 hover:bg-white/10 hover:opacity-100"
+        :title="showUiDemo ? '关闭 UI Demo' : '打开 UI Demo'"
+        @click="showUiDemo = !showUiDemo"
+      >
+        <div class="i-lucide-flask-conical text-4" />
+      </button>
       <span class="ml-auto text-xs opacity-60">
         M1 · {{ characters.length }}
         <span v-if="usingFallback" class="text-buff">(fallback)</span>
