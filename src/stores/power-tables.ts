@@ -2,6 +2,7 @@
 
 import type { PowerTable } from '@/types/power-table'
 import { defineStore } from 'pinia'
+import { builtinPowerTables } from '@/core/__fixtures__/power-tables'
 import { lookupPowerDamage } from '@/core/power-table/lookup'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
@@ -9,13 +10,15 @@ interface PowerTablesState {
   tables: Record<string, PowerTable>
 }
 
+const builtinTableMap = Object.fromEntries(builtinPowerTables.map(table => [table.id, table])) as Record<string, PowerTable>
+
 export const usePowerTablesStore = defineStore('powerTables', {
   state: (): PowerTablesState => ({
     tables: {},
   }),
   getters: {
-    all: state => Object.values(state.tables),
-    byId: state => (id: string): PowerTable | undefined => state.tables[id],
+    all: state => [...builtinPowerTables, ...Object.values(state.tables)],
+    byId: state => (id: string): PowerTable | undefined => state.tables[id] ?? builtinTableMap[id],
   },
   actions: {
     upsert(table: PowerTable) {
@@ -28,7 +31,7 @@ export const usePowerTablesStore = defineStore('powerTables', {
       this.tables = {}
     },
     lookup(tableId: string, power: number, dice2d6Total: number): number {
-      const t = this.tables[tableId]
+      const t = this.tables[tableId] ?? builtinTableMap[tableId]
       if (!t)
         throw new Error(`power table not found: ${tableId}`)
       return lookupPowerDamage(t, power, dice2d6Total)

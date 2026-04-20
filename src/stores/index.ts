@@ -1,5 +1,6 @@
 export { useCharactersStore } from './characters'
 export { usePowerTablesStore } from './power-tables'
+export { useResolverStore } from './resolver'
 export { useSettingsStore } from './settings'
 export { useStatusLibraryStore } from './status-library'
 export { useUiStore } from './ui'

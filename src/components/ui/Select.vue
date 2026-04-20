@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// shadcn 风格 Select。Portal 目标走 usePortalTarget() —— 必须挂在 Shadow DOM
-// 内,否则下拉菜单会被 ccfolia 的 light DOM 样式打穿。
 import {
   SelectContent,
   SelectIcon,
@@ -13,9 +11,12 @@ import {
   SelectValue,
   SelectViewport,
 } from 'reka-ui'
+// shadcn 风格 Select。Portal 目标走 usePortalTarget() —— 必须挂在 Shadow DOM
+// 内,否则下拉菜单会被 ccfolia 的 light DOM 样式打穿。
+import { computed } from 'vue'
 import { usePortalTarget } from './portal'
 
-defineProps<{
+const props = defineProps<{
   placeholder?: string
   disabled?: boolean
   options?: Array<{ value: string, label: string }>
@@ -23,14 +24,31 @@ defineProps<{
 
 const model = defineModel<string>()
 const target = usePortalTarget()
+const EMPTY_VALUE_SENTINEL = '__ccs_select_empty__'
+
+const localModel = computed({
+  get() {
+    return model.value === '' ? EMPTY_VALUE_SENTINEL : model.value
+  },
+  set(value: string | undefined) {
+    model.value = value === EMPTY_VALUE_SENTINEL ? '' : value
+  },
+})
+
+const normalizedOptions = computed(() => {
+  return (props.options ?? []).map(option => ({
+    ...option,
+    value: option.value === '' ? EMPTY_VALUE_SENTINEL : option.value,
+  }))
+})
 </script>
 
 <template>
-  <SelectRoot v-model="model" :disabled="disabled">
+  <SelectRoot v-model="localModel" :disabled="disabled">
     <SelectTrigger
-      class="h-8 w-full inline-flex items-center justify-between border border-white/20 rounded bg-black/30 px-2 text-sm text-white data-[placeholder]:text-white/40 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
+      class="h-8 w-full inline-flex items-center justify-between border border-white/20 rounded bg-black/30 px-2 text-sm text-white disabled:cursor-not-allowed data-[placeholder]:text-white/40 disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
     >
-      <SelectValue :placeholder="placeholder ?? '请选择…'" />
+      <SelectValue :placeholder="props.placeholder ?? '请选择…'" />
       <SelectIcon><div class="i-lucide-chevron-down text-3" /></SelectIcon>
     </SelectTrigger>
     <SelectPortal :to="target ?? undefined">
@@ -42,7 +60,7 @@ const target = usePortalTarget()
         <SelectViewport class="p-1">
           <slot>
             <SelectItem
-              v-for="opt in options"
+              v-for="opt in normalizedOptions"
               :key="opt.value"
               :value="opt.value"
               class="h-7 flex items-center justify-between rounded px-2 text-sm data-[highlighted]:bg-white/10 data-[highlighted]:outline-none"
