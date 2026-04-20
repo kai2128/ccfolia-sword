@@ -7,8 +7,8 @@
 //   3. 失败时 SDK 自己重试 / 回滚,我们不用管
 // api 没 ready 就抛 — UI 已经 gate 过 `useFirestoreReady`,正常不会走到这。
 
-import type { CcfoliaCharacter, CcfoliaParam, CcfoliaStatus } from '@/types/ccfolia'
 import type { BuffPayload } from '@/types/buff'
+import type { CcfoliaCharacter, CcfoliaParam, CcfoliaStatus } from '@/types/ccfolia'
 import { createLogger } from '@/infra/log'
 import { buffLabel, isBuffLabel } from '@/types/buff'
 import { optimisticUpdateCharacter } from './redux-store'
