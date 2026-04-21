@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getCharacterFromElement } from '@/ccfolia/fiber-reader'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import HpIndicator from '@/components/overlay/HpIndicator.vue'
@@ -12,21 +13,42 @@ const settings = useSettingsStore()
 
 interface OverlayEntry {
   key: string
-  x: number
-  y: number
+  // piece.x 实测是 .movable 的 canvas-local 左边(不是中心),所以 centerX 要 + offsetWidth/2。
+  // piece.y 实测已经是立绘可见顶边的 canvas-local y,直接当 pill 锚点。
+  centerX: number
+  topY: number
   hp: { value: number, max: number } | null
 }
 
-// 可见性规则:invisible / hideStatus 命中任一就不渲染 pill,与 ccfolia 原生遮蔽对齐。
-const entries = computed<OverlayEntry[]>(() =>
-  pieces.list
+// ccfolia 不同房间 cellSize 不同(实测 24 / 48 都见过),settings.grid.cellSizePx 默认 50
+// 大概率对不上。直接从 .movable.offsetWidth 读真实 px,绕开配置校准。
+function collectMovableSizes(): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const el of document.querySelectorAll<HTMLElement>('.movable')) {
+    const char = getCharacterFromElement(el)
+    if (char?._id && el.offsetWidth > 0)
+      out.set(char._id, el.offsetWidth)
+  }
+  return out
+}
+
+const entries = computed<OverlayEntry[]>(() => {
+  const sizeMap = collectMovableSizes()
+  return pieces.list
     .filter(p => !p.invisible && !p.hideStatus)
     .map((p) => {
       const char = chars.byId(p.characterId)
       const hp = char ? readStatusSlot(char.status, 'hp', settings.statusLabelMap) : null
-      return { key: p.characterId, x: p.x, y: p.y, hp }
-    }),
-)
+      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × settings.cellSize
+      const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
+      return {
+        key: p.characterId,
+        centerX: p.x + widthPx / 2,
+        topY: p.y,
+        hp,
+      }
+    })
+})
 </script>
 
 <template>
@@ -35,7 +57,7 @@ const entries = computed<OverlayEntry[]>(() =>
       v-for="entry in entries"
       :key="entry.key"
       class="anchor"
-      :style="{ transform: `translate3d(${entry.x}px, ${entry.y}px, 0)` }"
+      :style="{ transform: `translate3d(${entry.centerX}px, ${entry.topY}px, 0)` }"
     >
       <div class="hp-slot">
         <HpIndicator v-if="entry.hp" :current="entry.hp.value" :max="entry.hp.max" />
