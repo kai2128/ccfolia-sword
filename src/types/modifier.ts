@@ -15,7 +15,8 @@ export type ModifierTarget
     | 'vitality' // 生命
     | 'intelligence' // 知力
     | 'will' // 精神
-    | 'armor'
+    | 'armor' // 旧版兼容,不新写入
+    | 'defense' // 防御,对齐 StatusSlot
     | 'max-hp'
     | 'max-mp'
     | 'custom'
