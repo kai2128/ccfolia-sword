@@ -4,15 +4,20 @@
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 
+declare const unsafeWindow: Window & typeof globalThis
+
 const pieces = usePiecesStore()
 const roomCharacters = useRoomCharactersStore()
 
-const dbg = window as unknown as { __CCS_STORES__?: Record<string, unknown> }
-dbg.__CCS_STORES__ = {
-  ...(dbg.__CCS_STORES__ ?? {}),
-  overlayPieces: pieces,
-  overlayRoomCharacters: roomCharacters,
+try {
+  const dbg = unsafeWindow as unknown as { __CCS_STORES__?: Record<string, unknown> }
+  dbg.__CCS_STORES__ = {
+    ...(dbg.__CCS_STORES__ ?? {}),
+    overlayPieces: pieces,
+    overlayRoomCharacters: roomCharacters,
+  }
 }
+catch { /* ignore */ }
 </script>
 
 <template>

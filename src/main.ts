@@ -16,6 +16,8 @@ import { useSettingsStore } from './stores/settings'
 // 钩子把生成的 CSS 堆到 window.__CCS_CSS__,在 Shadow DOM 内注入。
 import 'virtual:uno.css'
 
+declare const unsafeWindow: Window & typeof globalThis
+
 // 日志面板必须最先挂 — webpack-hook 进来就要用
 installLogPanel()
 
@@ -49,16 +51,20 @@ function mount() {
   startSceneMount(SceneOverlayRoot, pinia, portalTarget)
 
   // devtools 验收桥;生产里只是几个对象引用,无运行时开销。
+  // 必须走 unsafeWindow —— userscript 的 window 是沙箱,页面 console 里看不到。
   // 必须 merge 而不是整体赋值 —— startSceneMount() 里 tryMount 是同步的,
   // overlay 的 SceneOverlayRoot 会先一步把 overlayPieces / overlayRoomCharacters
   // 写进 __CCS_STORES__,这里若直接 = { ... } 会把 overlay 写好的字段抹掉。
-  const dbg = window as unknown as { __CCS_STORES__?: Record<string, unknown> }
-  dbg.__CCS_STORES__ = {
-    ...(dbg.__CCS_STORES__ ?? {}),
-    roomCharacters: useRoomCharactersStore(),
-    pieces: usePiecesStore(),
-    settings,
+  try {
+    const dbg = unsafeWindow as unknown as { __CCS_STORES__?: Record<string, unknown> }
+    dbg.__CCS_STORES__ = {
+      ...(dbg.__CCS_STORES__ ?? {}),
+      roomCharacters: useRoomCharactersStore(),
+      pieces: usePiecesStore(),
+      settings,
+    }
   }
+  catch { /* ignore */ }
 }
 
 if (document.readyState === 'complete')
