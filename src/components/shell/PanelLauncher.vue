@@ -20,7 +20,7 @@ const settings = useSettingsStore()
 <style scoped>
 .ccs-launcher {
   position: fixed;
-  right: 16px;
+  left: 16px;
   bottom: 16px;
   width: 40px;
   height: 40px;

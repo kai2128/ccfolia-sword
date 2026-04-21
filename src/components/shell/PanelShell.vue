@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
     v-show="settings.panelVisible"
     ref="containerRef"
     class="fixed left-0 top-0 w-80 flex flex-col border border-white/10 rounded-md bg-surface text-white shadow-xl"
-    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
+    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[80vh]'"
     :style="{ transform }"
   >
     <!-- 标题栏(拖动把手 + 折叠按钮) -->
