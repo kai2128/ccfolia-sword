@@ -56,18 +56,52 @@ const target = usePortalTarget()
 
 <style>
 /* 不加 scoped:Shadow DOM 自身已是样式边界,scoped attr 反而被 reka 的 data-state 工具类噪声干扰 */
-@keyframes ccs-fade-in { from { opacity: 0 } to { opacity: 1 } }
-@keyframes ccs-fade-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes ccs-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ccs-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 @keyframes ccs-pop-in {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96) }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1) }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 @keyframes ccs-pop-out {
-  from { opacity: 1; transform: translate(-50%, -50%) scale(1) }
-  to   { opacity: 0; transform: translate(-50%, -50%) scale(0.96) }
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
 }
-.ccs-dialog-overlay[data-state="open"]  { animation: ccs-fade-in 120ms ease-out }
-.ccs-dialog-overlay[data-state="closed"] { animation: ccs-fade-out 100ms ease-in }
-.ccs-dialog-content[data-state="open"]  { animation: ccs-pop-in 140ms ease-out }
-.ccs-dialog-content[data-state="closed"] { animation: ccs-pop-out 100ms ease-in }
+.ccs-dialog-overlay[data-state='open'] {
+  animation: ccs-fade-in 120ms ease-out;
+}
+.ccs-dialog-overlay[data-state='closed'] {
+  animation: ccs-fade-out 100ms ease-in;
+}
+.ccs-dialog-content[data-state='open'] {
+  animation: ccs-pop-in 140ms ease-out;
+}
+.ccs-dialog-content[data-state='closed'] {
+  animation: ccs-pop-out 100ms ease-in;
+}
 </style>

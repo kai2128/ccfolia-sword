@@ -13,7 +13,7 @@ const settings = useSettingsStore()
     title="Open sword panel (Alt+S)"
     @click="settings.showPanel()"
   >
-    <div class="i-lucide-sword ccs-launcher-icon" />
+    <div class="ccs-launcher-icon i-lucide-sword" />
   </button>
 </template>
 

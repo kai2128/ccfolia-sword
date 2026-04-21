@@ -127,6 +127,5 @@ const resistOutcomeOptions: Array<{ value: ResistOutcome, label: string }> = [
         </template>
       </Field>
     </div>
-
   </div>
 </template>

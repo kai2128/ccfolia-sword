@@ -9,11 +9,11 @@ import { Button, Dialog, Field, Input, Select } from '@/components/ui'
 import { useCcfoliaCharacters } from '@/composables/useCcfoliaCharacters'
 import { useCharactersStore } from '@/stores/characters'
 
-const open = defineModel<boolean>('open', { required: true })
-
 const props = defineProps<{
   edit?: StoredCharacter
 }>()
+
+const open = defineModel<boolean>('open', { required: true })
 
 const store = useCharactersStore()
 const { characters: ccfoliaList } = useCcfoliaCharacters()
@@ -210,7 +210,9 @@ function onSave() {
       </div>
 
       <template v-else>
-        <div class="mt-1 text-xs text-white/60 font-medium">HP / MP</div>
+        <div class="mt-1 text-xs text-white/60 font-medium">
+          HP / MP
+        </div>
         <div class="grid grid-cols-4 gap-2">
           <Field label="HP 当前">
             <template #default="{ id }">
@@ -234,7 +236,9 @@ function onSave() {
           </Field>
         </div>
 
-        <div class="mt-1 text-xs text-white/60 font-medium">六围(bonus 自动 = floor(value/6))</div>
+        <div class="mt-1 text-xs text-white/60 font-medium">
+          六围(bonus 自动 = floor(value/6))
+        </div>
         <div class="grid grid-cols-3 gap-2">
           <Field label="器用">
             <template #default="{ id }">
@@ -268,7 +272,9 @@ function onSave() {
           </Field>
         </div>
 
-        <div class="mt-1 text-xs text-white/60 font-medium">战斗数值</div>
+        <div class="mt-1 text-xs text-white/60 font-medium">
+          战斗数值
+        </div>
         <div class="grid grid-cols-4 gap-2">
           <Field label="回避">
             <template #default="{ id }">
@@ -301,8 +307,12 @@ function onSave() {
     </div>
 
     <div class="mt-2 flex justify-end gap-2">
-      <Button variant="ghost" size="sm" @click="open = false">取消</Button>
-      <Button size="sm" @click="onSave">保存</Button>
+      <Button variant="ghost" size="sm" @click="open = false">
+        取消
+      </Button>
+      <Button size="sm" @click="onSave">
+        保存
+      </Button>
     </div>
   </Dialog>
 </template>

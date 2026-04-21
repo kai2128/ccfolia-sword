@@ -55,7 +55,7 @@ const empty = computed(() => store.all.length === 0)
       {{ status.msg }}
     </div>
 
-    <div v-if="empty" class="rounded border border-white/10 p-3 text-xs text-white/60">
+    <div v-if="empty" class="border border-white/10 rounded p-3 text-xs text-white/60">
       角色库为空。点上面的「样例」一键插入格伦 / 哥布林 / 火龙,或用「导入」加载 JSON,或「新建」。
     </div>
 

@@ -111,20 +111,26 @@ const empty = computed(() => characters.value.length === 0)
           :disabled="!sessionReady || busyId === char._id"
           :title="sessionReady ? 'HP -1' : '等 Firebase SDK'"
           @click="onDamage(char)"
-        >-1</button>
+        >
+          -1
+        </button>
         <button
           class="rounded bg-buff/20 px-1.5 py-0.5 text-buff font-mono disabled:opacity-30"
           :disabled="!sessionReady || busyId === char._id"
           :title="`挂测试 buff(当前 ${buffCount(char)} 个)`"
           @click="onAttachTestBuff(char)"
-        >+B</button>
+        >
+          +B
+        </button>
         <button
           v-if="buffCount(char) > 0"
           class="rounded bg-surface/80 px-1.5 py-0.5 font-mono opacity-70 disabled:opacity-30"
           :disabled="!sessionReady || busyId === char._id"
           :title="`清空 ${buffCount(char)} 个 buff`"
           @click="onClearBuffs(char)"
-        >×{{ buffCount(char) }}</button>
+        >
+          ×{{ buffCount(char) }}
+        </button>
       </li>
     </ul>
 

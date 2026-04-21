@@ -2,8 +2,8 @@
 // 角色库顶栏:新建 / 导入 JSON / 导出 JSON / 插入样例数据 / 清空。
 // 导入 / 导出走浏览器 File API;样例来自 core/__fixtures__/characters.ts。
 import { ref } from 'vue'
-import { makeDragon, makeGoblin, makePc } from '@/core/__fixtures__/characters'
 import { Button } from '@/components/ui'
+import { makeDragon, makeGoblin, makePc } from '@/core/__fixtures__/characters'
 import { ImportValidationError, useCharactersStore } from '@/stores/characters'
 
 const emit = defineEmits<{

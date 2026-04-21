@@ -17,9 +17,9 @@
 
 import type { AbilityScores, CharacterPart, CombatStats, HpMp, StoredCharacter } from '@/types/character'
 
-export type ValidateResult =
-  | { ok: true }
-  | { ok: false, field: string, message: string }
+export type ValidateResult
+  = | { ok: true }
+    | { ok: false, field: string, message: string }
 
 function err(field: string, message: string): ValidateResult {
   return { ok: false, field, message }
