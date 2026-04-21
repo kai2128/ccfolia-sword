@@ -31,6 +31,9 @@ export default defineConfig({
           'GM_getValue',
           'GM_deleteValue',
           'GM_listValues',
+          // 跨 tab 同步持久化 store(overlay 可见性等),靠 Tampermonkey 的值变更通知。
+          'GM_addValueChangeListener',
+          'GM_removeValueChangeListener',
           // 用来在页面真实 window 上 hook fetch/XMLHttpRequest,
           // 否则 sandbox 的假 window 根本影响不到 ccfolia 的 Firebase SDK。
           'unsafeWindow',
