@@ -29,20 +29,20 @@ input, textarea, select {
 }
 `
 
-export interface MountResult {
-  host: HTMLElement
+export interface ShadowRootSetup {
   shadow: ShadowRoot
   mountPoint: HTMLElement
-  /** Reka UI Portal 组件的挂载点,留在 Shadow 内防止样式/事件逃出 */
   portalTarget: HTMLElement
 }
 
-export function createShadowMount(): MountResult {
-  const host = document.createElement('div')
-  host.id = 'ccs-host'
-  host.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;'
-  document.body.append(host)
+export interface SetupShadowRootOptions {
+  // 是否在 Shadow 内创建 Portal 目标。Scene overlay 可能复用主 app 的 portal,传 false 省一个节点。
+  withPortalTarget?: boolean
+}
 
+// 把一个裸 host 元素装配成带 HOST_RESET + UnoCSS 注入的 Shadow 根,返回可 createApp().mount() 的 mountPoint。
+// 不做 host 定位或 body-observe —— 调用方决定 host 住哪,决定 host 被移除后怎么兜底。
+export function setupShadowRoot(host: HTMLElement, opts: SetupShadowRootOptions = {}): ShadowRootSetup {
   const shadow = host.attachShadow({ mode: 'open' })
 
   const resetStyle = document.createElement('style')
@@ -63,11 +63,36 @@ export function createShadowMount(): MountResult {
   shadow.append(mountPoint)
 
   // Portal 挂载点:所有 Reka Portal 组件的 :to 目标。放在 mountPoint 之后,
-  // 保证 overlay 天然盖在普通 UI 之上
-  const portalTarget = document.createElement('div')
-  portalTarget.id = 'ccs-portal'
-  portalTarget.style.pointerEvents = 'auto'
-  shadow.append(portalTarget)
+  // 保证 overlay 天然盖在普通 UI 之上。
+  // opts.withPortalTarget=false 时返 mountPoint 仅为非空占位,调用方不应当 portal 用。
+  const portalTarget = opts.withPortalTarget !== false
+    ? (() => {
+        const el = document.createElement('div')
+        el.id = 'ccs-portal'
+        el.style.pointerEvents = 'auto'
+        shadow.append(el)
+        return el
+      })()
+    : mountPoint
+
+  return { shadow, mountPoint, portalTarget }
+}
+
+export interface MountResult {
+  host: HTMLElement
+  shadow: ShadowRoot
+  mountPoint: HTMLElement
+  // Reka UI Portal 组件的挂载点,留在 Shadow 内防止样式/事件逃出
+  portalTarget: HTMLElement
+}
+
+export function createShadowMount(): MountResult {
+  const host = document.createElement('div')
+  host.id = 'ccs-host'
+  host.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;'
+  document.body.append(host)
+
+  const { shadow, mountPoint, portalTarget } = setupShadowRoot(host)
 
   // React 重渲染可能卸载 host —— 监听 body 子节点变化,发现 host 不在就 re-append。
   // Shadow DOM 上挂的 Vue app 不会被销毁(re-append 保留子树),所以状态不丢。
