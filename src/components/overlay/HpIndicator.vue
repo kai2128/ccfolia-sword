@@ -4,21 +4,32 @@ import { computed } from 'vue'
 const props = defineProps<{
   current: number
   max: number
+  mpCurrent?: number
+  mpMax?: number
 }>()
 
-const pct = computed(() => {
-  if (props.max <= 0)
+function pct(cur: number, max: number): number {
+  if (max <= 0)
     return 0
-  return Math.max(0, Math.min(100, (props.current / props.max) * 100))
-})
+  return Math.max(0, Math.min(100, (cur / max) * 100))
+}
+
+const hpPct = computed(() => pct(props.current, props.max))
+const mpPct = computed(() =>
+  props.mpCurrent != null && props.mpMax != null ? pct(props.mpCurrent, props.mpMax) : 0,
+)
+const showMp = computed(() => props.mpCurrent != null && props.mpMax != null && props.mpMax > 0)
 
 const isCritical = computed(() => props.current <= 0)
 </script>
 
 <template>
   <div class="ccs-hp-pill" :class="{ critical: isCritical }">
-    <div class="bar">
-      <div class="fill" :style="{ width: `${pct}%` }" />
+    <div class="bar hp">
+      <div class="fill" :style="{ width: `${hpPct}%` }" />
+    </div>
+    <div v-if="showMp" class="bar mp">
+      <div class="fill" :style="{ width: `${mpPct}%` }" />
     </div>
     <div class="text">
       {{ current }}/{{ max }}
@@ -45,12 +56,19 @@ const isCritical = computed(() => props.current <= 0)
   border-radius: 3px;
   overflow: hidden;
 }
+.bar.mp {
+  height: 4px;
+  margin-top: 2px;
+}
 .fill {
   height: 100%;
   background: #4caf50;
   transition: width 120ms linear;
 }
-.critical .fill {
+.bar.mp .fill {
+  background: #3f8cff;
+}
+.critical .bar.hp .fill {
   background: #f44336;
 }
 .text {

@@ -1,4 +1,5 @@
 export { useCharactersStore } from './characters'
+export { useOverlayVisibilityStore } from './overlay-visibility'
 export { usePowerTablesStore } from './power-tables'
 export { useResolverStore } from './resolver'
 export { useSettingsStore } from './settings'

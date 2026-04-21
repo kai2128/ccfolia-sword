@@ -5,11 +5,13 @@ import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import HpIndicator from '@/components/overlay/HpIndicator.vue'
 import { readStatusSlot } from '@/core/status-slot'
+import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 
 const pieces = usePiecesStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
+const overlayVis = useOverlayVisibilityStore()
 
 interface OverlayEntry {
   key: string
@@ -18,6 +20,7 @@ interface OverlayEntry {
   centerX: number
   topY: number
   hp: { value: number, max: number } | null
+  mp: { value: number, max: number } | null
 }
 
 // ccfolia 不同房间 cellSize 不同(实测 24 / 48 都见过),settings.grid.cellSizePx 默认 50
@@ -35,10 +38,13 @@ function collectMovableSizes(): Map<string, number> {
 const entries = computed<OverlayEntry[]>(() => {
   const sizeMap = collectMovableSizes()
   return pieces.list
-    .filter(p => !p.invisible && !p.hideStatus)
+    // ccfolia 的 invisible(立绘不显示)直接不渲染;
+    // hideStatus(盤上のキャラクター一覧に表示しない)不参与,本指示器走自己的 toggle。
+    .filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
     .map((p) => {
       const char = chars.byId(p.characterId)
       const hp = char ? readStatusSlot(char.status, 'hp', settings.statusLabelMap) : null
+      const mp = char ? readStatusSlot(char.status, 'mp', settings.statusLabelMap) : null
       // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × settings.cellSize
       const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
       return {
@@ -46,6 +52,7 @@ const entries = computed<OverlayEntry[]>(() => {
         centerX: p.x + widthPx / 2,
         topY: p.y,
         hp,
+        mp,
       }
     })
 })
@@ -60,7 +67,13 @@ const entries = computed<OverlayEntry[]>(() => {
       :style="{ transform: `translate3d(${entry.centerX}px, ${entry.topY}px, 0)` }"
     >
       <div class="hp-slot">
-        <HpIndicator v-if="entry.hp" :current="entry.hp.value" :max="entry.hp.max" />
+        <HpIndicator
+          v-if="entry.hp"
+          :current="entry.hp.value"
+          :max="entry.hp.max"
+          :mp-current="entry.mp?.value"
+          :mp-max="entry.mp?.max"
+        />
       </div>
     </div>
   </div>

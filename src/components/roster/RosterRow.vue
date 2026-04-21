@@ -4,6 +4,7 @@ import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
 import HpMpEditor from '@/components/combat/HpMpEditor.vue'
 import { readStatusSlot } from '@/core/status-slot'
+import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 
 const props = defineProps<{
   char: CcfoliaCharacter
@@ -16,10 +17,24 @@ const emit = defineEmits<{
 
 const hp = computed(() => readStatusSlot(props.char.status, 'hp', props.labelMap))
 const mp = computed(() => readStatusSlot(props.char.status, 'mp', props.labelMap))
+
+const overlayVis = useOverlayVisibilityStore()
+const pillVisible = computed(() => overlayVis.isVisible(props.char._id))
+function togglePill() {
+  overlayVis.toggle(props.char._id)
+}
 </script>
 
 <template>
   <li class="roster-row">
+    <button
+      class="pill-toggle"
+      :class="{ off: !pillVisible }"
+      :title="pillVisible ? '隐藏场景上的 HP/MP 指示' : '显示场景上的 HP/MP 指示'"
+      @click="togglePill"
+    >
+      {{ pillVisible ? '●' : '○' }}
+    </button>
     <span class="name">{{ char.name }}</span>
     <HpMpEditor
       v-if="hp"
@@ -57,5 +72,19 @@ const mp = computed(() => readStatusSlot(props.char.status, 'mp', props.labelMap
 .missing {
   font-size: 11px;
   opacity: 0.5;
+}
+.pill-toggle {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #999;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  font-size: 12px;
+  color: inherit;
+}
+.pill-toggle.off {
+  opacity: 0.45;
 }
 </style>
