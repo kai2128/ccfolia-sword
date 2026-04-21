@@ -1,5 +1,5 @@
-import type { CcfoliaStatus } from '@/types/ccfolia'
 import type { StatusLabelMap, StatusSlot } from './default-label-map'
+import type { CcfoliaStatus } from '@/types/ccfolia'
 
 export interface StatusSlotRead {
   value: number

@@ -4,7 +4,7 @@ const LETTER_A = 'A'.charCodeAt(0)
 
 export function parseCellRef(raw: string, cfg: GridConfig): CellRef | null {
   const trimmed = raw.trim()
-  const m = /^(\d+)([A-Za-z])$/.exec(trimmed)
+  const m = /^(\d+)([a-z])$/i.exec(trimmed)
   if (!m)
     return null
   const rowNum = Number(m[1])

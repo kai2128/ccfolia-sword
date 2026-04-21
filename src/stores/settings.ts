@@ -1,7 +1,9 @@
 // 用户偏好 store。持久化的 UI 状态也塞这里 —— 面板位置 / 是否折叠。
+import type { GridConfig } from '@/core/range'
+import type { StatusLabelMap } from '@/core/status-slot'
 import { defineStore } from 'pinia'
-import { DEFAULT_GRID_CONFIG, type GridConfig } from '@/core/range'
-import { DEFAULT_STATUS_LABEL_MAP, type StatusLabelMap } from '@/core/status-slot'
+import { DEFAULT_GRID_CONFIG } from '@/core/range'
+import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
 import { setRingSize } from '@/infra/log'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
