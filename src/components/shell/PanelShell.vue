@@ -3,8 +3,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
-import CharactersTab from '@/components/tabs/CharactersTab.vue'
 import ResolverTab from '@/components/tabs/ResolverTab.vue'
+import RosterTab from '@/components/tabs/RosterTab.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useDraggable } from '@/composables/useDraggable'
 import { useSettingsStore } from '@/stores/settings'
@@ -102,10 +102,10 @@ onBeforeUnmount(() => {
       <Tabs v-model="ui.activeTab">
         <TabsList class="h-8 flex border-b border-white/10 px-2">
           <TabsTrigger
-            value="characters"
+            value="roster"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
-            角色库
+            角色
           </TabsTrigger>
           <TabsTrigger
             value="battle"
@@ -121,8 +121,8 @@ onBeforeUnmount(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="characters" class="flex-1 overflow-auto p-3">
-          <CharactersTab />
+        <TabsContent value="roster" class="flex-1 overflow-auto p-3">
+          <RosterTab />
         </TabsContent>
         <TabsContent value="battle" class="flex-1 overflow-auto p-3">
           <BattleTab />

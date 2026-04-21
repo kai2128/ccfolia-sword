@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import type { StatusSlot } from '@/core/status-slot'
 import { ref } from 'vue'
 import { parseAdjustment, resolveNewValue } from '@/core/combat/adjust-hp-mp'
 
 const props = defineProps<{
   kind: 'hp' | 'mp'
-  slot: StatusSlot
   value: number
   max: number
   step?: number

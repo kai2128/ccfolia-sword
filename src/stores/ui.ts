@@ -8,7 +8,7 @@ interface UiState {
 
 export const useUiStore = defineStore('ui', {
   state: (): UiState => ({
-    activeTab: 'characters',
+    activeTab: 'roster',
   }),
   actions: {
     setTab(tab: string) {
