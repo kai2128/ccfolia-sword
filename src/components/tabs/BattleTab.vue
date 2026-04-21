@@ -1,141 +1,152 @@
 <script setup lang="ts">
-// 战斗 Tab:ccfolia 房间内的角色列表,Phase 2 的按钮(HP -1 / 挂测试 buff / 清 buff)
-// 原地从 App.vue 迁过来,逻辑不变。
-import type { CcfoliaCharacter } from '@/types/ccfolia'
-import { computed, ref } from 'vue'
-import { adjustStatusValue, attachBuff, detachBuff, listBuffs } from '@/ccfolia/firestore-writer'
-import { useCcfoliaCharacters } from '@/composables/useCcfoliaCharacters'
-import { useFirestoreReady } from '@/composables/useFirestoreReady'
+import { computed } from 'vue'
+import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
+import ActionForm from '@/components/combat/ActionForm.vue'
+import { useEncounterStore } from '@/stores/encounter'
 
-const { characters, usingFallback } = useCcfoliaCharacters(1000)
-const { ready: sessionReady } = useFirestoreReady()
+const encounter = useEncounterStore()
+const chars = useRoomCharactersStore()
 
-function primaryHp(char: CcfoliaCharacter) {
-  const hp = char.status.find(s => /hp|ＨＰ/i.test(s.label)) ?? char.status[0]
-  return hp ? `${hp.value}/${hp.max}` : '—'
+const pendingChars = computed(() =>
+  encounter.local.pendingIds
+    .map(id => chars.byId(id))
+    .filter(char => !!char),
+)
+
+const actedChars = computed(() =>
+  encounter.local.actedIds
+    .map(id => chars.byId(id))
+    .filter(char => !!char),
+)
+
+const currentActor = computed(() =>
+  encounter.local.currentActorId ? chars.byId(encounter.local.currentActorId) ?? null : null,
+)
+
+function startCombat() {
+  encounter.beginCombat(chars.all.map(char => char._id))
 }
 
-function primaryHpIndex(char: CcfoliaCharacter) {
-  const idx = char.status.findIndex(s => /hp|ＨＰ/i.test(s.label))
-  return idx >= 0 ? idx : 0
+function selectActor(id: string) {
+  encounter.selectActor(id)
 }
 
-const busyId = ref<string | null>(null)
-const lastError = ref<string | null>(null)
-let errorTimer: number | null = null
-
-function setError(msg: string | null) {
-  lastError.value = msg
-  if (errorTimer !== null) {
-    window.clearTimeout(errorTimer)
-    errorTimer = null
-  }
-  if (msg) {
-    errorTimer = window.setTimeout(() => {
-      lastError.value = null
-      errorTimer = null
-    }, 5000)
-  }
+function finishActor() {
+  if (encounter.local.currentActorId)
+    encounter.finishActor(encounter.local.currentActorId)
 }
 
-async function runWriting(char: CcfoliaCharacter, fn: () => Promise<unknown>) {
-  if (!sessionReady.value || busyId.value)
+function nextTurn() {
+  // 这里需要同步确认框,允许 GM 在还有未行动者时强行推进回合。
+  // eslint-disable-next-line no-alert
+  if (encounter.local.pendingIds.length > 0 && !window.confirm('还有人未行动,确认推进回合?'))
     return
-  busyId.value = char._id
-  setError(null)
-  try {
-    await fn()
-  }
-  catch (e) {
-    setError(e instanceof Error ? e.message : String(e))
-  }
-  finally {
-    busyId.value = null
-  }
+  encounter.nextTurn()
 }
 
-function onDamage(char: CcfoliaCharacter) {
-  return runWriting(char, () => adjustStatusValue(char, primaryHpIndex(char), -1))
+function endCombat() {
+  encounter.endCombat()
 }
-
-function onAttachTestBuff(char: CcfoliaCharacter) {
-  return runWriting(char, () => attachBuff(char, {
-    name: '测试 buff',
-    category: 'buff',
-    lifecycle: { kind: 'manual' },
-    modifiers: [],
-  }))
-}
-
-function onClearBuffs(char: CcfoliaCharacter) {
-  return runWriting(char, async () => {
-    for (const b of listBuffs(char))
-      await detachBuff(char, b.id)
-  })
-}
-
-function buffCount(char: CcfoliaCharacter) {
-  return listBuffs(char).length
-}
-
-const empty = computed(() => characters.value.length === 0)
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <div class="flex items-center gap-2">
-      <span class="text-xs opacity-60">
-        ccfolia · {{ characters.length }}
-        <span v-if="usingFallback" class="text-buff">(fallback)</span>
-      </span>
-    </div>
-
-    <div v-if="!sessionReady" class="text-xs text-buff">
-      等待 Firebase SDK 挂钩…
-    </div>
-
-    <div v-if="empty" class="text-xs opacity-60">
-      未读到角色(打开含角色立绘的房间)
-    </div>
-
-    <ul v-else class="flex flex-col gap-1">
-      <li
-        v-for="char in characters"
-        :key="char._id"
-        class="w-full flex chip items-center gap-2 bg-surface/50 text-xs"
+  <section class="flex flex-col gap-3">
+    <template v-if="!encounter.shared.inCombat">
+      <button
+        type="button"
+        class="h-8 rounded bg-accent/80 px-3 text-sm text-white transition-colors hover:bg-accent"
+        @click="startCombat"
       >
-        <span class="flex-1 truncate">{{ char.name }}</span>
-        <span class="text-hp font-mono">{{ primaryHp(char) }}</span>
-        <button
-          class="rounded bg-debuff/20 px-1.5 py-0.5 text-debuff font-mono disabled:opacity-30"
-          :disabled="!sessionReady || busyId === char._id"
-          :title="sessionReady ? 'HP -1' : '等 Firebase SDK'"
-          @click="onDamage(char)"
-        >
-          -1
-        </button>
-        <button
-          class="rounded bg-buff/20 px-1.5 py-0.5 text-buff font-mono disabled:opacity-30"
-          :disabled="!sessionReady || busyId === char._id"
-          :title="`挂测试 buff(当前 ${buffCount(char)} 个)`"
-          @click="onAttachTestBuff(char)"
-        >
-          +B
-        </button>
-        <button
-          v-if="buffCount(char) > 0"
-          class="rounded bg-surface/80 px-1.5 py-0.5 font-mono opacity-70 disabled:opacity-30"
-          :disabled="!sessionReady || busyId === char._id"
-          :title="`清空 ${buffCount(char)} 个 buff`"
-          @click="onClearBuffs(char)"
-        >
-          ×{{ buffCount(char) }}
-        </button>
-      </li>
-    </ul>
+        开始战斗
+      </button>
+      <p class="text-xs text-white/50">
+        当前版本会把房间里的 active 角色全部加入战斗。
+      </p>
+    </template>
 
-    <div v-if="lastError" class="text-xs text-debuff">
-      {{ lastError }}
-    </div>
-  </div>
+    <template v-else>
+      <header class="flex items-center justify-between gap-2 border border-white/10 rounded-md bg-white/5 px-3 py-2">
+        <span class="text-sm text-white">回合 {{ encounter.shared.turn }}</span>
+        <button
+          type="button"
+          class="h-7 rounded bg-hp/80 px-2 text-xs text-white transition-colors hover:bg-hp"
+          @click="endCombat"
+        >
+          结束战斗
+        </button>
+      </header>
+
+      <section class="flex flex-col gap-2 border border-white/10 rounded-md bg-white/3 p-3">
+        <div>
+          <h4 class="text-xs text-white/60">
+            未行动
+          </h4>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button
+              v-for="char in pendingChars"
+              :key="char!._id"
+              type="button"
+              class="border border-accent/30 rounded bg-accent/10 px-2 py-1 text-xs text-white transition-colors hover:bg-accent/20"
+              @click="selectActor(char!._id)"
+            >
+              {{ char!.name }}
+            </button>
+            <span v-if="pendingChars.length === 0" class="text-xs text-white/35">
+              本回合已全部行动
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-xs text-white/60">
+            已行动
+          </h4>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <span
+              v-for="char in actedChars"
+              :key="char!._id"
+              class="rounded bg-white/8 px-2 py-1 text-xs text-white/45 line-through"
+            >
+              {{ char!.name }}
+            </span>
+            <span v-if="actedChars.length === 0" class="text-xs text-white/35">
+              还没有角色完成行动
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="currentActor" class="flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <h4 class="text-sm text-white">
+            当前行动者：{{ currentActor.name }}
+          </h4>
+          <button
+            type="button"
+            class="h-7 rounded bg-white/10 px-2 text-xs text-white/80 transition-colors hover:bg-white/15"
+            @click="finishActor"
+          >
+            结束该角色回合
+          </button>
+        </div>
+        <ActionForm :key="currentActor._id" :actor-id="currentActor._id" />
+      </section>
+      <section v-else class="border border-white/10 rounded-md border-dashed px-3 py-4 text-xs text-white/40">
+        从未行动池选择一个角色开始本回合行动。
+      </section>
+
+      <footer class="flex justify-end">
+        <button
+          type="button"
+          class="h-8 rounded bg-white/10 px-3 text-sm text-white transition-colors hover:bg-white/15"
+          @click="nextTurn"
+        >
+          下一回合
+          <span v-if="encounter.local.pendingIds.length > 0" class="ml-1 text-xs text-white/50">
+            (还 {{ encounter.local.pendingIds.length }} 人未行动)
+          </span>
+        </button>
+      </footer>
+    </template>
+  </section>
 </template>
