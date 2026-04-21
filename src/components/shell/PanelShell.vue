@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
 <template>
   <PanelLauncher v-if="!settings.panelVisible" />
   <div
-    v-show="settings.panelVisible"
+    v-if="settings.panelVisible"
     ref="containerRef"
     class="fixed left-0 top-0 w-80 flex flex-col border border-white/10 rounded-md bg-surface text-white shadow-xl"
     :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[80vh]'"
