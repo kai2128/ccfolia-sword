@@ -4,7 +4,6 @@ import { toPieceSnapshots } from './pieces-store'
 
 function mkChar(overrides: Partial<CcfoliaCharacter> & { _id: string }): CcfoliaCharacter {
   return {
-    _id: overrides._id,
     roomId: 'r',
     name: overrides.name ?? overrides._id,
     status: [],
