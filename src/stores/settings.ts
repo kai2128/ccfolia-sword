@@ -23,6 +23,7 @@ interface SettingsState {
   theme: 'light' | 'dark' | 'auto'
   panelPos: PanelPos
   panelCollapsed: boolean
+  panelVisible: boolean
   grid: GridConfig
   statusLabelMap: StatusLabelMap
 }
@@ -133,6 +134,8 @@ export const useSettingsStore = defineStore('settings', {
     theme: 'auto',
     panelPos: getDefaultPanelPos(),
     panelCollapsed: false,
+    // 默认隐藏。首次进房间只有 launcher icon,Alt+S 或点击 icon 展开
+    panelVisible: false,
     grid: normalizeGridConfig(undefined),
     statusLabelMap: normalizeStatusLabelMap(undefined),
   }),
@@ -158,6 +161,15 @@ export const useSettingsStore = defineStore('settings', {
     },
     togglePanelCollapsed() {
       this.panelCollapsed = !this.panelCollapsed
+    },
+    togglePanel() {
+      this.panelVisible = !this.panelVisible
+    },
+    showPanel() {
+      this.panelVisible = true
+    },
+    hidePanel() {
+      this.panelVisible = false
     },
   },
   persist: {
