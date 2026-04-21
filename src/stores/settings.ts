@@ -153,8 +153,10 @@ export const useSettingsStore = defineStore('settings', {
     applyLogMaxLines() {
       setRingSize(this.logMaxLines)
     },
-    setPanelPos(pos: PanelPos) {
-      this.panelPos = clampPanelPos(pos)
+    // panel 尺寸会随折叠 / 内容变化,调用方(useDraggable)测到实际 rect 后要传进来,
+    // 否则 clampPanelPos 默认按 DEFAULT_PANEL_SIZE (320×360) 收紧,让折叠态拖不到底。
+    setPanelPos(pos: PanelPos, panel?: Partial<PanelSize>) {
+      this.panelPos = clampPanelPos(pos, { panel })
     },
     ensurePanelVisible(panel?: Partial<PanelSize>) {
       this.panelPos = clampPanelPos(this.panelPos, { panel })

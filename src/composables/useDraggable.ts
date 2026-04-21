@@ -9,7 +9,9 @@ export interface DraggableOptions {
   handleRef: Ref<HTMLElement | null>
   targetRef: Ref<HTMLElement | null>
   getPos: () => { x: number, y: number }
-  setPos: (pos: { x: number, y: number }) => void
+  // size 是拖动时测到的真实 rect 尺寸;store 里的二次 clamp 需要它,
+  // 不然折叠态会按默认 360 收紧,把拖动范围砍到视口中段。
+  setPos: (pos: { x: number, y: number }, size: { width: number, height: number }) => void
 }
 
 export function useDraggable(opts: DraggableOptions) {
@@ -56,7 +58,7 @@ export function useDraggable(opts: DraggableOptions) {
     const dy = e.clientY - startY
     const rect = target.getBoundingClientRect()
     const next = clamp(originX + dx, originY + dy, rect.width, rect.height)
-    opts.setPos(next)
+    opts.setPos(next, { width: rect.width, height: rect.height })
   }
 
   function onPointerUp(e: PointerEvent) {

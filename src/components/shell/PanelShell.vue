@@ -22,7 +22,7 @@ useDraggable({
   handleRef,
   targetRef: containerRef,
   getPos: () => settings.panelPos,
-  setPos: p => settings.setPanelPos(p),
+  setPos: (p, size) => settings.setPanelPos(p, size),
 })
 
 const transform = computed(() => `translate(${settings.panelPos.x}px, ${settings.panelPos.y}px)`)
@@ -67,10 +67,10 @@ onBeforeUnmount(() => {
 <template>
   <PanelLauncher v-if="!settings.panelVisible" />
   <div
-    v-if="settings.panelVisible"
+    v-show="settings.panelVisible"
     ref="containerRef"
     class="fixed left-0 top-0 w-80 flex flex-col border border-white/10 rounded-md bg-surface text-white shadow-xl"
-    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[80vh]'"
+    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
     :style="{ transform }"
   >
     <!-- 标题栏(拖动把手 + 折叠按钮) -->
