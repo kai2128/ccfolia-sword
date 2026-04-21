@@ -44,7 +44,7 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['src/core/**/*.test.ts'],
+    include: ['src/core/**/*.test.ts', 'src/ccfolia/**/*.test.ts'],
     environment: 'node',
   },
 })
