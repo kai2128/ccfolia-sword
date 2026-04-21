@@ -2,8 +2,13 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { createApp } from 'vue'
 import App from './App.vue'
+import { usePiecesStore } from './ccfolia/pieces-store'
+import { startRoomCharactersSync, useRoomCharactersStore } from './ccfolia/room-characters-store'
+import { startSceneMount } from './ccfolia/scene-mount'
 import { initWebpackHook } from './ccfolia/webpack-hook'
+import SceneOverlayRoot from './components/scene/SceneOverlayRoot.vue'
 import { PortalTargetKey } from './components/ui/portal'
+import { bindHotkey } from './core/shell/hotkey'
 import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
 import { useSettingsStore } from './stores/settings'
@@ -30,9 +35,30 @@ function mount() {
   app.provide(PortalTargetKey, portalTarget)
 
   // pinia 挂完,把持久化的 logMaxLines 推到日志环
-  useSettingsStore().applyLogMaxLines()
+  const settings = useSettingsStore()
+  settings.applyLogMaxLines()
+
+  // Alt+S 切面板显隐
+  bindHotkey({ alt: true, key: 's' }, () => settings.togglePanel())
 
   app.mount(mountPoint)
+
+  // 启动 ccfolia Redux 订阅 + scene overlay(共享主 app 的 pinia + portalTarget,
+  // 否则派生 store 看不到数据 / Reka Portal 无家可归)。
+  startRoomCharactersSync()
+  startSceneMount(SceneOverlayRoot, pinia, portalTarget)
+
+  // devtools 验收桥;生产里只是几个对象引用,无运行时开销。
+  // 必须 merge 而不是整体赋值 —— startSceneMount() 里 tryMount 是同步的,
+  // overlay 的 SceneOverlayRoot 会先一步把 overlayPieces / overlayRoomCharacters
+  // 写进 __CCS_STORES__,这里若直接 = { ... } 会把 overlay 写好的字段抹掉。
+  const dbg = (window as unknown as { __CCS_STORES__?: Record<string, unknown> })
+  dbg.__CCS_STORES__ = {
+    ...(dbg.__CCS_STORES__ ?? {}),
+    roomCharacters: useRoomCharactersStore(),
+    pieces: usePiecesStore(),
+    settings,
+  }
 }
 
 if (document.readyState === 'complete')
