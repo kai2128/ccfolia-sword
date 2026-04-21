@@ -1,5 +1,7 @@
 // 用户偏好 store。持久化的 UI 状态也塞这里 —— 面板位置 / 是否折叠。
 import { defineStore } from 'pinia'
+import { DEFAULT_GRID_CONFIG, type GridConfig } from '@/core/range'
+import { DEFAULT_STATUS_LABEL_MAP, type StatusLabelMap } from '@/core/status-slot'
 import { setRingSize } from '@/infra/log'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
@@ -19,6 +21,8 @@ interface SettingsState {
   theme: 'light' | 'dark' | 'auto'
   panelPos: PanelPos
   panelCollapsed: boolean
+  grid: GridConfig
+  statusLabelMap: StatusLabelMap
 }
 
 const DEFAULT_PANEL_SIZE: PanelSize = { width: 320, height: 360 }
@@ -35,6 +39,34 @@ function normalizeSize(size: Partial<PanelSize> | undefined, fallback: PanelSize
   return {
     width: normalizeLength(size?.width ?? Number.NaN, fallback.width),
     height: normalizeLength(size?.height ?? Number.NaN, fallback.height),
+  }
+}
+
+function normalizeGridConfig(raw: unknown): GridConfig {
+  const v = (raw && typeof raw === 'object') ? raw as Partial<GridConfig> : {}
+  const origin = (v.originPx && typeof v.originPx === 'object')
+    ? v.originPx as Partial<GridConfig['originPx']>
+    : {}
+  return {
+    cols: normalizeLength(Number(v.cols ?? Number.NaN), DEFAULT_GRID_CONFIG.cols),
+    rows: normalizeLength(Number(v.rows ?? Number.NaN), DEFAULT_GRID_CONFIG.rows),
+    cellSizePx: normalizeLength(Number(v.cellSizePx ?? Number.NaN), DEFAULT_GRID_CONFIG.cellSizePx),
+    originPx: {
+      x: normalizeCoord(typeof origin.x === 'number' ? origin.x : undefined, DEFAULT_GRID_CONFIG.originPx.x),
+      y: normalizeCoord(typeof origin.y === 'number' ? origin.y : undefined, DEFAULT_GRID_CONFIG.originPx.y),
+    },
+    pieceAnchor: v.pieceAnchor === 'top-left' ? 'top-left' : 'center',
+  }
+}
+
+function normalizeStatusLabelMap(raw: unknown): StatusLabelMap {
+  const v = (raw && typeof raw === 'object') ? raw as Partial<StatusLabelMap> : {}
+  return {
+    hp: typeof v.hp === 'string' && v.hp.length > 0 ? v.hp : DEFAULT_STATUS_LABEL_MAP.hp,
+    mp: typeof v.mp === 'string' && v.mp.length > 0 ? v.mp : DEFAULT_STATUS_LABEL_MAP.mp,
+    defense: typeof v.defense === 'string' && v.defense.length > 0 ? v.defense : DEFAULT_STATUS_LABEL_MAP.defense,
+    mentalResist: typeof v.mentalResist === 'string' && v.mentalResist.length > 0 ? v.mentalResist : DEFAULT_STATUS_LABEL_MAP.mentalResist,
+    lifeResist: typeof v.lifeResist === 'string' && v.lifeResist.length > 0 ? v.lifeResist : DEFAULT_STATUS_LABEL_MAP.lifeResist,
   }
 }
 
@@ -90,6 +122,8 @@ export const useSettingsStore = defineStore('settings', {
     theme: 'auto',
     panelPos: getDefaultPanelPos(),
     panelCollapsed: false,
+    grid: normalizeGridConfig(undefined),
+    statusLabelMap: normalizeStatusLabelMap(undefined),
   }),
   actions: {
     setDefaultPowerTable(id: string | null) {
@@ -119,7 +153,11 @@ export const useSettingsStore = defineStore('settings', {
     storage: gmStorage,
     key: 'ccs:store:settings',
     afterHydrate: ({ store }) => {
-      ;(store as ReturnType<typeof useSettingsStore>).ensurePanelVisible()
+      const s = store as ReturnType<typeof useSettingsStore>
+      // GM_setValue 里的值可能来自旧版本 / 手改 / 损坏,统一走一遍 normalizer。
+      s.grid = normalizeGridConfig(s.grid)
+      s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
+      s.ensurePanelVisible()
     },
   },
 })
