@@ -2,11 +2,9 @@
 import type { ActionDraft, ActionKind, ResistOutcome, ResistTarget } from '@/core/resolver/types'
 import { computed } from 'vue'
 import { Field, Input, Select, Switch } from '@/components/ui'
-import { usePowerTablesStore } from '@/stores/power-tables'
 import { useResolverStore } from '@/stores/resolver'
 
 const resolver = useResolverStore()
-const powerTables = usePowerTablesStore()
 
 const draft = computed<ActionDraft>(() => resolver.draft!)
 
@@ -35,11 +33,6 @@ const resistOutcomeOptions: Array<{ value: ResistOutcome, label: string }> = [
   { value: 'nullify', label: '无效' },
   { value: 'half', label: '半伤' },
 ]
-
-const powerTableOptions = computed(() => [
-  { value: '', label: '未选择' },
-  ...powerTables.all.map(table => ({ value: table.id, label: table.name })),
-])
 </script>
 
 <template>
@@ -135,24 +128,5 @@ const powerTableOptions = computed(() => [
       </Field>
     </div>
 
-    <div class="grid grid-cols-2 gap-2">
-      <Field label="威力表">
-        <Select
-          :model-value="draft.powerTableId ?? ''"
-          :options="powerTableOptions"
-          @update:model-value="value => patch('powerTableId', (value as string) || undefined)"
-        />
-      </Field>
-      <Field label="伤害公式" hint="例：k40+3 / kh30 / k40h+2">
-        <template #default="{ id }">
-          <Input
-            :id="id"
-            :model-value="draft.powerExpr"
-            placeholder="k40+3"
-            @update:model-value="value => patch('powerExpr', value as string)"
-          />
-        </template>
-      </Field>
-    </div>
   </div>
 </template>

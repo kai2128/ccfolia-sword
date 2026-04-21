@@ -12,10 +12,12 @@ function formatHeadline(resolution: Resolution): string {
   const attacker = draft.attacker || '攻击者'
   const actionName = draft.actionName || '行动'
   const suffix = draft.isAoe ? '(AoE)' : ''
-  const headline = `【${attacker} → ${actionName}${suffix}】`
+  const parts = [`【${attacker} → ${actionName}${suffix}】`]
   if (draft.kind === 'magic' && draft.castingRoll !== undefined)
-    return `${headline}行使 ${draft.castingRoll}`
-  return headline
+    parts.push(`行使 ${draft.castingRoll}`)
+  if (draft.mpCost !== undefined)
+    parts.push(`MP ${draft.mpCost}`)
+  return parts.join(' ')
 }
 
 function formatTargetLine(target: ResolvedTarget, resolution: Resolution): string {

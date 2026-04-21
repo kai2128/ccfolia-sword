@@ -35,6 +35,9 @@ export interface ActionDraft {
   castingRoll?: number
   resistTarget?: ResistTarget
   resistOutcome: ResistOutcome
+  // v1 简化路径：GM 自行查威力表后直接填入原伤害。
+  rawDamage?: number
+  // 下面字段目前 UI 未暴露，保留以便后续接入威力表/k 语法自动计算。
   powerExpr: string
   dice1?: number
   dice2?: number

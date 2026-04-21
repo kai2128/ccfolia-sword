@@ -18,6 +18,10 @@ function computeRawDamageBase(
   draft: ActionDraft,
   tables: Record<string, PowerTable>,
 ): { rawDamageBase: number | null, parseError?: string } {
+  // 简化路径：GM 直接填入原伤害，跳过威力表/公式。
+  if (draft.rawDamage !== undefined)
+    return { rawDamageBase: draft.rawDamage }
+
   if (!draft.powerExpr.trim())
     return { rawDamageBase: null }
   if (draft.dice1 === undefined || draft.dice2 === undefined)

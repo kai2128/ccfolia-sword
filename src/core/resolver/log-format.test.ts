@@ -107,10 +107,40 @@ describe('formatActionLog', () => {
     }
 
     expect(formatActionLog(resolution)).toMatchInlineSnapshot(`
-      "【琳 → 火球术(AoE)】行使 14
+      "【琳 → 火球术(AoE)】 行使 14
        哥A 抵抗 9 失败 10
        哥B 抵抗 15 成功 半伤 5
        哥C 抵抗 8 失败 10"
+    `)
+  })
+
+  it('魔法 - 附带 MP 消耗', () => {
+    const resolution: Resolution = {
+      draft: {
+        id: '1',
+        kind: 'magic',
+        attacker: '琳',
+        actionName: '火球术',
+        range: '',
+        isAoe: false,
+        aoeNote: '',
+        resistOutcome: 'half',
+        mpCost: 5,
+        powerExpr: '',
+        critDice: [],
+        castingRoll: 14,
+        rawDamage: 10,
+        targets: [{ id: 'a', name: '哥A', resistValue: 9 }],
+      },
+      rawDamageBase: 10,
+      targets: [
+        { id: 'a', name: '哥A', hit: true, rawDamage: 10, finalDamage: 10, isHitOverridden: false, isRawDamageOverridden: false, isFinalDamageOverridden: false },
+      ],
+    }
+
+    expect(formatActionLog(resolution)).toMatchInlineSnapshot(`
+      "【琳 → 火球术】 行使 14 MP 5
+       哥A 抵抗 9 失败 10"
     `)
   })
 })
