@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 浮层主壳：固定定位 + translate 控制拖动 + 折叠态只留标题栏。
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
 import CharactersTab from '@/components/tabs/CharactersTab.vue'
 import ResolverTab from '@/components/tabs/ResolverTab.vue'
@@ -64,7 +65,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <PanelLauncher v-if="!settings.panelVisible" />
   <div
+    v-show="settings.panelVisible"
     ref="containerRef"
     class="fixed left-0 top-0 w-80 flex flex-col border border-white/10 rounded-md bg-surface text-white shadow-xl"
     :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
@@ -80,6 +83,14 @@ onBeforeUnmount(() => {
       <button
         type="button"
         class="ml-auto h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+        title="收起到 launcher (Alt+S)"
+        @click="settings.hidePanel()"
+      >
+        <div class="i-lucide-x text-4" />
+      </button>
+      <button
+        type="button"
+        class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
         :title="settings.panelCollapsed ? '展开' : '折叠'"
         @click="settings.togglePanelCollapsed()"
       >
