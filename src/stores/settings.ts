@@ -61,14 +61,23 @@ function normalizeGridConfig(raw: unknown): GridConfig {
   }
 }
 
+// readStatusSlot 按精确 label 匹配 ccfolia 的 status.label,任何前后空白或纯空白
+// 都会让匹配稳定返回 null,所以在这里 trim 后再判空,脏值直接回落默认。
+function normalizeStatusLabel(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string')
+    return fallback
+  const trimmed = raw.trim()
+  return trimmed.length > 0 ? trimmed : fallback
+}
+
 function normalizeStatusLabelMap(raw: unknown): StatusLabelMap {
   const v = (raw && typeof raw === 'object') ? raw as Partial<StatusLabelMap> : {}
   return {
-    hp: typeof v.hp === 'string' && v.hp.length > 0 ? v.hp : DEFAULT_STATUS_LABEL_MAP.hp,
-    mp: typeof v.mp === 'string' && v.mp.length > 0 ? v.mp : DEFAULT_STATUS_LABEL_MAP.mp,
-    defense: typeof v.defense === 'string' && v.defense.length > 0 ? v.defense : DEFAULT_STATUS_LABEL_MAP.defense,
-    mentalResist: typeof v.mentalResist === 'string' && v.mentalResist.length > 0 ? v.mentalResist : DEFAULT_STATUS_LABEL_MAP.mentalResist,
-    lifeResist: typeof v.lifeResist === 'string' && v.lifeResist.length > 0 ? v.lifeResist : DEFAULT_STATUS_LABEL_MAP.lifeResist,
+    hp: normalizeStatusLabel(v.hp, DEFAULT_STATUS_LABEL_MAP.hp),
+    mp: normalizeStatusLabel(v.mp, DEFAULT_STATUS_LABEL_MAP.mp),
+    defense: normalizeStatusLabel(v.defense, DEFAULT_STATUS_LABEL_MAP.defense),
+    mentalResist: normalizeStatusLabel(v.mentalResist, DEFAULT_STATUS_LABEL_MAP.mentalResist),
+    lifeResist: normalizeStatusLabel(v.lifeResist, DEFAULT_STATUS_LABEL_MAP.lifeResist),
   }
 }
 
