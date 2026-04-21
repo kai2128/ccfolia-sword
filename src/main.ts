@@ -52,7 +52,7 @@ function mount() {
   // 必须 merge 而不是整体赋值 —— startSceneMount() 里 tryMount 是同步的,
   // overlay 的 SceneOverlayRoot 会先一步把 overlayPieces / overlayRoomCharacters
   // 写进 __CCS_STORES__,这里若直接 = { ... } 会把 overlay 写好的字段抹掉。
-  const dbg = (window as unknown as { __CCS_STORES__?: Record<string, unknown> })
+  const dbg = window as unknown as { __CCS_STORES__?: Record<string, unknown> }
   dbg.__CCS_STORES__ = {
     ...(dbg.__CCS_STORES__ ?? {}),
     roomCharacters: useRoomCharactersStore(),

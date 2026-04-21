@@ -7,7 +7,7 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 const pieces = usePiecesStore()
 const roomCharacters = useRoomCharactersStore()
 
-const dbg = (window as unknown as { __CCS_STORES__?: Record<string, unknown> })
+const dbg = window as unknown as { __CCS_STORES__?: Record<string, unknown> }
 dbg.__CCS_STORES__ = {
   ...(dbg.__CCS_STORES__ ?? {}),
   overlayPieces: pieces,
