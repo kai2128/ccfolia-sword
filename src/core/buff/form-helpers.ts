@@ -60,6 +60,10 @@ export function buildDefinition(id: string, n: NormalizedBuffForm): StatusEffect
   }
 }
 
+// 简化 form 只覆盖 name/description/icon/polarity/turnsRemaining。
+// def/snapshot 上的 color/tickPrompt/reminder/defaultAoeRadius/modifiers/scope 不在 form 里;
+// 编辑路径若需保留这些字段,必须由 caller merge 回旧对象
+// (见 ccfolia/writers/update-buff-snapshot.ts 的 applyBuffSnapshotPatch)。
 export function definitionToForm(def: StatusEffectDefinition): BuffFormState {
   return {
     name: def.name,
