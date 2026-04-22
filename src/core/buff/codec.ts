@@ -32,12 +32,17 @@ function isAttachedTarget(value: unknown): boolean {
   return false
 }
 
+function isPolarity(value: unknown): boolean {
+  return value === 'positive' || value === 'negative'
+}
+
 function isSnapshot(value: unknown): boolean {
   return isRecord(value)
     && typeof value.name === 'string'
     && typeof value.icon === 'string'
     && typeof value.description === 'string'
     && Array.isArray(value.modifiers)
+    && isPolarity(value.polarity)
 }
 
 export function decodeBuff(raw: string): BuffInstance | null {
@@ -45,6 +50,9 @@ export function decodeBuff(raw: string): BuffInstance | null {
     const parsed = JSON.parse(raw)
     if (!isRecord(parsed))
       return null
+    // normalize polarity 必须在 isSnapshot 之前(isSnapshot 已扩成检查 polarity 合法值)
+    if (isRecord(parsed.snapshot) && !isPolarity(parsed.snapshot.polarity))
+      parsed.snapshot.polarity = 'positive'
     if (typeof parsed.id !== 'string' || typeof parsed.definitionId !== 'string')
       return null
     if (!isSnapshot(parsed.snapshot) || !isAttachedTarget(parsed.attachedTo))

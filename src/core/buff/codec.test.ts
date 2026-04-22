@@ -60,3 +60,58 @@ describe('buff codec', () => {
     expect(BUFF_LABEL_PREFIX).toBe('cs_buff_')
   })
 })
+
+describe('decodeBuff polarity tolerance', () => {
+  function buildRaw(overrides: Record<string, unknown> = {}): string {
+    const base = {
+      id: 'abc',
+      definitionId: 'x',
+      snapshot: {
+        name: 'n',
+        icon: '',
+        description: '',
+        modifiers: [],
+        polarity: 'negative',
+        ...overrides,
+      },
+      attachedTo: { kind: 'single', characterId: 'c' },
+      lifecycle: 'encounter',
+      enabled: true,
+      attachedAtTurn: 1,
+    }
+    return JSON.stringify(base)
+  }
+
+  it('keeps valid negative polarity', () => {
+    const buff = decodeBuff(buildRaw())
+    expect(buff?.snapshot.polarity).toBe('negative')
+  })
+
+  it('defaults missing polarity to positive', () => {
+    const raw = JSON.stringify({
+      id: 'abc',
+      definitionId: 'x',
+      snapshot: { name: 'n', icon: '', description: '', modifiers: [] },
+      attachedTo: { kind: 'single', characterId: 'c' },
+      lifecycle: 'encounter',
+      enabled: true,
+      attachedAtTurn: 1,
+    })
+    const buff = decodeBuff(raw)
+    expect(buff?.snapshot.polarity).toBe('positive')
+  })
+
+  it('defaults invalid polarity to positive', () => {
+    const raw = JSON.stringify({
+      id: 'abc',
+      definitionId: 'x',
+      snapshot: { name: 'n', icon: '', description: '', modifiers: [], polarity: 'weird' },
+      attachedTo: { kind: 'single', characterId: 'c' },
+      lifecycle: 'encounter',
+      enabled: true,
+      attachedAtTurn: 1,
+    })
+    const buff = decodeBuff(raw)
+    expect(buff?.snapshot.polarity).toBe('positive')
+  })
+})
