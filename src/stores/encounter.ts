@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
+import { tickBuffTurnsForAllCharacters } from '@/ccfolia/writers/tick-buff-turns'
+import { createLogger } from '@/infra/log'
 import { readSharedValue, writeSharedValue } from '@/infra/gm-values'
+
+const log = createLogger('encounter')
 
 export interface RulerStub {
   id: string
@@ -106,6 +110,8 @@ export const useEncounterStore = defineStore('encounter', {
       this.local.pendingIds = [...this.local.pendingIds, ...this.local.actedIds]
       this.local.actedIds = []
       this.local.currentActorId = null
+      // 推进所有角色身上 buff 的 turnsRemaining;-1 后到 0 自动卸载。fire-and-forget。
+      tickBuffTurnsForAllCharacters().catch(error => log.error('tick buff turns failed', { error }))
     },
     addParticipant(id: string) {
       if (!this.isParticipant(id))
