@@ -122,7 +122,7 @@ describe('buildDefinition', () => {
   })
 
   it('does not write color/tickPrompt/reminder/defaultAoeRadius', () => {
-    const def = buildDefinition('custom.abc', n) as Record<string, unknown>
+    const def = buildDefinition('custom.abc', n) as unknown as Record<string, unknown>
     expect(def.color).toBeUndefined()
     expect(def.tickPrompt).toBeUndefined()
     expect(def.reminder).toBeUndefined()

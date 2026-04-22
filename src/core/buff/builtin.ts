@@ -2,7 +2,7 @@ import type { StatusEffectDefinition } from '@/types/buff-v3'
 
 function def(
   partial: Partial<StatusEffectDefinition>
-    & Pick<StatusEffectDefinition, 'id' | 'name' | 'icon' | 'description'>,
+    & Pick<StatusEffectDefinition, 'id' | 'name' | 'icon' | 'description' | 'polarity'>,
 ): StatusEffectDefinition {
   return {
     scope: 'single',
