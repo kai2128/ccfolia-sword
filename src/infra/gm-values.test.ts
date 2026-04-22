@@ -3,12 +3,13 @@ import { readSharedValue, writeSharedValue } from './gm-values'
 
 beforeEach(() => {
   const store: Record<string, unknown> = {}
+  const gmGetValue = <T>(key: string, defaultValue?: T): T => {
+    return (store[key] ?? defaultValue) as T
+  }
   ;(globalThis as { GM_setValue?: (key: string, value: unknown) => void }).GM_setValue = (key, value) => {
     store[key] = value
   }
-  ;(globalThis as { GM_getValue?: <T>(key: string, defaultValue?: T) => T }).GM_getValue = (key, defaultValue) => {
-    return (store[key] ?? defaultValue) as typeof defaultValue
-  }
+  ;(globalThis as { GM_getValue?: <T>(key: string, defaultValue?: T) => T }).GM_getValue = gmGetValue
 })
 
 describe('gm-values', () => {
