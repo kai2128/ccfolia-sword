@@ -22,6 +22,7 @@ interface OverlayEntry {
   // piece.y 实测已经是立绘可见顶边的 canvas-local y,直接当 pill 锚点。
   centerX: number
   topY: number
+  widthPx: number
   hp: { value: number, max: number } | null
   mp: { value: number, max: number } | null
   buffs: BuffInstance[]
@@ -56,6 +57,7 @@ const entries = computed<OverlayEntry[]>(() => {
         key: p.characterId,
         centerX: p.x + widthPx / 2,
         topY: p.y,
+        widthPx,
         hp,
         mp,
         buffs,
@@ -72,7 +74,12 @@ const entries = computed<OverlayEntry[]>(() => {
       class="anchor"
       :style="{ transform: `translate3d(${entry.centerX}px, ${entry.topY}px, 0)` }"
     >
-      <div class="hp-slot">
+      <div class="indicator-stack">
+        <BuffBadgeRow
+          v-if="entry.buffs.length > 0"
+          :buffs="entry.buffs"
+          :piece-width="entry.widthPx"
+        />
         <HpIndicator
           v-if="entry.hp"
           :current="entry.hp.value"
@@ -80,9 +87,6 @@ const entries = computed<OverlayEntry[]>(() => {
           :mp-current="entry.mp?.value"
           :mp-max="entry.mp?.max"
         />
-      </div>
-      <div v-if="entry.buffs.length > 0" class="buff-slot">
-        <BuffBadgeRow :buffs="entry.buffs" />
       </div>
     </div>
   </div>
@@ -100,11 +104,15 @@ const entries = computed<OverlayEntry[]>(() => {
   left: 0;
   will-change: transform;
 }
-.hp-slot {
-  transform: translate(-50%, -110%);
-}
-.buff-slot {
-  transform: translate(-50%, -190%);
+.indicator-stack {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 4px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   white-space: nowrap;
 }
 </style>

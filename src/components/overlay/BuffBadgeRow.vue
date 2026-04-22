@@ -5,18 +5,36 @@ import BuffIcon from '@/components/buffs/BuffIcon.vue'
 
 const props = defineProps<{
   buffs: BuffInstance[]
-  maxVisible?: number
+  pieceWidth?: number
 }>()
 
-const maxVisible = computed(() => props.maxVisible ?? 3)
+// piece 太窄(<32px)直接整行不渲染。pill 边长按 ~14% piece 宽,clamp 到 [8, 14]px。
+const HIDE_BELOW_PX = 32
 
-const visibleBuffs = computed(() => {
-  const enabled = props.buffs.filter(buff => buff.enabled)
-  const disabled = props.buffs.filter(buff => !buff.enabled)
-  return [...enabled, ...disabled].slice(0, maxVisible.value)
+const pieceWidth = computed(() => props.pieceWidth ?? 50)
+
+// 0.14 × piece 宽,clamp 到 [5, 8]px。小 piece(<HIDE_BELOW_PX)在下面会整行隐藏。
+const pillPx = computed(() => Math.max(5, Math.min(8, Math.round(pieceWidth.value * 0.14))))
+// icon 在 pill 内留 1px 边
+const iconPx = computed(() => Math.max(4, pillPx.value - 1))
+
+// 一行最多放多少 pill,按 piece 宽度算(留 4px 给 overflow chip)。最少 1。
+const maxVisible = computed(() => {
+  if (pieceWidth.value < HIDE_BELOW_PX)
+    return 0
+  const room = pieceWidth.value - 6
+  const slot = pillPx.value + 2
+  return Math.max(1, Math.floor(room / slot))
 })
 
-const overflow = computed(() => Math.max(0, props.buffs.length - maxVisible.value))
+const sortedBuffs = computed(() => {
+  const enabled = props.buffs.filter(buff => buff.enabled)
+  const disabled = props.buffs.filter(buff => !buff.enabled)
+  return [...enabled, ...disabled]
+})
+
+const visibleBuffs = computed(() => sortedBuffs.value.slice(0, maxVisible.value))
+const overflow = computed(() => Math.max(0, props.buffs.length - visibleBuffs.value.length))
 
 function pillClass(buff: BuffInstance): string {
   return buff.snapshot.polarity === 'positive'
@@ -26,21 +44,22 @@ function pillClass(buff: BuffInstance): string {
 </script>
 
 <template>
-  <div class="pointer-events-none flex items-center gap-1">
+  <div v-if="maxVisible > 0" class="pointer-events-none flex items-center gap-0.5">
     <span
       v-for="buff in visibleBuffs"
       :key="buff.id"
-      class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-xs font-medium leading-none"
-      :class="[pillClass(buff), { 'opacity-40 grayscale line-through': !buff.enabled }]"
-      :title="buff.snapshot.description"
+      class="inline-flex shrink-0 items-center justify-center border rounded leading-none"
+      :style="{ width: `${pillPx}px`, height: `${pillPx}px` }"
+      :class="[pillClass(buff), { 'opacity-40 grayscale': !buff.enabled }]"
+      :title="`${buff.snapshot.name}${buff.turnsRemaining !== undefined ? ` · ${buff.turnsRemaining}T` : ''}${buff.snapshot.description ? `\n${buff.snapshot.description}` : ''}`"
     >
-      <BuffIcon :icon="buff.snapshot.icon" size-class="text-3.5" />
-      <span>{{ buff.snapshot.name }}</span>
-      <span v-if="buff.turnsRemaining !== undefined" class="opacity-80">{{ buff.turnsRemaining }}T</span>
+      <BuffIcon :icon="buff.snapshot.icon" :style="{ fontSize: `${iconPx}px` }" />
     </span>
     <span
       v-if="overflow > 0"
-      class="inline-flex items-center border rounded border-white/50 bg-black/50 px-1 py-px text-2.5 text-white leading-none"
-    >⋯+{{ overflow }}</span>
+      class="inline-flex shrink-0 items-center justify-center border rounded border-white/50 bg-black/60 px-0.5 font-medium text-white leading-none"
+      :style="{ height: `${pillPx}px`, fontSize: `${Math.max(7, pillPx - 4)}px` }"
+      :title="`还有 ${overflow} 个 buff 未显示`"
+    >+{{ overflow }}</span>
   </div>
 </template>
