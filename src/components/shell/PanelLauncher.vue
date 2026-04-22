@@ -2,6 +2,7 @@
 // 独立定位在视口右下角,不复用 panelPos。
 // 之所以不 reuse panelPos:panelPos 是面板左上角(面板 320×360),小 icon 挂那里
 // 视觉上离角落好远;展开时面板从 panelPos 弹出,不跳动即可。
+import { Logo } from '@/components/ui'
 import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
@@ -13,7 +14,7 @@ const settings = useSettingsStore()
     title="Open sword panel (Alt+S)"
     @click="settings.showPanel()"
   >
-    <div class="ccs-launcher-icon i-lucide-sword" />
+    <Logo :size="18" subtle />
   </button>
 </template>
 
@@ -38,9 +39,5 @@ const settings = useSettingsStore()
 }
 .ccs-launcher:hover {
   background: rgba(40, 40, 48, 0.95);
-}
-.ccs-launcher-icon {
-  width: 18px;
-  height: 18px;
 }
 </style>

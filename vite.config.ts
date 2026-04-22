@@ -21,7 +21,8 @@ export default defineConfig({
         'name': 'ccfolia-sword',
         'namespace': 'https://github.com/tofu/ccfolia-sword',
         'description': '剑之世界 2.5 战斗引擎 · ccfolia 伴侣',
-        'icon': 'https://ccfolia.com/favicon.ico',
+        // 'icon': 'https://ccfolia.com/favicon.ico',
+        'icon': 'https://i.imgur.com/M5ZRBm4.png',
         'match': ['https://ccfolia.com/rooms/*'],
         // sniffer 必须比 ccfolia 的 Firebase SDK 更早装钩子,否则抓不到 Write/channel。
         'run-at': 'document-start',

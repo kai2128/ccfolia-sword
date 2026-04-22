@@ -7,7 +7,7 @@ import BuffLibraryTab from '@/components/tabs/BuffLibraryTab.vue'
 import ResolverTab from '@/components/tabs/ResolverTab.vue'
 import RosterTab from '@/components/tabs/RosterTab.vue'
 import TagLibraryTab from '@/components/tabs/TagLibraryTab.vue'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
+import { Logo, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useDraggable } from '@/composables/useDraggable'
 import { useSettingsStore } from '@/stores/settings'
 import { useUiStore } from '@/stores/ui'
@@ -80,11 +80,12 @@ onBeforeUnmount(() => {
       ref="handleRef"
       class="h-8 flex cursor-move select-none items-center gap-2 border-b border-white/10 px-3"
     >
-      <div class="i-lucide-sword text-4 text-hp" />
+      <Logo :size="16" class="text-hp" />
       <span class="text-sm font-medium">ccfolia-sword</span>
+      <span class="ml-auto text-xs text-white/40 italic">- by rara</span>
       <button
         type="button"
-        class="ml-auto h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+        class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
         title="收起到 launcher (Alt+S)"
         @click="settings.hidePanel()"
       >
