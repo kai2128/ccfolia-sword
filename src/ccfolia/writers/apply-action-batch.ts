@@ -1,17 +1,11 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
-import { getCurrentRoomId } from '../firestore-writer'
-import { getFirestoreApi } from '../webpack-hook'
+import { getCurrentRoomId, patchStatus } from '../firestore-writer'
 
 export interface StatusChange {
   char: CcfoliaCharacter
   slot: StatusSlot
   newValue: number
-}
-
-interface WriteBatchLike {
-  set: (ref: unknown, data: unknown, options?: { merge?: boolean }) => void
-  commit: () => Promise<void>
 }
 
 interface CharGroup {
@@ -36,6 +30,19 @@ function applyStatusEdit(
   )
 }
 
+// 对多角色做一次性应用。名字里的 "Batch" 指"一批变更",**不是** Firestore writeBatch。
+//
+// 刻意不走 writeBatch:
+//   - SDK 的 setDoc 在调用瞬间就写本地 cache 并 fire onSnapshot(hasPendingWrites=true),
+//     ccfolia Redux 秒更,UI 反馈跟 writeBatch 无差别
+//   - writeBatch 唯一的额外保证是"原子提交",但战斗写回并不需要这种跨 doc 原子性
+//     (一个目标失败不该让其他目标也不落地,GM 分别看到错误再单独重试更合理)
+//   - 绕开 writeBatch 也让 webpack-hook 少扫一个不稳定的指纹(writeBatch 没有
+//     稳定字面量,只能靠 `new X(e, t=>Y(e,t))` 这种 regex 匹配)
+//
+// 仍然需要按 charId 分组:同一角色的多 slot 必须合并成一次 setDoc,
+// 否则 `{ merge: true }` 对 `status` 数组是字段级整体替换,后一次 set 会覆盖前一次,
+// 前一个 slot 的改动丢失。
 export async function applyStatusChangesBatch(
   changes: StatusChange[],
   labelMap: StatusLabelMap,
@@ -43,22 +50,11 @@ export async function applyStatusChangesBatch(
   if (changes.length === 0)
     return
 
-  const api = getFirestoreApi()
-  if (!api)
-    throw new Error('Firebase SDK 还没挂钩完成')
-
   const roomId = getCurrentRoomId()
   if (!roomId)
     throw new Error('URL 不含 roomId')
 
-  const { db, firestore } = api
-  const { doc, writeBatch, serverTimestamp } = firestore
-  if (typeof writeBatch !== 'function')
-    throw new Error('Firebase SDK 未暴露 writeBatch(webpack scan 未命中)')
-
-  const batch = writeBatch(db as never) as WriteBatchLike
   const byChar = new Map<string, CharGroup>()
-
   for (const change of changes) {
     const current = byChar.get(change.char._id)
     if (current) {
@@ -72,14 +68,12 @@ export async function applyStatusChangesBatch(
     })
   }
 
-  for (const { char, edits } of byChar.values()) {
-    let nextStatus = char.status
-    for (const edit of edits)
-      nextStatus = applyStatusEdit(nextStatus, edit.slot, edit.newValue, labelMap, char.name)
-
-    const ref = doc(db as never, 'rooms', roomId, 'characters', char._id)
-    batch.set(ref, { status: nextStatus, updatedAt: serverTimestamp() }, { merge: true })
-  }
-
-  await batch.commit()
+  await Promise.all(
+    [...byChar.values()].map(({ char, edits }) => {
+      let nextStatus = char.status
+      for (const edit of edits)
+        nextStatus = applyStatusEdit(nextStatus, edit.slot, edit.newValue, labelMap, char.name)
+      return patchStatus({ roomId, charId: char._id, newStatus: nextStatus })
+    }),
+  )
 }
