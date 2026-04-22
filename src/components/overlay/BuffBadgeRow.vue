@@ -17,24 +17,30 @@ const visibleBuffs = computed(() => {
 })
 
 const overflow = computed(() => Math.max(0, props.buffs.length - maxVisible.value))
+
+function pillClass(buff: BuffInstance): string {
+  return buff.snapshot.polarity === 'positive'
+    ? 'bg-buff/85 text-white border-buff'
+    : 'bg-debuff/85 text-white border-debuff'
+}
 </script>
 
 <template>
-  <div class="pointer-events-none flex items-center gap-0.5">
+  <div class="pointer-events-none flex items-center gap-1">
     <span
       v-for="buff in visibleBuffs"
       :key="buff.id"
-      class="inline-flex items-center gap-0.5 border border-white/50 rounded bg-black/50 px-1 py-px text-3 text-white leading-none"
-      :class="{ 'opacity-45 grayscale': !buff.enabled }"
-      :style="buff.snapshot.color ? { borderColor: buff.snapshot.color } : undefined"
-      :title="buff.snapshot.name"
+      class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-xs font-medium leading-none"
+      :class="[pillClass(buff), { 'opacity-40 grayscale line-through': !buff.enabled }]"
+      :title="buff.snapshot.description"
     >
-      <span v-if="!buff.enabled" class="text-2.5">⊘</span>
-      <BuffIcon :icon="buff.snapshot.icon" size-class="text-xs" />
+      <BuffIcon :icon="buff.snapshot.icon" size-class="text-3.5" />
+      <span>{{ buff.snapshot.name }}</span>
+      <span v-if="buff.turnsRemaining !== undefined" class="opacity-80">{{ buff.turnsRemaining }}T</span>
     </span>
     <span
       v-if="overflow > 0"
-      class="inline-flex items-center border border-white/50 rounded bg-black/50 px-1 py-px text-2.5 text-white leading-none"
+      class="inline-flex items-center border rounded border-white/50 bg-black/50 px-1 py-px text-2.5 text-white leading-none"
     >⋯+{{ overflow }}</span>
   </div>
 </template>
