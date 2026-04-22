@@ -9,7 +9,7 @@
 
 import type { CcfoliaCharacter, CcfoliaParam, CcfoliaStatus } from '@/types/ccfolia'
 import { createLogger } from '@/infra/log'
-import { optimisticUpdateCharacter } from './redux-store'
+import { getReduxStore, optimisticUpdateCharacter } from './redux-store'
 import { getFirestoreApi } from './webpack-hook'
 
 const log = createLogger('writer')
@@ -126,4 +126,66 @@ export async function commitParams(char: CcfoliaCharacter, newParams: CcfoliaPar
       optimisticUpdateCharacter(char as unknown as { _id: string } & Record<string, unknown>)
     throw e
   }
+}
+
+export function readCharacterParams(characterId: string): CcfoliaParam[] {
+  const store = getReduxStore()
+  if (!store)
+    return []
+  const state = store.getState() as {
+    entities?: { roomCharacters?: { entities?: Record<string, CcfoliaCharacter> } }
+  }
+  return state.entities?.roomCharacters?.entities?.[characterId]?.params ?? []
+}
+
+async function writeCharacterParamsRaw(characterId: string, params: CcfoliaParam[]): Promise<void> {
+  const store = getReduxStore()
+  const state = store?.getState() as {
+    entities?: { roomCharacters?: { entities?: Record<string, CcfoliaCharacter> } }
+  } | undefined
+  const char = state?.entities?.roomCharacters?.entities?.[characterId]
+  if (!char)
+    throw new Error(`character ${characterId} not in roomCharacters`)
+  await commitParams(char, params)
+}
+
+const paramsWriteQueues = new Map<string, Promise<void>>()
+
+export async function withParamsLock<T>(
+  characterId: string,
+  mutator: (current: CcfoliaParam[]) => CcfoliaParam[] | { next: CcfoliaParam[], result: T },
+): Promise<T | void> {
+  const previous = paramsWriteQueues.get(characterId) ?? Promise.resolve()
+  let releaseResult: T | void
+
+  const currentRun = previous.then(async () => {
+    const current = readCharacterParams(characterId)
+    const output = mutator(current)
+    const next = Array.isArray(output) ? output : output.next
+
+    if (!Array.isArray(output))
+      releaseResult = output.result
+
+    if (next === current)
+      return
+
+    await writeCharacterParamsRaw(characterId, next)
+  })
+
+  const queueTail = currentRun.catch(() => undefined)
+  paramsWriteQueues.set(characterId, queueTail)
+
+  try {
+    await currentRun
+  }
+  catch (error) {
+    log.error('withParamsLock RMW failed', { characterId, error })
+    throw error
+  }
+  finally {
+    if (paramsWriteQueues.get(characterId) === queueTail)
+      paramsWriteQueues.delete(characterId)
+  }
+
+  return releaseResult
 }

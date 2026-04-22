@@ -1,0 +1,128 @@
+import type { StatusEffectDefinition } from '@/types/buff-v3'
+
+function def(
+  partial: Partial<StatusEffectDefinition>
+    & Pick<StatusEffectDefinition, 'id' | 'name' | 'icon' | 'description'>,
+): StatusEffectDefinition {
+  return {
+    scope: 'single',
+    modifiers: [],
+    builtin: true,
+    ...partial,
+  }
+}
+
+export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
+  def({
+    id: 'builtin.poison',
+    name: '中毒',
+    icon: 'i-mdi-biohazard',
+    description: '每回合结束受到中毒伤害',
+    defaultDuration: 3,
+    tickPrompt: '请为中毒者掷中毒伤害(1d6 或 GM 指定)',
+  }),
+  def({
+    id: 'builtin.paralysis',
+    name: '麻痹',
+    icon: 'i-mdi-flash',
+    description: '无法行动(行动不能子集)',
+    defaultDuration: 2,
+    reminder: '被麻痹者本回合无法行动',
+  }),
+  def({
+    id: 'builtin.sleep',
+    name: '睡眠',
+    icon: 'i-mdi-sleep',
+    description: '无法行动,受伤立即解除',
+    reminder: '受伤立即解除睡眠',
+  }),
+  def({
+    id: 'builtin.confusion',
+    name: '混乱',
+    icon: 'i-mdi-help-circle',
+    description: '每回合随机行动',
+    defaultDuration: 3,
+    tickPrompt: '掷混乱表决定混乱者本回合行动',
+  }),
+  def({
+    id: 'builtin.charm',
+    name: '魅惑',
+    icon: 'i-mdi-heart',
+    description: '视施术者为友方',
+    defaultDuration: 3,
+    reminder: '被魅惑者视施术者为友方',
+  }),
+  def({
+    id: 'builtin.fear',
+    name: '恐怖',
+    icon: 'i-mdi-ghost',
+    description: '精神抵抗失败则无法攻击来源',
+    defaultDuration: 3,
+    reminder: '无法攻击恐怖的来源',
+  }),
+  def({
+    id: 'builtin.petrified',
+    name: '石化',
+    icon: 'i-mdi-cube',
+    description: '完全无法行动',
+    reminder: '石化无行动,不受物理伤害',
+  }),
+  def({
+    id: 'builtin.blessed',
+    name: '祝福',
+    icon: 'i-mdi-star',
+    description: '攻击 / 防御 +1',
+    defaultDuration: 3,
+    modifiers: [
+      { target: 'attack', value: 1 },
+      { target: 'defense', value: 1 },
+    ],
+  }),
+  def({
+    id: 'builtin.protection',
+    name: '加护',
+    icon: 'i-mdi-shield',
+    description: '防御 +2',
+    defaultDuration: 3,
+    modifiers: [
+      { target: 'defense', value: 2 },
+    ],
+  }),
+  def({
+    id: 'builtin.haste',
+    name: '加速',
+    icon: 'i-mdi-lightning-bolt',
+    description: 'GM 判定可追加一次动作',
+    defaultDuration: 3,
+    reminder: 'GM 判定时可追加一次动作',
+  }),
+  def({
+    id: 'builtin.invisible',
+    name: '隐身',
+    icon: 'i-mdi-eye-off',
+    description: '攻击者对其命中不利',
+    defaultDuration: 3,
+    reminder: '攻击者对隐身目标命中判定不利',
+  }),
+  def({
+    id: 'builtin.incapacitated',
+    name: '行动不能',
+    icon: 'i-mdi-close-octagon',
+    description: 'HP ≤ 0 或其他原因导致无法行动',
+    reminder: '无法行动',
+  }),
+  def({
+    id: 'builtin.dying',
+    name: '濒死',
+    icon: 'i-mdi-heart-broken',
+    description: '生命危险,需救治',
+    tickPrompt: '请为濒死者掷生命抵抗判定',
+  }),
+  def({
+    id: 'builtin.berserk',
+    name: '狂化',
+    icon: 'i-mdi-fire',
+    description: '攻击 +X,防御 -X(GM 按场景定)',
+    reminder: 'GM 手动调整 modifier 数值',
+  }),
+]

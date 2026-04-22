@@ -8,7 +8,7 @@ import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { useFirestoreReady } from '@/composables/useFirestoreReady'
 import { applyDamageToTarget, validateDraft } from '@/core/combat/apply-damage'
 import { applyHealToTarget } from '@/core/combat/apply-heal'
-import { resolveDefense } from '@/core/combat/resolve-modifiers'
+import { collectDefenseMods, resolveDefense } from '@/core/combat/resolve-modifiers'
 import { readStatusSlot } from '@/core/status-slot'
 import { useActionDraftStore } from '@/stores/action-draft'
 import { useEncounterStore } from '@/stores/encounter'
@@ -169,7 +169,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
   }
 
   const defenseText = kind.value === 'damage' && damageType.value === 'physical'
-    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, [])}`
+    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, collectDefenseMods(char))}`
     : undefined
 
   // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
@@ -207,7 +207,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     const result = applyDamageToTarget(
       draft.value,
       target,
-      { status: char.status, mods: [], currentHp: hp.value },
+      { status: char.status, mods: collectDefenseMods(char), currentHp: hp.value },
       settings.statusLabelMap,
     )
 

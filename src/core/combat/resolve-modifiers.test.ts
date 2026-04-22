@@ -1,8 +1,10 @@
 import type { ModifierContribution } from './resolve-modifiers'
-import type { CcfoliaStatus } from '@/types/ccfolia'
+import type { BuffInstance, ModifierDefinition } from '@/types/buff-v3'
+import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
 import { describe, expect, it } from 'vitest'
+import { encodeBuff } from '@/core/buff/codec'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
-import { resolveDefense, sumModifiers } from './resolve-modifiers'
+import { collectDefenseMods, resolveDefense, sumModifiers } from './resolve-modifiers'
 
 const status: CcfoliaStatus[] = [
   { label: 'HP', value: 22, max: 25 },
@@ -49,5 +51,57 @@ describe('sumModifiers', () => {
 
   it('returns 0 for empty', () => {
     expect(sumModifiers([], 'defense')).toBe(0)
+  })
+})
+
+function makeBuff(modifiers: ModifierDefinition[], enabled = true): BuffInstance {
+  return {
+    id: 'b',
+    definitionId: 'x',
+    snapshot: { name: '', icon: '', description: '', modifiers },
+    attachedTo: { kind: 'single', characterId: 'c' },
+    lifecycle: 'encounter',
+    enabled,
+    attachedAtTurn: 1,
+  }
+}
+
+function makeCharacter(defense: number, buffs: BuffInstance[]): CcfoliaCharacter {
+  return {
+    _id: 'c',
+    roomId: 'room',
+    name: 'test',
+    active: true,
+    status: [{ label: '防御', value: defense, max: defense }],
+    params: buffs.map(buff => ({ label: `cs_buff_${buff.id}`, value: encodeBuff(buff) })),
+  } as CcfoliaCharacter
+}
+
+describe('collectDefenseMods', () => {
+  it('skips disabled buffs', () => {
+    const buff = makeBuff([{ target: 'defense', value: 5 }], false)
+    expect(collectDefenseMods(makeCharacter(3, [buff]))).toEqual([])
+  })
+
+  it('collects from multiple enabled buffs', () => {
+    const first = { ...makeBuff([{ target: 'defense', value: 2 }]), id: 'b1' }
+    const second = { ...makeBuff([{ target: 'defense', value: 1 }]), id: 'b2' }
+    const mods = collectDefenseMods(makeCharacter(3, [first, second]))
+    expect(mods.map(modifier => modifier.value).reduce((sum, value) => sum + value, 0)).toBe(3)
+  })
+
+  it('filters modifiers with different target', () => {
+    const buff = makeBuff([
+      { target: 'attack', value: 5 },
+      { target: 'defense', value: 2 },
+    ])
+    expect(collectDefenseMods(makeCharacter(3, [buff]))).toEqual([{ target: 'defense', value: 2 }])
+  })
+
+  it('integrates with resolveDefense', () => {
+    const buff = makeBuff([{ target: 'defense', value: 4 }])
+    const character = makeCharacter(3, [buff])
+    const mods = collectDefenseMods(character)
+    expect(resolveDefense(character.status, DEFAULT_STATUS_LABEL_MAP, mods)).toBe(7)
   })
 })

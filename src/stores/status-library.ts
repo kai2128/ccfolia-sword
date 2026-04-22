@@ -1,9 +1,9 @@
 // 状态效果库:builtin(硬编码,不可删改)+ custom(GM 自定义,持久化)
 // 只持久化 custom —— builtin 每次启动从源码重建,避免老快照卡住升级
 
-import type { StatusEffectDefinition } from '@/types/status-effect'
+import type { StatusEffectDefinition } from '@/types/buff-v3'
 import { defineStore } from 'pinia'
-import { BUILTIN_STATUS_EFFECTS } from '@/core/status-effect/builtin'
+import { BUILTIN_STATUS_EFFECTS } from '@/core/buff/builtin'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
 interface StatusLibraryState {
@@ -40,6 +40,6 @@ export const useStatusLibraryStore = defineStore('statusLibrary', {
   },
   persist: {
     storage: gmStorage,
-    key: 'ccs:store:status-library',
+    key: 'ccs:store:status-library:v3',
   },
 })
