@@ -6,6 +6,7 @@ export type ModifierDefinition = Pick<Modifier, 'target' | 'value'>
 
 export type BuffScope = 'single' | 'aoe'
 export type BuffLifecycle = 'encounter' | 'persistent'
+export type BuffPolarity = 'positive' | 'negative'
 
 export interface StatusEffectDefinition {
   id: string
@@ -20,6 +21,7 @@ export interface StatusEffectDefinition {
   modifiers: ModifierDefinition[]
   reminder?: string
   builtin?: boolean
+  polarity: BuffPolarity
 }
 
 export interface BuffSnapshot {
@@ -31,6 +33,7 @@ export interface BuffSnapshot {
   modifiers: ModifierDefinition[]
   reminder?: string
   defaultAoeRadius?: number
+  polarity: BuffPolarity
 }
 
 export interface AttachSingle {

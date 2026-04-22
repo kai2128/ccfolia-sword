@@ -20,6 +20,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '每回合结束受到中毒伤害',
     defaultDuration: 3,
     tickPrompt: '请为中毒者掷中毒伤害(1d6 或 GM 指定)',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.paralysis',
@@ -28,6 +29,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '无法行动(行动不能子集)',
     defaultDuration: 2,
     reminder: '被麻痹者本回合无法行动',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.sleep',
@@ -35,6 +37,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     icon: 'i-mdi-sleep',
     description: '无法行动,受伤立即解除',
     reminder: '受伤立即解除睡眠',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.confusion',
@@ -43,6 +46,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '每回合随机行动',
     defaultDuration: 3,
     tickPrompt: '掷混乱表决定混乱者本回合行动',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.charm',
@@ -51,6 +55,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '视施术者为友方',
     defaultDuration: 3,
     reminder: '被魅惑者视施术者为友方',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.fear',
@@ -59,6 +64,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '精神抵抗失败则无法攻击来源',
     defaultDuration: 3,
     reminder: '无法攻击恐怖的来源',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.petrified',
@@ -66,6 +72,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     icon: 'i-mdi-cube',
     description: '完全无法行动',
     reminder: '石化无行动,不受物理伤害',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.blessed',
@@ -77,6 +84,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
       { target: 'attack', value: 1 },
       { target: 'defense', value: 1 },
     ],
+    polarity: 'positive',
   }),
   def({
     id: 'builtin.protection',
@@ -87,6 +95,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     modifiers: [
       { target: 'defense', value: 2 },
     ],
+    polarity: 'positive',
   }),
   def({
     id: 'builtin.haste',
@@ -95,6 +104,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: 'GM 判定可追加一次动作',
     defaultDuration: 3,
     reminder: 'GM 判定时可追加一次动作',
+    polarity: 'positive',
   }),
   def({
     id: 'builtin.invisible',
@@ -103,6 +113,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     description: '攻击者对其命中不利',
     defaultDuration: 3,
     reminder: '攻击者对隐身目标命中判定不利',
+    polarity: 'positive',
   }),
   def({
     id: 'builtin.incapacitated',
@@ -110,6 +121,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     icon: 'i-mdi-close-octagon',
     description: 'HP ≤ 0 或其他原因导致无法行动',
     reminder: '无法行动',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.dying',
@@ -117,6 +129,7 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     icon: 'i-mdi-heart-broken',
     description: '生命危险,需救治',
     tickPrompt: '请为濒死者掷生命抵抗判定',
+    polarity: 'negative',
   }),
   def({
     id: 'builtin.berserk',
@@ -124,5 +137,6 @@ export const BUILTIN_STATUS_EFFECTS: StatusEffectDefinition[] = [
     icon: 'i-mdi-fire',
     description: '攻击 +X,防御 -X(GM 按场景定)',
     reminder: 'GM 手动调整 modifier 数值',
+    polarity: 'positive',
   }),
 ]

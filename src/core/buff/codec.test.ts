@@ -11,6 +11,7 @@ function sampleBuff(): BuffInstance {
       icon: 'i-mdi-biohazard',
       description: '',
       modifiers: [{ target: 'defense', value: -1 }],
+      polarity: 'positive',
     },
     attachedTo: { kind: 'single', characterId: 'char-1' },
     lifecycle: 'encounter',

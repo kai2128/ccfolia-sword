@@ -16,6 +16,7 @@ function sampleDefinition(): StatusEffectDefinition {
     modifiers: [{ target: 'defense', value: -1 }],
     reminder: '中毒提醒',
     builtin: true,
+    polarity: 'positive',
   }
 }
 

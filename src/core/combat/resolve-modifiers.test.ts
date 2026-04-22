@@ -58,7 +58,7 @@ function makeBuff(modifiers: ModifierDefinition[], enabled = true): BuffInstance
   return {
     id: 'b',
     definitionId: 'x',
-    snapshot: { name: '', icon: '', description: '', modifiers },
+    snapshot: { name: '', icon: '', description: '', modifiers, polarity: 'positive' },
     attachedTo: { kind: 'single', characterId: 'c' },
     lifecycle: 'encounter',
     enabled,

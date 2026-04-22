@@ -10,5 +10,6 @@ export function createSnapshot(def: StatusEffectDefinition): BuffSnapshot {
     modifiers: def.modifiers.map(modifier => ({ ...modifier })),
     reminder: def.reminder,
     defaultAoeRadius: def.defaultAoeRadius,
+    polarity: def.polarity,
   }
 }

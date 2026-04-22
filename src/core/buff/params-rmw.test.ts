@@ -8,7 +8,7 @@ function makeBuff(id: string, patch: Partial<BuffInstance> = {}): BuffInstance {
   return {
     id,
     definitionId: 'builtin.poison',
-    snapshot: { name: 'x', icon: '', description: '', modifiers: [] },
+    snapshot: { name: 'x', icon: '', description: '', modifiers: [], polarity: 'positive' },
     attachedTo: { kind: 'single', characterId: 'c1' },
     lifecycle: 'encounter',
     enabled: true,
