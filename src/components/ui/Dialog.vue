@@ -16,7 +16,7 @@ defineProps<{
   description?: string
 }>()
 
-const open = defineModel<boolean>('open')
+const open = defineModel<boolean>('open', { required: true })
 // Shadow DOM 专属挂载点;没拿到就 fallback 到 body(开发态兜底,生产应永远有)
 const target = usePortalTarget()
 </script>

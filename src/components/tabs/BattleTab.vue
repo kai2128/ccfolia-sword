@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import ActionForm from '@/components/combat/ActionForm.vue'
-import ActorQuickSwitcher from '@/components/combat/ActorQuickSwitcher.vue'
+import TargetQuickPicker from '@/components/combat/TargetQuickPicker.vue'
 import { useEncounterStore } from '@/stores/encounter'
 
 const encounter = useEncounterStore()
@@ -77,48 +77,29 @@ function endCombat() {
         </button>
       </header>
 
-      <section class="flex flex-col gap-2 border border-white/10 rounded-md bg-white/3 p-3">
-        <div>
-          <h4 class="text-xs text-white/60">
-            未行动
-          </h4>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <button
-              v-for="char in pendingChars"
-              :key="char!._id"
-              type="button"
-              class="border border-accent/30 rounded bg-accent/10 px-2 py-1 text-xs text-white transition-colors hover:bg-accent/20"
-              @click="selectActor(char!._id)"
-            >
-              {{ char!.name }}
-            </button>
-            <span v-if="pendingChars.length === 0" class="text-xs text-white/35">
-              本回合已全部行动
-            </span>
-          </div>
+      <section class="flex flex-col gap-1.5 border border-white/10 rounded-md bg-white/3 px-2 py-1.5">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[11px] text-white/50">未行动 · {{ pendingChars.length }}</span>
+          <TargetQuickPicker
+            :allowed-ids="encounter.local.pendingIds"
+            :selected-ids="encounter.local.currentActorId ? [encounter.local.currentActorId] : []"
+            empty-text="本回合已全部行动 / 画布上无可选行动者"
+            @toggle="selectActor"
+          />
         </div>
-
-        <div>
-          <h4 class="text-xs text-white/60">
-            已行动
-          </h4>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <span
-              v-for="char in actedChars"
-              :key="char!._id"
-              class="rounded bg-white/8 px-2 py-1 text-xs text-white/45 line-through"
-            >
-              {{ char!.name }}
-            </span>
-            <span v-if="actedChars.length === 0" class="text-xs text-white/35">
-              还没有角色完成行动
-            </span>
-          </div>
+        <div class="flex flex-wrap items-center gap-1 text-xs">
+          <span class="shrink-0 text-[11px] text-white/50">已行动 · {{ actedChars.length }}</span>
+          <span
+            v-for="char in actedChars"
+            :key="char!._id"
+            class="h-5 flex items-center rounded bg-white/8 px-1.5 text-[11px] text-white/45 line-through"
+          >
+            {{ char!.name }}
+          </span>
+          <span v-if="actedChars.length === 0" class="text-[11px] text-white/35">
+            —
+          </span>
         </div>
-      </section>
-
-      <section class="flex flex-col gap-2">
-        <ActorQuickSwitcher />
       </section>
 
       <section v-if="currentActor" class="flex flex-col gap-2">
@@ -137,7 +118,7 @@ function endCombat() {
         <ActionForm :key="currentActor._id" :actor-id="currentActor._id" />
       </section>
       <section v-else class="border border-white/10 rounded-md border-dashed px-3 py-4 text-xs text-white/40">
-        从未行动池或下方快速切换 chip 选择角色。
+        从未行动池选择一个角色开始本回合行动。
       </section>
 
       <footer class="flex justify-end">

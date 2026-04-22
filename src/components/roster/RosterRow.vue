@@ -4,9 +4,8 @@ import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
 import HpMpEditor from '@/components/combat/HpMpEditor.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
-import { TagChip } from '@/components/ui'
 import { readStatusSlot } from '@/core/status-slot'
-import { readTagInstances, resolveTags, sortByOrder } from '@/core/tag'
+import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useTagLibraryStore } from '@/stores/tag-library'
 
@@ -29,46 +28,45 @@ function togglePill() {
   overlayVis.toggle(props.char._id)
 }
 
+// Tag selector 放在行末,按钮颜色直接取主 tag 色 —— 不再在行里重复渲染 tag chips
 const lib = useTagLibraryStore()
-const tags = computed(() =>
-  sortByOrder(resolveTags(readTagInstances(props.char), lib.byId)),
+const primary = computed(() =>
+  pickPrimaryTag(resolveTags(readTagInstances(props.char), lib.byId)),
 )
 </script>
 
 <template>
-  <li class="flex flex-col gap-1 border-b border-white/5 py-2 last:border-b-0">
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="h-5 w-5 flex items-center justify-center border border-white/30 rounded text-xs leading-none"
-        :class="pillVisible ? 'text-white' : 'text-white/40'"
-        :title="pillVisible ? '隐藏场景上的 HP/MP 指示' : '显示场景上的 HP/MP 指示'"
-        @click="togglePill"
-      >
-        {{ pillVisible ? '●' : '○' }}
-      </button>
-      <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
-      <HpMpEditor
-        v-if="hp"
-        kind="hp"
-        :value="hp.value"
-        :max="hp.max"
-        @change="v => emit('change', 'hp', v)"
-      />
-      <span v-else class="text-xs text-white/40">HP —</span>
-      <HpMpEditor
-        v-if="mp"
-        kind="mp"
-        :value="mp.value"
-        :max="mp.max"
-        @change="v => emit('change', 'mp', v)"
-      />
-      <span v-else class="text-xs text-white/40">MP —</span>
-    </div>
+  <li class="flex items-center gap-1.5 border-b border-white/5 px-1 py-1 last:border-b-0">
+    <button
+      type="button"
+      class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+      :class="pillVisible ? 'text-white' : 'text-white/30'"
+      :title="pillVisible ? '隐藏场景上的 HP/MP 指示' : '显示场景上的 HP/MP 指示'"
+      @click="togglePill"
+    >
+      <span :class="pillVisible ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="text-3.5" />
+    </button>
 
-    <div class="flex flex-wrap items-center gap-1 pl-7">
-      <TagChip v-for="tag in tags" :key="tag.id" :tag="tag" size="xs" />
-      <TagAttachPopover :char="char" />
-    </div>
+    <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
+
+    <HpMpEditor
+      v-if="hp"
+      kind="hp"
+      :value="hp.value"
+      :max="hp.max"
+      @change="v => emit('change', 'hp', v)"
+    />
+    <span v-else class="shrink-0 text-xs text-white/40">HP —</span>
+
+    <HpMpEditor
+      v-if="mp"
+      kind="mp"
+      :value="mp.value"
+      :max="mp.max"
+      @change="v => emit('change', 'mp', v)"
+    />
+    <span v-else class="shrink-0 text-xs text-white/40">MP —</span>
+
+    <TagAttachPopover :char="char" :primary="primary" />
   </li>
 </template>

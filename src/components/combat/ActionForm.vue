@@ -11,8 +11,10 @@ import { applyHealToTarget } from '@/core/combat/apply-heal'
 import { resolveDefense } from '@/core/combat/resolve-modifiers'
 import { readStatusSlot } from '@/core/status-slot'
 import { useActionDraftStore } from '@/stores/action-draft'
+import { useEncounterStore } from '@/stores/encounter'
 import { useSettingsStore } from '@/stores/settings'
 import ResultSummary from './ResultSummary.vue'
+import TargetQuickPicker from './TargetQuickPicker.vue'
 import TargetRow from './TargetRow.vue'
 
 const props = defineProps<{
@@ -33,6 +35,7 @@ interface TargetRowVm {
 
 const settings = useSettingsStore()
 const chars = useRoomCharactersStore()
+const encounter = useEncounterStore()
 const { ready: firestoreReady } = useFirestoreReady()
 
 const draftStore = useActionDraftStore()
@@ -116,6 +119,18 @@ function addTarget(characterId: string) {
 
 function removeTarget(characterId: string) {
   targets.value = targets.value.filter(target => target.characterId !== characterId)
+}
+
+function toggleTarget(characterId: string) {
+  if (targets.value.some(target => target.characterId === characterId))
+    removeTarget(characterId)
+  else
+    addTarget(characterId)
+}
+
+function endActorTurn() {
+  if (props.actorId)
+    encounter.finishActor(props.actorId)
 }
 
 function updateTarget(characterId: string, next: ActionTarget) {
@@ -565,6 +580,11 @@ async function applyAll() {
         </select>
       </div>
 
+      <TargetQuickPicker
+        :selected-ids="vms.map(vm => vm.charId)"
+        @toggle="toggleTarget"
+      />
+
       <div v-if="vms.length === 0" class="rounded bg-black/20 py-3 text-center text-xs text-white/40">
         还没有目标
       </div>
@@ -607,10 +627,19 @@ async function applyAll() {
       {{ writeError }}
     </div>
 
-    <div class="flex justify-end">
+    <div class="flex items-center gap-2">
       <button
         type="button"
-        class="h-8 rounded bg-accent/80 px-3 text-sm text-white transition-colors disabled:cursor-not-allowed hover:bg-accent disabled:opacity-40"
+        class="h-9 flex-1 rounded bg-white/10 px-3 text-sm text-white/80 transition-colors disabled:cursor-not-allowed hover:bg-white/15 disabled:opacity-40"
+        :disabled="!actorId"
+        :title="actorId ? '结束当前角色回合,进入已行动' : '先选一个行动者'"
+        @click="endActorTurn"
+      >
+        结束角色回合
+      </button>
+      <button
+        type="button"
+        class="h-9 flex-1 rounded bg-accent/80 px-3 text-sm text-white transition-colors disabled:cursor-not-allowed hover:bg-accent disabled:opacity-40"
         :disabled="!vms.length || !firestoreReady || writing"
         @click="applyAll"
       >

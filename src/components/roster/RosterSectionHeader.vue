@@ -6,25 +6,17 @@ defineProps<{
   primaryTag: TagDefinition | null
   count: number
 }>()
-
-const locationLabel: Record<'on-canvas' | 'off-canvas', string> = {
-  'on-canvas': '画布上',
-  'off-canvas': '画布外',
-}
 </script>
 
 <template>
-  <div class="mt-3 flex items-center gap-2 border-b border-white/10 pb-1 first:mt-0">
-    <span class="text-[11px] text-white/40 uppercase">{{ locationLabel[location] }}</span>
-    <span
-      v-if="primaryTag"
-      class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-      :style="{ backgroundColor: `${primaryTag.color}33`, color: '#fff' }"
-    >
+  <div class="mt-2! flex items-center gap-2 border-b border-white/10 pb-0.5 first:mt-0">
+    <span v-if="primaryTag" class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+      :style="{ backgroundColor: `${primaryTag.color}33`, color: '#fff' }">
       <span v-if="primaryTag.icon" :class="primaryTag.icon" class="text-3" />
       {{ primaryTag.label }}
     </span>
     <span v-else class="text-xs text-white/40">未分类</span>
     <span class="text-[11px] text-white/40">· {{ count }}</span>
+    <span v-if="location === 'on-canvas'" class="i-lucide-map-pin text-3.5 text-accent -py-1" title="在画布上" />
   </div>
 </template>
