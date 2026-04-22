@@ -127,4 +127,3 @@ export async function commitParams(char: CcfoliaCharacter, newParams: CcfoliaPar
     throw e
   }
 }
-
