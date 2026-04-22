@@ -4,6 +4,7 @@ import { createApp } from 'vue'
 import { PortalTargetKey } from '@/components/ui/portal'
 import { createLogger } from '@/infra/log'
 import { setupShadowRoot } from '@/infra/shadow-mount'
+import { autoCalibrateGrid } from './grid-detect'
 
 const log = createLogger('scene-mount')
 
@@ -77,6 +78,8 @@ export function startSceneMount(
       if (!canvas)
         return
       canvas.appendChild(mounted.host)
+      // 画布重建(切房间/切场景)大概率意味着 Field 也重绘,顺手再校准一次。
+      autoCalibrateGrid(canvas, pinia)
       log.info('overlay host re-appended after canvas remount')
     }
   })
@@ -87,6 +90,9 @@ function tryMount(rootComponent: unknown, pinia: Pinia, portalTarget: HTMLElemen
   const canvas = findCanvasContainer()
   if (!canvas)
     return
+  // 被动一次性校准:探到 Field 根就把 settings.grid 同步过去。场景还没渲染完时可能短路,
+  // 由下面 MutationObserver 在 host 重挂时再试一次。
+  autoCalibrateGrid(canvas, pinia)
   const host = document.createElement('div')
   host.setAttribute('data-ccs-overlay-root', '')
   Object.assign(host.style, {
