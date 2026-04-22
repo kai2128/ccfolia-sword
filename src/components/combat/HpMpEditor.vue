@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { parseAdjustment, resolveNewValue } from '@/core/combat/adjust-hp-mp'
 
 const props = defineProps<{
@@ -16,6 +16,7 @@ const emit = defineEmits<{
 
 const editing = ref(false)
 const draft = ref('')
+const inputEl = ref<HTMLInputElement | null>(null)
 
 // 单一点击入口:Shift+click = 5,否则 = step (默认 1)。
 // 不能同时写 @click 和 @click.shift.exact,因为 .exact 只限制修饰键白名单,
@@ -34,6 +35,10 @@ function startEdit() {
     return
   draft.value = ''
   editing.value = true
+  // 等 v-if 渲染出 input 之后再聚焦
+  nextTick(() => {
+    inputEl.value?.focus()
+  })
 }
 
 function commitEdit() {
@@ -59,9 +64,12 @@ function onKey(ev: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="hp-mp-editor" :class="{ disabled }">
+  <div
+    class="inline-flex items-center gap-0.5 font-sans"
+    :class="{ 'opacity-50': disabled }"
+  >
     <button
-      class="step"
+      class="h-5 w-5 border border-white/30 bg-transparent text-white leading-none disabled:cursor-not-allowed hover:bg-white/10"
       :disabled="disabled"
       @click="ev => bump(-1, ev)"
     >
@@ -69,17 +77,24 @@ function onKey(ev: KeyboardEvent) {
     </button>
     <input
       v-if="editing"
+      ref="inputEl"
       v-model="draft"
-      class="inline-input"
-      placeholder="17 / +5 / -3"
+      class="h-5 w-20 border border-white/30 rounded bg-black/40 px-1 text-center text-xs text-white tabular-nums focus:border-accent placeholder:text-white/50 focus:outline-none focus:ring-1 focus:ring-accent"
+      placeholder="17 或 +5"
+      title="输入格式:&#10;  数字     设为该值(例如 17)&#10;  +N / -N  在当前值上增减&#10;  =N      强制设为 N(可为负)"
       @keydown="onKey"
       @blur="commitEdit"
     >
-    <button v-else class="text" :disabled="disabled" @click="startEdit">
+    <button
+      v-else
+      class="min-w-13 border-none bg-transparent text-center text-white tabular-nums disabled:cursor-not-allowed hover:underline"
+      :disabled="disabled"
+      @click="startEdit"
+    >
       {{ value }}/{{ max }}
     </button>
     <button
-      class="step"
+      class="h-5 w-5 border border-white/30 bg-transparent text-white leading-none disabled:cursor-not-allowed hover:bg-white/10"
       :disabled="disabled"
       @click="ev => bump(1, ev)"
     >
@@ -87,39 +102,3 @@ function onKey(ev: KeyboardEvent) {
     </button>
   </div>
 </template>
-
-<style scoped>
-.hp-mp-editor {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-family: system-ui, sans-serif;
-}
-.hp-mp-editor.disabled {
-  opacity: 0.5;
-}
-.step {
-  width: 20px;
-  height: 20px;
-  border: 1px solid #999;
-  background: transparent;
-  cursor: pointer;
-  line-height: 1;
-}
-.step:disabled {
-  cursor: not-allowed;
-}
-.text {
-  min-width: 52px;
-  text-align: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-.inline-input {
-  width: 64px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-</style>
