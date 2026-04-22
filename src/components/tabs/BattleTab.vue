@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import ActionForm from '@/components/combat/ActionForm.vue'
+import ActorQuickSwitcher from '@/components/combat/ActorQuickSwitcher.vue'
 import { useEncounterStore } from '@/stores/encounter'
 
 const encounter = useEncounterStore()
@@ -116,6 +117,10 @@ function endCombat() {
         </div>
       </section>
 
+      <section class="flex flex-col gap-2">
+        <ActorQuickSwitcher />
+      </section>
+
       <section v-if="currentActor" class="flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <h4 class="text-sm text-white">
@@ -132,7 +137,7 @@ function endCombat() {
         <ActionForm :key="currentActor._id" :actor-id="currentActor._id" />
       </section>
       <section v-else class="border border-white/10 rounded-md border-dashed px-3 py-4 text-xs text-white/40">
-        从未行动池选择一个角色开始本回合行动。
+        从未行动池或下方快速切换 chip 选择角色。
       </section>
 
       <footer class="flex justify-end">

@@ -5,6 +5,7 @@ import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
 import ResolverTab from '@/components/tabs/ResolverTab.vue'
 import RosterTab from '@/components/tabs/RosterTab.vue'
+import TagLibraryTab from '@/components/tabs/TagLibraryTab.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useDraggable } from '@/composables/useDraggable'
 import { useSettingsStore } from '@/stores/settings'
@@ -119,6 +120,12 @@ onBeforeUnmount(() => {
           >
             行动
           </TabsTrigger>
+          <TabsTrigger
+            value="tags"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            Tag
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="roster" class="flex-1 overflow-auto p-3">
@@ -129,6 +136,9 @@ onBeforeUnmount(() => {
         </TabsContent>
         <TabsContent value="resolver" class="flex-1 overflow-auto p-3">
           <ResolverTab />
+        </TabsContent>
+        <TabsContent value="tags" class="flex-1 overflow-auto p-3">
+          <TagLibraryTab />
         </TabsContent>
       </Tabs>
     </div>
