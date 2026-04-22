@@ -156,7 +156,7 @@ export async function withParamsLock<T>(
   mutator: (current: CcfoliaParam[]) => CcfoliaParam[] | { next: CcfoliaParam[], result: T },
 ): Promise<T | void> {
   const previous = paramsWriteQueues.get(characterId) ?? Promise.resolve()
-  let releaseResult: T | void
+  let releaseResult: T | undefined
 
   const currentRun = previous.then(async () => {
     const current = readCharacterParams(characterId)
