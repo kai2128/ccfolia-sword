@@ -40,6 +40,6 @@ export const useStatusLibraryStore = defineStore('statusLibrary', {
   },
   persist: {
     storage: gmStorage,
-    key: 'ccs:store:status-library:v3',
+    key: 'ccs:store:status-library:v4',
   },
 })
