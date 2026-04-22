@@ -6,8 +6,12 @@ describe('clampHp', () => {
     expect(clampHp(15, 25)).toBe(15)
   })
 
-  it('caps at max', () => {
-    expect(clampHp(30, 25)).toBe(25)
+  it('allows exceeding max (过量治疗/临时增益)', () => {
+    expect(clampHp(30, 25)).toBe(30)
+  })
+
+  it('clamps to max when clampMax=true', () => {
+    expect(clampHp(30, 25, true)).toBe(25)
   })
 
   it('allows negative values (HP 可 -1)', () => {
@@ -21,8 +25,12 @@ describe('clampMp', () => {
     expect(clampMp(-5, 12)).toBe(0)
   })
 
-  it('caps at max', () => {
-    expect(clampMp(20, 12)).toBe(12)
+  it('allows exceeding max', () => {
+    expect(clampMp(20, 12)).toBe(20)
+  })
+
+  it('clamps to max when clampMax=true', () => {
+    expect(clampMp(20, 12, true)).toBe(12)
   })
 
   it('passes through valid', () => {
@@ -71,16 +79,25 @@ describe('resolveNewValue', () => {
     expect(resolveNewValue({ kind: 'delta', value: -30 }, 10, max, 'hp')).toBe(-20)
   })
 
-  it('delta on hp clamps to max', () => {
-    expect(resolveNewValue({ kind: 'delta', value: 100 }, 10, max, 'hp')).toBe(max)
+  it('delta on hp allows exceeding max', () => {
+    expect(resolveNewValue({ kind: 'delta', value: 100 }, 10, max, 'hp')).toBe(110)
+  })
+
+  it('respects clampMax option for hp', () => {
+    expect(resolveNewValue({ kind: 'delta', value: 100 }, 10, max, 'hp', { clampMax: true })).toBe(max)
+    expect(resolveNewValue({ kind: 'absolute', value: 99 }, 10, max, 'hp', { clampMax: true })).toBe(max)
+  })
+
+  it('respects clampMax option for mp', () => {
+    expect(resolveNewValue({ kind: 'absolute', value: 99 }, 5, 12, 'mp', { clampMax: true })).toBe(12)
   })
 
   it('delta on mp clamps at 0', () => {
     expect(resolveNewValue({ kind: 'delta', value: -30 }, 5, 12, 'mp')).toBe(0)
   })
 
-  it('absolute on mp clamps at 0 / max', () => {
+  it('absolute on mp clamps at 0 but allows exceeding max', () => {
     expect(resolveNewValue({ kind: 'absolute', value: -3 }, 5, 12, 'mp')).toBe(0)
-    expect(resolveNewValue({ kind: 'absolute', value: 99 }, 5, 12, 'mp')).toBe(12)
+    expect(resolveNewValue({ kind: 'absolute', value: 99 }, 5, 12, 'mp')).toBe(99)
   })
 })

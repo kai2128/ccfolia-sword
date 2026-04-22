@@ -2,13 +2,17 @@
 import { nextTick, ref } from 'vue'
 import { parseAdjustment, resolveNewValue } from '@/core/combat/adjust-hp-mp'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   kind: 'hp' | 'mp'
   value: number
   max: number
   step?: number
   disabled?: boolean
-}>()
+  /** 为 true 时不允许超过 max(溢出治疗/buff 会被截断);默认 false */
+  clampMax?: boolean
+}>(), {
+  clampMax: false,
+})
 
 const emit = defineEmits<{
   (e: 'change', newValue: number): void
@@ -25,7 +29,7 @@ function bump(direction: 1 | -1, ev: MouseEvent) {
   const magnitude = ev.shiftKey ? 5 : (props.step ?? 1)
   const delta = magnitude * direction
   const adj = { kind: 'delta' as const, value: delta }
-  const next = resolveNewValue(adj, props.value, props.max, props.kind)
+  const next = resolveNewValue(adj, props.value, props.max, props.kind, { clampMax: props.clampMax })
   if (next !== props.value)
     emit('change', next)
 }
@@ -44,7 +48,7 @@ function startEdit() {
 function commitEdit() {
   const adj = parseAdjustment(draft.value)
   if (adj) {
-    const next = resolveNewValue(adj, props.value, props.max, props.kind)
+    const next = resolveNewValue(adj, props.value, props.max, props.kind, { clampMax: props.clampMax })
     if (next !== props.value)
       emit('change', next)
   }

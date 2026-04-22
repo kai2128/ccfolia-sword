@@ -2,12 +2,15 @@ export type Adjustment
   = | { kind: 'absolute', value: number }
     | { kind: 'delta', value: number }
 
-export function clampHp(value: number, max: number): number {
-  return Math.min(value, max)
+// HP/MP 默认允许超过上限(过量治疗、临时 buff 等);传 clampMax=true 时才截到 max。
+// HP 允许负值(昏迷/濒死);MP 始终在 0 处截断。
+export function clampHp(value: number, max: number, clampMax = false): number {
+  return clampMax ? Math.min(value, max) : value
 }
 
-export function clampMp(value: number, max: number): number {
-  return Math.min(Math.max(0, value), max)
+export function clampMp(value: number, max: number, clampMax = false): number {
+  const floored = Math.max(0, value)
+  return clampMax ? Math.min(floored, max) : floored
 }
 
 export function parseAdjustment(raw: string): Adjustment | null {
@@ -39,7 +42,9 @@ export function resolveNewValue(
   current: number,
   max: number,
   kind: 'hp' | 'mp',
+  options: { clampMax?: boolean } = {},
 ): number {
+  const { clampMax = false } = options
   const raw = adj.kind === 'absolute' ? adj.value : current + adj.value
-  return kind === 'hp' ? clampHp(raw, max) : clampMp(raw, max)
+  return kind === 'hp' ? clampHp(raw, max, clampMax) : clampMp(raw, max, clampMax)
 }
