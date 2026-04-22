@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { BuffInstance } from '@/types/buff-v3'
 import { computed } from 'vue'
 import { getCharacterFromElement } from '@/ccfolia/fiber-reader'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
+import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
 import HpIndicator from '@/components/overlay/HpIndicator.vue'
+import { collectBuffs } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
@@ -21,6 +24,7 @@ interface OverlayEntry {
   topY: number
   hp: { value: number, max: number } | null
   mp: { value: number, max: number } | null
+  buffs: BuffInstance[]
 }
 
 // ccfolia 不同房间 cellSize 不同(实测 24 / 48 都见过),settings.grid.cellSizePx 默认 50
@@ -45,6 +49,7 @@ const entries = computed<OverlayEntry[]>(() => {
       const char = chars.byId(p.characterId)
       const hp = char ? readStatusSlot(char.status, 'hp', settings.statusLabelMap) : null
       const mp = char ? readStatusSlot(char.status, 'mp', settings.statusLabelMap) : null
+      const buffs = char ? collectBuffs(char) : []
       // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × settings.cellSize
       const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
       return {
@@ -53,6 +58,7 @@ const entries = computed<OverlayEntry[]>(() => {
         topY: p.y,
         hp,
         mp,
+        buffs,
       }
     })
 })
@@ -75,6 +81,9 @@ const entries = computed<OverlayEntry[]>(() => {
           :mp-max="entry.mp?.max"
         />
       </div>
+      <div v-if="entry.buffs.length > 0" class="buff-slot">
+        <BuffBadgeRow :buffs="entry.buffs" />
+      </div>
     </div>
   </div>
 </template>
@@ -93,5 +102,9 @@ const entries = computed<OverlayEntry[]>(() => {
 }
 .hp-slot {
   transform: translate(-50%, -110%);
+}
+.buff-slot {
+  transform: translate(-50%, -190%);
+  white-space: nowrap;
 }
 </style>

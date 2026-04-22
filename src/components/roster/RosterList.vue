@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { StatusSlot } from '@/core/status-slot'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
+import AttachBuffDialog from '@/components/buffs/AttachBuffDialog.vue'
 import RosterFilterBar from '@/components/roster/RosterFilterBar.vue'
 import RosterRow from '@/components/roster/RosterRow.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
@@ -18,6 +19,8 @@ const pieces = usePiecesStore()
 const lib = useTagLibraryStore()
 const view = useRosterViewStore()
 const settings = useSettingsStore()
+const expandedId = ref<string | null>(null)
+const attachingId = ref<string | null>(null)
 
 // "画布上" = 三个条件同时成立:
 //   1) ccfolia 把它当 piece 渲染(active=true + 有 x/y) —— 已被 pieces.list 过滤
@@ -47,6 +50,10 @@ const groups = computed(() =>
     onCanvasOnly: view.onCanvasOnly,
   }),
 )
+
+function toggleExpand(id: string) {
+  expandedId.value = expandedId.value === id ? null : id
+}
 
 async function onChange(charId: string, slot: StatusSlot, newValue: number) {
   const char = chars.byId(charId)
@@ -89,10 +96,22 @@ async function onChange(charId: string, slot: StatusSlot, newValue: number) {
             :key="char._id"
             :char="char"
             :label-map="settings.statusLabelMap"
+            :expanded="expandedId === char._id"
             @change="(slot, v) => onChange(char._id, slot, v)"
+            @toggle-expand="toggleExpand(char._id)"
+            @attach-buff="attachingId = char._id"
           />
         </ul>
       </section>
     </template>
+
+    <AttachBuffDialog
+      :open="attachingId !== null"
+      :character-id="attachingId ?? ''"
+      @update:open="value => {
+        if (!value)
+          attachingId = null
+      }"
+    />
   </div>
 </template>

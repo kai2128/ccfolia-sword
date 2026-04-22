@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
+import BuffLibraryTab from '@/components/tabs/BuffLibraryTab.vue'
 import ResolverTab from '@/components/tabs/ResolverTab.vue'
 import RosterTab from '@/components/tabs/RosterTab.vue'
 import TagLibraryTab from '@/components/tabs/TagLibraryTab.vue'
@@ -115,10 +116,10 @@ onBeforeUnmount(() => {
             战斗
           </TabsTrigger>
           <TabsTrigger
-            value="resolver"
+            value="buff-lib"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
-            行动
+            Buff 库
           </TabsTrigger>
           <TabsTrigger
             value="tags"
@@ -133,6 +134,9 @@ onBeforeUnmount(() => {
         </TabsContent>
         <TabsContent value="battle" class="flex-1 overflow-auto p-3">
           <BattleTab />
+        </TabsContent>
+        <TabsContent value="buff-lib" class="flex-1 overflow-auto p-3">
+          <BuffLibraryTab />
         </TabsContent>
         <TabsContent value="resolver" class="flex-1 overflow-auto p-3">
           <ResolverTab />

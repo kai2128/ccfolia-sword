@@ -1,6 +1,9 @@
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { defineStore } from 'pinia'
+import { readStatusValue } from '@/core/status-slot/read'
+import { useSettingsStore } from '@/stores/settings'
 import { getReduxStore, subscribeSlice } from './redux-store'
+import { batchSetBuffsEnabledForCharacter } from './writers/batch-toggle-buff-enabled'
 
 type RoomCharactersSlice = {
   ids: string[]
@@ -31,6 +34,8 @@ interface RoomCharactersState {
   list: CcfoliaCharacter[]
 }
 
+type AliveState = 'alive' | 'down'
+
 export const useRoomCharactersStore = defineStore('roomCharacters', {
   state: (): RoomCharactersState => ({ list: [] }),
   getters: {
@@ -47,6 +52,7 @@ export const useRoomCharactersStore = defineStore('roomCharacters', {
 
 let unsub: (() => void) | null = null
 let bootstrapTimer: number | null = null
+let aliveCache = new Map<string, AliveState>()
 
 // 冷启动时 ccfolia Redux store 可能要几百 ms ~ 几秒才就位(用户先打开首页再进房间时尤其明显)。
 // 和 composables/useCcfoliaCharacters 一致,用退避轮询直到 store 出现,subscribe 成功后立刻停轮询。
@@ -54,6 +60,29 @@ function stopBootstrap() {
   if (bootstrapTimer !== null) {
     window.clearInterval(bootstrapTimer)
     bootstrapTimer = null
+  }
+}
+
+function classifyCharacter(character: CcfoliaCharacter): AliveState {
+  if (character.invisible)
+    return 'down'
+  const labelMap = useSettingsStore().statusLabelMap
+  const hp = readStatusValue(character.status, 'hp', labelMap)
+  if (hp === null)
+    return 'alive'
+  return hp > 0 ? 'alive' : 'down'
+}
+
+function reconcileAliveDiff(list: CcfoliaCharacter[]) {
+  for (const character of list) {
+    const nextState = classifyCharacter(character)
+    const previousState = aliveCache.get(character._id)
+    aliveCache.set(character._id, nextState)
+    if (previousState === undefined || previousState === nextState)
+      continue
+    batchSetBuffsEnabledForCharacter(character._id, nextState === 'alive').catch((error) => {
+      console.error('[ccs] toggle buffs on alive-diff failed', error)
+    })
   }
 }
 
@@ -65,10 +94,14 @@ function trySubscribe(): boolean {
     return false
   const pinia = useRoomCharactersStore()
   pinia.replace(materialize(selectRoomCharacters(store.getState())))
+  reconcileAliveDiff(pinia.list)
   unsub = subscribeSlice(
     store,
     selectRoomCharacters,
-    slice => pinia.replace(materialize(slice)),
+    (slice) => {
+      pinia.replace(materialize(slice))
+      reconcileAliveDiff(pinia.list)
+    },
     { emitInitial: false },
   )
   stopBootstrap()
@@ -89,4 +122,5 @@ export function stopRoomCharactersSync(): void {
   stopBootstrap()
   unsub?.()
   unsub = null
+  aliveCache = new Map()
 }

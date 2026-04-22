@@ -5,7 +5,7 @@ defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<{
   variant?: 'solid' | 'ghost' | 'danger'
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
   disabled?: boolean
 }>(), {
   variant: 'solid',
@@ -20,7 +20,17 @@ const base
     + 'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent '
     + 'disabled:opacity-40 disabled:cursor-not-allowed'
 
-const sizeCls = computed(() => props.size === 'sm' ? 'h-6 px-2 text-xs' : 'h-8 px-3 text-sm')
+const sizeCls = computed(() => {
+  switch (props.size) {
+    case 'xs':
+      return 'h-5 px-1 text-xs'
+    case 'sm':
+      return 'h-6 px-2 text-xs'
+    case 'md':
+    default:
+      return 'h-8 px-3 text-sm'
+  }
+})
 
 const variantCls = computed(() => {
   switch (props.variant) {
