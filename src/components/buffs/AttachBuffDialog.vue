@@ -250,7 +250,7 @@ async function confirmCreate() {
       </TabsContent>
 
       <TabsContent value="create" class="flex flex-col gap-3 pt-3">
-        <BuffForm v-model="form" v-model:save-to-library="saveToLibrary" :show-save-to-library="true" />
+        <BuffForm v-model="form" v-model:save-to-library="saveToLibrary" :show-save-to-library="true" :show-scope="true" />
         <div class="flex justify-end gap-2 pt-1">
           <Button size="sm" variant="ghost" @click="close">
             取消

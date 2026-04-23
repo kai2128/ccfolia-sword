@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { BuffFormState } from '@/core/buff/form-helpers'
 import { computed } from 'vue'
-import { Button, Field, Input, Select, Switch, Textarea } from '@/components/ui'
+import { Button, Field, Input, Switch, Textarea } from '@/components/ui'
 
 defineProps<{
   showSaveToLibrary?: boolean
+  // 编辑已有 buff 时不暴露 scope —— attach 时就定下,后面改会让 AoE 中心/半径悬空;
+  // create 路径(AttachBuffDialog 现场新建)才显示。
+  showScope?: boolean
 }>()
 
 const model = defineModel<BuffFormState>({ required: true })
@@ -17,12 +20,14 @@ const isPositive = computed({
   },
 })
 
-const scopeOptions = [
-  { value: 'single', label: '单体' },
-  { value: 'aoe', label: 'AoE' },
-]
-
 const isAoe = computed(() => model.value.scope === 'aoe')
+
+function toggleScope() {
+  model.value = {
+    ...model.value,
+    scope: model.value.scope === 'single' ? 'aoe' : 'single',
+  }
+}
 </script>
 
 <template>
@@ -44,6 +49,24 @@ const isAoe = computed(() => model.value.scope === 'aoe')
       </Field>
     </div>
 
+    <div v-if="showScope" class="grid grid-cols-2 gap-2">
+      <Field label="范围">
+        <Button
+          type="button"
+          size="sm"
+          :variant="isAoe ? 'solid' : 'ghost'"
+          class="h-8 w-full justify-center"
+          :title="isAoe ? '点击切回单体' : '点击切到 AoE'"
+          @click="toggleScope"
+        >
+          {{ isAoe ? 'AoE' : '单体' }}
+        </Button>
+      </Field>
+      <Field v-if="isAoe" label="AoE 半径" hint="格=米">
+        <Input v-model.number="model.aoeRadius" type="number" min="1" placeholder="2" />
+      </Field>
+    </div>
+
     <div class="grid grid-cols-2 gap-2">
       <Field label="性质">
         <div class="h-8 flex items-center gap-2">
@@ -53,15 +76,6 @@ const isAoe = computed(() => model.value.scope === 'aoe')
       </Field>
       <Field label="图标" hint="留空 fallback i-mdi-star">
         <Input v-model="model.icon" placeholder="i-mdi-fire 或 🔥" />
-      </Field>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2">
-      <Field label="范围">
-        <Select v-model="model.scope" :options="scopeOptions" />
-      </Field>
-      <Field v-if="isAoe" label="AoE 半径" hint="格=米">
-        <Input v-model.number="model.aoeRadius" type="number" min="1" placeholder="2" />
       </Field>
     </div>
 

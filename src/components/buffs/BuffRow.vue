@@ -18,6 +18,9 @@ const editing = ref(false)
 const coverageEditing = ref(false)
 const isPositive = computed(() => props.buff.snapshot.polarity === 'positive')
 const isAoe = computed(() => props.buff.attachedTo.kind === 'aoe')
+const aoeRadius = computed(() =>
+  props.buff.attachedTo.kind === 'aoe' ? props.buff.attachedTo.radius : null,
+)
 
 async function toggle() {
   if (busy.value)
@@ -68,6 +71,13 @@ async function remove() {
       :title="buff.snapshot.description"
     >
       {{ buff.snapshot.name }}
+    </span>
+    <span
+      v-if="isAoe"
+      class="shrink-0 border border-accent/40 rounded bg-accent/15 px-1 text-xs text-accent"
+      :title="`AoE 半径 ${aoeRadius}m`"
+    >
+      AoE {{ aoeRadius }}m
     </span>
     <span v-if="buff.snapshot.actionValue !== undefined" class="shrink-0 text-xs text-white/70" title="行使值">
       {{ buff.snapshot.actionValue }}
