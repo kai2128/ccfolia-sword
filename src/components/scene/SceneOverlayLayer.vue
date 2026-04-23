@@ -11,6 +11,7 @@ import { readStatusSlot } from '@/core/status-slot'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
+import AoeCircle from './AoeCircle.vue'
 
 const pieces = usePiecesStore()
 const chars = useRoomCharactersStore()
@@ -73,6 +74,12 @@ const entries = computed<OverlayEntry[]>(() => {
 
 <template>
   <div class="scene-overlay-layer">
+    <!-- AoE 圆:立绘下层(z-index 负),piece 和 overlay 仍覆盖其上 -->
+    <AoeCircle
+      v-for="buff in buffsDerived.allAoeBuffs"
+      :key="`aoe-${buff.id}`"
+      :buff="buff"
+    />
     <div
       v-for="entry in entries"
       :key="entry.key"
