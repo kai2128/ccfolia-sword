@@ -5,10 +5,6 @@ import { createLogger } from '@/infra/log'
 
 const log = createLogger('encounter')
 
-export interface RulerStub {
-  id: string
-}
-
 export interface SharedEncounterState {
   inCombat: boolean
   turn: number
@@ -18,7 +14,8 @@ export interface LocalEncounterState {
   pendingIds: string[]
   actedIds: string[]
   currentActorId: string | null
-  rulers: RulerStub[]
+  // 射程圈:characterId → 半径(格=米)。键存在 = 显示。多角色可同时开启。
+  rangeCircles: Record<string, number>
 }
 
 interface EncounterStoreState {
@@ -34,7 +31,7 @@ function defaultShared(): SharedEncounterState {
 }
 
 function defaultLocal(): LocalEncounterState {
-  return { pendingIds: [], actedIds: [], currentActorId: null, rulers: [] }
+  return { pendingIds: [], actedIds: [], currentActorId: null, rangeCircles: {} }
 }
 
 function loadShared(): SharedEncounterState {
@@ -91,7 +88,7 @@ export const useEncounterStore = defineStore('encounter', {
       this.local.pendingIds = []
       this.local.actedIds = []
       this.local.currentActorId = null
-      this.local.rulers = []
+      this.local.rangeCircles = {}
     },
     selectActor(id: string) {
       this.local.currentActorId = id
@@ -123,8 +120,18 @@ export const useEncounterStore = defineStore('encounter', {
       if (this.local.currentActorId === id)
         this.local.currentActorId = null
     },
-    setRulers(rulers: RulerStub[]) {
-      this.local.rulers = rulers
+    toggleRangeCircle(characterId: string, defaultRadius = 3) {
+      if (characterId in this.local.rangeCircles)
+        delete this.local.rangeCircles[characterId]
+      else
+        this.local.rangeCircles[characterId] = defaultRadius
+    },
+    setRangeRadius(characterId: string, radius: number) {
+      if (characterId in this.local.rangeCircles)
+        this.local.rangeCircles[characterId] = radius
+    },
+    clearRangeCircles() {
+      this.local.rangeCircles = {}
     },
   },
 })

@@ -8,6 +8,7 @@ import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
+import { useEncounterStore } from '@/stores/encounter'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useTagLibraryStore } from '@/stores/tag-library'
 
@@ -33,6 +34,20 @@ function togglePill() {
   overlayVis.toggle(props.char._id)
 }
 
+const encounter = useEncounterStore()
+const rangeActive = computed(() => props.char._id in encounter.local.rangeCircles)
+const rangeRadius = computed(() => encounter.local.rangeCircles[props.char._id] ?? 3)
+
+function toggleRange() {
+  encounter.toggleRangeCircle(props.char._id, 3)
+}
+
+function onRangeInput(e: Event) {
+  const v = Number((e.target as HTMLInputElement).value)
+  if (Number.isFinite(v) && v >= 1)
+    encounter.setRangeRadius(props.char._id, v)
+}
+
 // Tag selector 放在行末,按钮颜色直接取主 tag 色 —— 不再在行里重复渲染 tag chips
 const lib = useTagLibraryStore()
 const primary = computed(() =>
@@ -53,6 +68,25 @@ const buffs = computed(() => collectBuffs(props.char))
       >
         <span :class="pillVisible ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="text-3.5" />
       </button>
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+        :class="rangeActive ? 'text-white' : 'text-white/30'"
+        :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
+        @click="toggleRange"
+      >
+        <span class="i-lucide-ruler text-3.5" />
+      </button>
+      <input
+        v-if="rangeActive"
+        type="number"
+        min="1"
+        :value="rangeRadius"
+        class="h-5 w-10 shrink-0 border border-white/20 rounded bg-black/30 px-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent"
+        title="射程半径(格=米)"
+        @change="onRangeInput"
+      >
 
       <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 

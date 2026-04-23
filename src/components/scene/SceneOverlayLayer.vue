@@ -9,15 +9,23 @@ import HpIndicator from '@/components/overlay/HpIndicator.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
+import { useEncounterStore } from '@/stores/encounter'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 import AoeCircle from './AoeCircle.vue'
+import RangeCircle from './RangeCircle.vue'
 
 const pieces = usePiecesStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
 const overlayVis = useOverlayVisibilityStore()
 const buffsDerived = useBuffsDerivedStore()
+const encounter = useEncounterStore()
+
+// Record<characterId, radius> → 数组,供 v-for 使用
+const rangeCircleEntries = computed(() =>
+  Object.entries(encounter.local.rangeCircles).map(([characterId, radius]) => ({ characterId, radius })),
+)
 
 interface OverlayEntry {
   key: string
@@ -79,6 +87,14 @@ const entries = computed<OverlayEntry[]>(() => {
       v-for="buff in buffsDerived.allAoeBuffs"
       :key="`aoe-${buff.id}`"
       :buff="buff"
+    />
+    <!-- 射程圈:青虚线,区分 AoE 蓝实线;纯视觉、不参与结算 -->
+    <!-- TODO: piece 气泡入口。overlay 宿主 pointer-events: none,需要另装 click 监听(scene-mount 上未暴露) -->
+    <RangeCircle
+      v-for="rc in rangeCircleEntries"
+      :key="`range-${rc.characterId}`"
+      :character-id="rc.characterId"
+      :radius="rc.radius"
     />
     <div
       v-for="entry in entries"
