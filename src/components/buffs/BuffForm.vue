@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BuffFormState } from '@/core/buff/form-helpers'
 import { computed } from 'vue'
-import { Button, Field, Input, Switch, Textarea } from '@/components/ui'
+import { Button, Field, Input, Select, Switch, Textarea } from '@/components/ui'
 
 defineProps<{
   showSaveToLibrary?: boolean
@@ -16,6 +16,13 @@ const isPositive = computed({
     model.value = { ...model.value, polarity: v ? 'positive' : 'negative' }
   },
 })
+
+const scopeOptions = [
+  { value: 'single', label: '单体' },
+  { value: 'aoe', label: 'AoE' },
+]
+
+const isAoe = computed(() => model.value.scope === 'aoe')
 </script>
 
 <template>
@@ -49,9 +56,20 @@ const isPositive = computed({
       </Field>
     </div>
 
+    <div class="grid grid-cols-2 gap-2">
+      <Field label="范围">
+        <Select v-model="model.scope" :options="scopeOptions" />
+      </Field>
+      <Field v-if="isAoe" label="AoE 半径" hint="格=米">
+        <Input v-model.number="model.aoeRadius" type="number" min="1" placeholder="2" />
+      </Field>
+    </div>
+
     <label v-if="showSaveToLibrary" class="flex items-center gap-2 text-xs text-white/80">
-      <Button type="button" size="xs" :variant="saveToLibrary ? 'solid' : 'ghost'"
-        @click="saveToLibrary = !saveToLibrary">
+      <Button
+        type="button" size="xs" :variant="saveToLibrary ? 'solid' : 'ghost'"
+        @click="saveToLibrary = !saveToLibrary"
+      >
         <span :class="saveToLibrary ? 'i-lucide-check' : 'i-lucide-square'" class="text-3.5" />
       </Button>
       保存到 buff 库

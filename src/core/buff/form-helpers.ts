@@ -1,4 +1,4 @@
-import type { BuffPolarity, BuffSnapshot, StatusEffectDefinition } from '@/types/buff-v3'
+import type { BuffPolarity, BuffScope, BuffSnapshot, StatusEffectDefinition } from '@/types/buff-v3'
 import { toFiniteOrUndef } from './coerce'
 
 export interface BuffFormState {
@@ -8,6 +8,8 @@ export interface BuffFormState {
   polarity: BuffPolarity
   icon: string
   actionValue: number | ''
+  scope: BuffScope
+  aoeRadius: number | ''
 }
 
 export const EMPTY_BUFF_FORM: BuffFormState = {
@@ -17,6 +19,8 @@ export const EMPTY_BUFF_FORM: BuffFormState = {
   polarity: 'positive',
   icon: '',
   actionValue: '',
+  scope: 'single',
+  aoeRadius: '',
 }
 
 export interface NormalizedBuffForm {
@@ -26,6 +30,8 @@ export interface NormalizedBuffForm {
   polarity: BuffPolarity
   turnsRemaining: number | undefined
   actionValue: number | undefined
+  scope: BuffScope
+  aoeRadius: number | undefined
 }
 
 export function normalizeBuffForm(form: BuffFormState): NormalizedBuffForm {
@@ -36,6 +42,9 @@ export function normalizeBuffForm(form: BuffFormState): NormalizedBuffForm {
   if (!description)
     throw new Error('描述不能为空')
   const icon = form.icon.trim() || 'i-mdi-star'
+  const aoeRadius = toFiniteOrUndef(form.aoeRadius)
+  if (form.scope === 'aoe' && (aoeRadius === undefined || aoeRadius < 1))
+    throw new Error('AoE 半径必须 ≥ 1')
   return {
     name,
     description,
@@ -43,6 +52,8 @@ export function normalizeBuffForm(form: BuffFormState): NormalizedBuffForm {
     polarity: form.polarity,
     turnsRemaining: toFiniteOrUndef(form.turnsRemaining),
     actionValue: toFiniteOrUndef(form.actionValue),
+    scope: form.scope,
+    aoeRadius: form.scope === 'aoe' ? aoeRadius : undefined,
   }
 }
 
@@ -57,16 +68,17 @@ export function buildDefinition(id: string, n: NormalizedBuffForm): StatusEffect
     icon: n.icon,
     description: n.description,
     polarity: n.polarity,
-    scope: 'single',
+    scope: n.scope,
     modifiers: [],
     builtin: false,
     defaultDuration: n.turnsRemaining,
+    defaultAoeRadius: n.scope === 'aoe' ? n.aoeRadius : undefined,
     actionValue: n.actionValue,
   }
 }
 
-// 简化 form 只覆盖 name/description/icon/polarity/turnsRemaining。
-// def/snapshot 上的 color/tickPrompt/reminder/defaultAoeRadius/modifiers/scope 不在 form 里;
+// 简化 form 只覆盖 name/description/icon/polarity/turnsRemaining/scope/aoeRadius。
+// def/snapshot 上的 color/tickPrompt/reminder/modifiers 不在 form 里;
 // 编辑路径若需保留这些字段,必须由 caller merge 回旧对象
 // (见 ccfolia/writers/update-buff-snapshot.ts 的 applyBuffSnapshotPatch)。
 export function definitionToForm(def: StatusEffectDefinition): BuffFormState {
@@ -77,6 +89,8 @@ export function definitionToForm(def: StatusEffectDefinition): BuffFormState {
     polarity: def.polarity,
     icon: def.icon,
     actionValue: def.actionValue ?? '',
+    scope: def.scope,
+    aoeRadius: def.defaultAoeRadius ?? '',
   }
 }
 
@@ -88,5 +102,8 @@ export function instanceToForm(snapshot: BuffSnapshot, turnsRemaining: number | 
     polarity: snapshot.polarity,
     icon: snapshot.icon,
     actionValue: snapshot.actionValue ?? '',
+    // instance 不携带 scope(attach 层面决定),这里只用作 edit 表单的初值 → 默认 single
+    scope: 'single',
+    aoeRadius: snapshot.defaultAoeRadius ?? '',
   }
 }

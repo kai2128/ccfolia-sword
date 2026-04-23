@@ -154,11 +154,15 @@ async function confirmCreate() {
   const defId = saveToLibrary.value ? `custom.${uuid()}` : `ephemeral.${uuid()}`
   const def = buildDefinition(defId, n)
 
+  const createAttached: AttachTarget = n.scope === 'aoe' && n.aoeRadius !== undefined
+    ? { kind: 'aoe', centerCharacterId: props.characterId, radius: n.aoeRadius }
+    : { kind: 'single', characterId: props.characterId }
+
   const buff: BuffInstance = {
     id: instanceId,
     definitionId: defId,
     snapshot: createSnapshot(def),
-    attachedTo: { kind: 'single', characterId: props.characterId },
+    attachedTo: createAttached,
     lifecycle: deriveLifecycle(n.turnsRemaining),
     enabled: true,
     turnsRemaining: n.turnsRemaining,

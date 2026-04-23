@@ -42,6 +42,8 @@ describe('applyBuffSnapshotPatch', () => {
     polarity: 'positive' as const,
     turnsRemaining: 5,
     actionValue: undefined,
+    scope: 'single' as const,
+    aoeRadius: undefined,
   }
 
   it('updates snapshot.name / description / icon / polarity', () => {

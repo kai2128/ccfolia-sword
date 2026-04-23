@@ -103,6 +103,8 @@ describe('buildDefinition', () => {
     polarity: 'positive' as const,
     turnsRemaining: 3,
     actionValue: undefined,
+    scope: 'single' as const,
+    aoeRadius: undefined,
   }
 
   it('maps turnsRemaining to defaultDuration', () => {
@@ -145,6 +147,8 @@ describe('definitionToForm round-trips with buildDefinition', () => {
       polarity: 'negative' as const,
       turnsRemaining: 5,
       actionValue: undefined,
+      scope: 'single' as const,
+      aoeRadius: undefined,
     }
     const def = buildDefinition('custom.abc', n)
     const form = definitionToForm(def)
@@ -163,6 +167,8 @@ describe('definitionToForm round-trips with buildDefinition', () => {
       polarity: 'positive' as const,
       turnsRemaining: undefined,
       actionValue: undefined,
+      scope: 'single' as const,
+      aoeRadius: undefined,
     }
     const def = buildDefinition('custom.abc', n)
     const form = definitionToForm(def)
@@ -205,6 +211,59 @@ describe('eMPTY_BUFF_FORM', () => {
       polarity: 'positive',
       icon: '',
       actionValue: '',
+      scope: 'single',
+      aoeRadius: '',
     })
+  })
+})
+
+describe('normalizeBuffForm AoE scope', () => {
+  it('throws when scope=aoe without radius', () => {
+    expect(() => normalizeBuffForm({
+      ...EMPTY_BUFF_FORM,
+      name: 'X',
+      description: 'Y',
+      scope: 'aoe',
+    })).toThrow('AoE 半径必须')
+  })
+
+  it('passes scope + radius through', () => {
+    const n = normalizeBuffForm({
+      ...EMPTY_BUFF_FORM,
+      name: 'X',
+      description: 'Y',
+      scope: 'aoe',
+      aoeRadius: 3,
+    })
+    expect(n.scope).toBe('aoe')
+    expect(n.aoeRadius).toBe(3)
+  })
+
+  it('strips aoeRadius when scope=single', () => {
+    const n = normalizeBuffForm({
+      ...EMPTY_BUFF_FORM,
+      name: 'X',
+      description: 'Y',
+      scope: 'single',
+      aoeRadius: 3,
+    })
+    expect(n.aoeRadius).toBeUndefined()
+  })
+})
+
+describe('buildDefinition AoE scope', () => {
+  it('writes scope=aoe and defaultAoeRadius when scope=aoe', () => {
+    const def = buildDefinition('custom.a', {
+      name: 'X',
+      description: 'Y',
+      icon: 'i-mdi-star',
+      polarity: 'positive',
+      turnsRemaining: undefined,
+      actionValue: undefined,
+      scope: 'aoe',
+      aoeRadius: 4,
+    })
+    expect(def.scope).toBe('aoe')
+    expect(def.defaultAoeRadius).toBe(4)
   })
 })
