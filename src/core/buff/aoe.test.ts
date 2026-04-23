@@ -117,4 +117,38 @@ describe('computeCoverage', () => {
     const cov = computeCoverage(aoeBuff({ radius: 2 }, false), [center, near], GRID)
     expect(cov.has('near')).toBe(true)
   })
+
+  it('uses piece bounding-box center for multi-cell pieces', () => {
+    // 2x2 piece occupying cells (5,5)..(6,6). Its bbox midpoint lands at the 5/6 boundary.
+    // Coverage origin should agree with AoeCircle's visual center, not the piece's top-left cell.
+    const big: PieceSnapshot = {
+      characterId: 'big',
+      x: 5 * 40, // top-left of (5,5)
+      y: 5 * 40,
+      widthCells: 2,
+      heightCells: 2,
+      z: 0,
+      angle: 0,
+      invisible: false,
+      hideStatus: false,
+    }
+    // Define AoE on 'big' with radius 1.
+    const buff: BuffInstance = {
+      id: 'b',
+      definitionId: 'd',
+      snapshot: { name: '', icon: '', description: '', modifiers: [], polarity: 'positive' },
+      attachedTo: { kind: 'aoe', centerCharacterId: 'big', radius: 1 },
+      lifecycle: 'encounter',
+      enabled: true,
+      attachedAtTurn: 1,
+    }
+    // near at col=4,row=4 — diagonally adjacent to the 2x2 bbox corner.
+    const near = piece('near', 4, 4)
+    const far = piece('far', 3, 3)
+    const cov = computeCoverage(buff, [big, near, far], GRID)
+    // Visual AoE of radius 1 centered on 2x2 bbox midpoint covers cells (5,5)..(6,6) + a 1-cell
+    // ring; (4,4) sits on that ring, (3,3) does not.
+    expect(cov.has('near')).toBe(true)
+    expect(cov.has('far')).toBe(false)
+  })
 })
