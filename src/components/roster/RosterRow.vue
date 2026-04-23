@@ -35,8 +35,8 @@ function togglePill() {
 }
 
 const encounter = useEncounterStore()
-const rangeActive = computed(() => props.char._id in encounter.local.rangeCircles)
-const rangeRadius = computed(() => encounter.local.rangeCircles[props.char._id] ?? 3)
+const rangeActive = computed(() => props.char._id in encounter.shared.rangeCircles)
+const rangeRadius = computed(() => encounter.shared.rangeCircles[props.char._id] ?? 3)
 
 function toggleRange() {
   encounter.toggleRangeCircle(props.char._id, 3)

@@ -22,9 +22,9 @@ const overlayVis = useOverlayVisibilityStore()
 const buffsDerived = useBuffsDerivedStore()
 const encounter = useEncounterStore()
 
-// Record<characterId, radius> → 数组,供 v-for 使用
+// Record<characterId, radius> → 数组,供 v-for 使用;shared 意味着跨 tab 同步
 const rangeCircleEntries = computed(() =>
-  Object.entries(encounter.local.rangeCircles).map(([characterId, radius]) => ({ characterId, radius })),
+  Object.entries(encounter.shared.rangeCircles).map(([characterId, radius]) => ({ characterId, radius })),
 )
 
 interface OverlayEntry {

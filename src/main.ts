@@ -11,7 +11,7 @@ import { PortalTargetKey } from './components/ui/portal'
 import { bindHotkey } from './core/shell/hotkey'
 import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
-import { persistLocal, persistShared, useEncounterStore } from './stores/encounter'
+import { bindSharedCrossTabSync, persistLocal, persistShared, useEncounterStore } from './stores/encounter'
 import { useSettingsStore } from './stores/settings'
 // UnoCSS 入口:触发 CSS 生成;vite-plugin-monkey 的 cssSideEffects
 // 钩子把生成的 CSS 堆到 window.__CCS_CSS__,在 Shadow DOM 内注入。
@@ -42,6 +42,7 @@ function mount() {
     persistShared(state.shared)
     persistLocal(state.local)
   })
+  bindSharedCrossTabSync(encounter)
 
   // pinia 挂完,把持久化的 logMaxLines 推到日志环
   const settings = useSettingsStore()
