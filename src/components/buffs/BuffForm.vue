@@ -32,25 +32,26 @@ const isPositive = computed({
       <Field label="持续回合" hint="留空 = 手动移除">
         <Input v-model.number="model.turnsRemaining" type="number" min="0" />
       </Field>
+      <Field label="行使值" hint="可选,例如技能成功率">
+        <Input v-model.number="model.actionValue" type="number" min="0" placeholder="留空" />
+      </Field>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
       <Field label="性质">
         <div class="h-8 flex items-center gap-2">
           <Switch v-model="isPositive" />
           <span class="text-xs text-white/80">{{ isPositive ? '正面' : '负面' }}</span>
         </div>
       </Field>
+      <Field label="图标" hint="留空 fallback i-mdi-star">
+        <Input v-model="model.icon" placeholder="i-mdi-fire 或 🔥" />
+      </Field>
     </div>
 
-    <Field label="图标" hint="留空 fallback i-mdi-star">
-      <Input v-model="model.icon" placeholder="i-mdi-fire 或 🔥" />
-    </Field>
-
     <label v-if="showSaveToLibrary" class="flex items-center gap-2 text-xs text-white/80">
-      <Button
-        type="button"
-        size="xs"
-        :variant="saveToLibrary ? 'solid' : 'ghost'"
-        @click="saveToLibrary = !saveToLibrary"
-      >
+      <Button type="button" size="xs" :variant="saveToLibrary ? 'solid' : 'ghost'"
+        @click="saveToLibrary = !saveToLibrary">
         <span :class="saveToLibrary ? 'i-lucide-check' : 'i-lucide-square'" class="text-3.5" />
       </Button>
       保存到 buff 库

@@ -35,10 +35,6 @@ async function toggle() {
 async function remove() {
   if (busy.value)
     return
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(`卸载 ${props.buff.snapshot.name}?`))
-    return
-
   busy.value = true
   try {
     await detachBuff(props.characterId, props.buff.id)
@@ -55,7 +51,7 @@ async function remove() {
 
 <template>
   <div
-    class="flex items-center gap-1.5 border border-white/10 rounded border-l-4 bg-black/20 px-2 py-1"
+    class="flex items-center gap-1.5 border border-l-4 border-white/10 rounded bg-black/20 px-2 py-1"
     :class="isPositive ? 'border-l-buff' : 'border-l-debuff'"
   >
     <BuffIcon :icon="buff.snapshot.icon" />
@@ -69,6 +65,9 @@ async function remove() {
       :title="buff.snapshot.description"
     >
       {{ buff.snapshot.name }}
+    </span>
+    <span v-if="buff.snapshot.actionValue !== undefined" class="shrink-0 text-xs text-white/70" title="行使值">
+      {{ buff.snapshot.actionValue }}
     </span>
     <span v-if="buff.turnsRemaining !== undefined" class="shrink-0 text-xs text-white/60">
       {{ buff.turnsRemaining }}T

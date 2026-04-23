@@ -22,6 +22,8 @@ export interface StatusEffectDefinition {
   reminder?: string
   builtin?: boolean
   polarity: BuffPolarity
+  // 行使值:可选,例如 CoC 技能成功率 / 自定义判定数值
+  actionValue?: number
 }
 
 export interface BuffSnapshot {
@@ -34,6 +36,7 @@ export interface BuffSnapshot {
   reminder?: string
   defaultAoeRadius?: number
   polarity: BuffPolarity
+  actionValue?: number
 }
 
 export interface AttachSingle {

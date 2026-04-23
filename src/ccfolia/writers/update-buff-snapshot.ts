@@ -27,6 +27,7 @@ export function applyBuffSnapshotPatch(
       description: patch.description,
       icon: patch.icon,
       polarity: patch.polarity,
+      actionValue: patch.actionValue,
     },
     turnsRemaining: patch.turnsRemaining,
     lifecycle: deriveLifecycle(patch.turnsRemaining),

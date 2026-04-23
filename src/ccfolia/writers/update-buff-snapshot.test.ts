@@ -41,6 +41,7 @@ describe('applyBuffSnapshotPatch', () => {
     icon: 'i-mdi-fire',
     polarity: 'positive' as const,
     turnsRemaining: 5,
+    actionValue: undefined,
   }
 
   it('updates snapshot.name / description / icon / polarity', () => {

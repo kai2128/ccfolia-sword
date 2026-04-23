@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { tickBuffTurnsForAllCharacters } from '@/ccfolia/writers/tick-buff-turns'
-import { createLogger } from '@/infra/log'
 import { readSharedValue, writeSharedValue } from '@/infra/gm-values'
+import { createLogger } from '@/infra/log'
 
 const log = createLogger('encounter')
 

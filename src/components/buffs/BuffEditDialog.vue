@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { BuffFormState } from '@/core/buff/form-helpers'
 import type { BuffInstance } from '@/types/buff-v3'
 import { ref, watch } from 'vue'
 import { updateBuffSnapshot } from '@/ccfolia/writers/update-buff-snapshot'
 import BuffForm from '@/components/buffs/BuffForm.vue'
 import { Button, Dialog } from '@/components/ui'
-import { type BuffFormState, instanceToForm, normalizeBuffForm } from '@/core/buff/form-helpers'
+import { instanceToForm, normalizeBuffForm } from '@/core/buff/form-helpers'
 
 const props = defineProps<{
   characterId: string

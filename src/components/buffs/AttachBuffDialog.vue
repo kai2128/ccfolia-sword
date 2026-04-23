@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { BuffFormState } from '@/core/buff/form-helpers'
 import type { BuffInstance, StatusEffectDefinition } from '@/types/buff-v3'
 import { computed, ref, watch } from 'vue'
 import { attachBuff } from '@/ccfolia/writers/attach-buff'
 import BuffForm from '@/components/buffs/BuffForm.vue'
 import { Button, Dialog, Field, Select, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import {
-  type BuffFormState,
+
   buildDefinition,
   deriveLifecycle,
   EMPTY_BUFF_FORM,

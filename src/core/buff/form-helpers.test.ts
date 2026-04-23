@@ -102,6 +102,7 @@ describe('buildDefinition', () => {
     icon: 'i-mdi-star',
     polarity: 'positive' as const,
     turnsRemaining: 3,
+    actionValue: undefined,
   }
 
   it('maps turnsRemaining to defaultDuration', () => {
@@ -143,6 +144,7 @@ describe('definitionToForm round-trips with buildDefinition', () => {
       icon: 'i-mdi-fire',
       polarity: 'negative' as const,
       turnsRemaining: 5,
+      actionValue: undefined,
     }
     const def = buildDefinition('custom.abc', n)
     const form = definitionToForm(def)
@@ -160,6 +162,7 @@ describe('definitionToForm round-trips with buildDefinition', () => {
       icon: 'i-mdi-star',
       polarity: 'positive' as const,
       turnsRemaining: undefined,
+      actionValue: undefined,
     }
     const def = buildDefinition('custom.abc', n)
     const form = definitionToForm(def)
@@ -193,7 +196,7 @@ describe('instanceToForm', () => {
   })
 })
 
-describe('EMPTY_BUFF_FORM', () => {
+describe('eMPTY_BUFF_FORM', () => {
   it('has positive default polarity and empty fields', () => {
     expect(EMPTY_BUFF_FORM).toEqual({
       name: '',
@@ -201,6 +204,7 @@ describe('EMPTY_BUFF_FORM', () => {
       turnsRemaining: '',
       polarity: 'positive',
       icon: '',
+      actionValue: '',
     })
   })
 })

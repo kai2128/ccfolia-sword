@@ -11,5 +11,6 @@ export function createSnapshot(def: StatusEffectDefinition): BuffSnapshot {
     reminder: def.reminder,
     defaultAoeRadius: def.defaultAoeRadius,
     polarity: def.polarity,
+    actionValue: def.actionValue,
   }
 }

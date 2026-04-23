@@ -51,13 +51,13 @@ function pillClass(buff: BuffInstance): string {
       class="inline-flex shrink-0 items-center justify-center border rounded leading-none"
       :style="{ width: `${pillPx}px`, height: `${pillPx}px` }"
       :class="[pillClass(buff), { 'opacity-40 grayscale': !buff.enabled }]"
-      :title="`${buff.snapshot.name}${buff.turnsRemaining !== undefined ? ` · ${buff.turnsRemaining}T` : ''}${buff.snapshot.description ? `\n${buff.snapshot.description}` : ''}`"
+      :title="`${buff.snapshot.name}${buff.snapshot.actionValue !== undefined ? ` (${buff.snapshot.actionValue})` : ''}${buff.turnsRemaining !== undefined ? ` · ${buff.turnsRemaining}T` : ''}${buff.snapshot.description ? `\n${buff.snapshot.description}` : ''}`"
     >
       <BuffIcon :icon="buff.snapshot.icon" :style="{ fontSize: `${iconPx}px` }" />
     </span>
     <span
       v-if="overflow > 0"
-      class="inline-flex shrink-0 items-center justify-center border rounded border-white/50 bg-black/60 px-0.5 font-medium text-white leading-none"
+      class="inline-flex shrink-0 items-center justify-center border border-white/50 rounded bg-black/60 px-0.5 text-white font-medium leading-none"
       :style="{ height: `${pillPx}px`, fontSize: `${Math.max(7, pillPx - 4)}px` }"
       :title="`还有 ${overflow} 个 buff 未显示`"
     >+{{ overflow }}</span>

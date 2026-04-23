@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { BuffFormState } from '@/core/buff/form-helpers'
 import type { StatusEffectDefinition } from '@/types/buff-v3'
 import { computed, ref } from 'vue'
 import BuffForm from '@/components/buffs/BuffForm.vue'
 import BuffIcon from '@/components/buffs/BuffIcon.vue'
 import { Button, Dialog } from '@/components/ui'
 import {
-  type BuffFormState,
+
   buildDefinition,
   definitionToForm,
   EMPTY_BUFF_FORM,
@@ -94,7 +95,7 @@ function save() {
       <li
         v-for="definition in definitions"
         :key="definition.id"
-        class="flex items-center gap-1.5 border border-white/10 rounded border-l-4 bg-black/20 px-2 py-1"
+        class="flex items-center gap-1.5 border border-l-4 border-white/10 rounded bg-black/20 px-2 py-1"
         :class="definition.polarity === 'positive' ? 'border-l-buff' : 'border-l-debuff'"
       >
         <BuffIcon :icon="definition.icon" />

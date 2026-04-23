@@ -7,6 +7,7 @@ export interface BuffFormState {
   turnsRemaining: number | ''
   polarity: BuffPolarity
   icon: string
+  actionValue: number | ''
 }
 
 export const EMPTY_BUFF_FORM: BuffFormState = {
@@ -15,6 +16,7 @@ export const EMPTY_BUFF_FORM: BuffFormState = {
   turnsRemaining: '',
   polarity: 'positive',
   icon: '',
+  actionValue: '',
 }
 
 export interface NormalizedBuffForm {
@@ -23,6 +25,7 @@ export interface NormalizedBuffForm {
   icon: string
   polarity: BuffPolarity
   turnsRemaining: number | undefined
+  actionValue: number | undefined
 }
 
 export function normalizeBuffForm(form: BuffFormState): NormalizedBuffForm {
@@ -39,6 +42,7 @@ export function normalizeBuffForm(form: BuffFormState): NormalizedBuffForm {
     icon,
     polarity: form.polarity,
     turnsRemaining: toFiniteOrUndef(form.turnsRemaining),
+    actionValue: toFiniteOrUndef(form.actionValue),
   }
 }
 
@@ -57,6 +61,7 @@ export function buildDefinition(id: string, n: NormalizedBuffForm): StatusEffect
     modifiers: [],
     builtin: false,
     defaultDuration: n.turnsRemaining,
+    actionValue: n.actionValue,
   }
 }
 
@@ -71,6 +76,7 @@ export function definitionToForm(def: StatusEffectDefinition): BuffFormState {
     turnsRemaining: def.defaultDuration ?? '',
     polarity: def.polarity,
     icon: def.icon,
+    actionValue: def.actionValue ?? '',
   }
 }
 
@@ -81,5 +87,6 @@ export function instanceToForm(snapshot: BuffSnapshot, turnsRemaining: number | 
     turnsRemaining: turnsRemaining ?? '',
     polarity: snapshot.polarity,
     icon: snapshot.icon,
+    actionValue: snapshot.actionValue ?? '',
   }
 }

@@ -1,6 +1,6 @@
 import type { CcfoliaParam } from '@/types/ccfolia'
-import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { serializedParamsUpdate } from '@/ccfolia/params-queue'
+import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { buffLabel, decodeBuff, encodeBuff, isBuffLabel } from '@/core/buff/codec'
 
 // 纯函数:对一个 character 的 params 做一次 tick。
