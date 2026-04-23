@@ -12,9 +12,10 @@ const pieces = usePiecesStore()
 const settings = useSettingsStore()
 
 const centerPiece = computed(() => {
-  if (props.buff.attachedTo.kind !== 'aoe')
+  const attach = props.buff.attachedTo
+  if (attach.kind !== 'aoe')
     return null
-  return pieces.list.find(p => p.characterId === props.buff.attachedTo.centerCharacterId) ?? null
+  return pieces.list.find(p => p.characterId === attach.centerCharacterId) ?? null
 })
 
 // ccfolia 不同房间 cellSize 不同(settings.grid.cellSizePx 可能对不上实际渲染),
