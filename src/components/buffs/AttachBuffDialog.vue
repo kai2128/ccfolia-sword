@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { BuffFormState } from '@/core/buff/form-helpers'
-import type { BuffInstance, StatusEffectDefinition } from '@/types/buff-v3'
+import type { AttachTarget, BuffInstance, StatusEffectDefinition } from '@/types/buff-v3'
 import { computed, ref, watch } from 'vue'
+import { usePiecesStore } from '@/ccfolia/pieces-store'
+import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { attachBuff } from '@/ccfolia/writers/attach-buff'
 import BuffForm from '@/components/buffs/BuffForm.vue'
-import { Button, Dialog, Field, Select, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
+import { Button, Dialog, Field, Input, Select, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
+import { computeCoverage } from '@/core/buff/aoe'
 import {
 
   buildDefinition,
@@ -15,6 +18,7 @@ import {
 import { createSnapshot } from '@/core/buff/snapshot'
 import { uuid } from '@/infra/uuid'
 import { useEncounterStore } from '@/stores/encounter'
+import { useSettingsStore } from '@/stores/settings'
 import { useStatusLibraryStore } from '@/stores/status-library'
 
 const props = defineProps<{
@@ -28,12 +32,16 @@ const emit = defineEmits<{
 
 const lib = useStatusLibraryStore()
 const encounter = useEncounterStore()
+const pieces = usePiecesStore()
+const chars = useRoomCharactersStore()
+const settings = useSettingsStore()
 
 const tab = ref<'library' | 'create'>('library')
 const selectedDefId = ref('')
 const form = ref<BuffFormState>({ ...EMPTY_BUFF_FORM })
 const saveToLibrary = ref(false)
 const busy = ref(false)
+const aoeRadius = ref(2)
 
 const definitionOptions = computed(() => [
   { value: '', label: '请选择 Buff' },
@@ -49,11 +57,34 @@ const selectedDefinition = computed<StatusEffectDefinition | null>(() => {
   return lib.byId(selectedDefId.value) ?? null
 })
 
-const aoeBlocked = computed(() => selectedDefinition.value?.scope === 'aoe')
+const canConfirmLibrary = computed(() => !!selectedDefinition.value && !busy.value)
 
-const canConfirmLibrary = computed(() =>
-  !!selectedDefinition.value && selectedDefinition.value.scope === 'single' && !busy.value,
-)
+// 选中 AoE 定义时,把 radius 同步为 defaultAoeRadius 或 2
+watch(selectedDefinition, (def) => {
+  if (def?.scope === 'aoe')
+    aoeRadius.value = def.defaultAoeRadius ?? 2
+})
+
+// 实时覆盖预览:构造临时 buff,跑 computeCoverage
+const coveragePreview = computed<string[]>(() => {
+  const def = selectedDefinition.value
+  if (!def || def.scope !== 'aoe')
+    return []
+  const fake: BuffInstance = {
+    id: 'preview',
+    definitionId: def.id,
+    snapshot: createSnapshot(def),
+    attachedTo: { kind: 'aoe', centerCharacterId: props.characterId, radius: aoeRadius.value },
+    lifecycle: 'encounter',
+    enabled: true,
+    attachedAtTurn: 0,
+  }
+  return Array.from(computeCoverage(fake, pieces.list, settings.grid))
+})
+
+function charNameOf(id: string): string {
+  return chars.byId(id)?.name ?? '(未知)'
+}
 
 watch(
   () => props.open,
@@ -63,6 +94,7 @@ watch(
       selectedDefId.value = ''
       form.value = { ...EMPTY_BUFF_FORM }
       saveToLibrary.value = false
+      aoeRadius.value = 2
     }
   },
 )
@@ -73,14 +105,18 @@ function close() {
 
 async function confirmFromLibrary() {
   const def = selectedDefinition.value
-  if (!def || def.scope !== 'single' || busy.value)
+  if (!def || busy.value)
     return
+
+  const attachedTo: AttachTarget = def.scope === 'aoe'
+    ? { kind: 'aoe', centerCharacterId: props.characterId, radius: aoeRadius.value }
+    : { kind: 'single', characterId: props.characterId }
 
   const buff: BuffInstance = {
     id: uuid(),
     definitionId: def.id,
     snapshot: createSnapshot(def),
-    attachedTo: { kind: 'single', characterId: props.characterId },
+    attachedTo,
     lifecycle: def.defaultDuration !== undefined ? 'encounter' : 'persistent',
     enabled: true,
     turnsRemaining: def.defaultDuration ?? undefined,
@@ -173,12 +209,24 @@ async function confirmCreate() {
           <Select v-model="selectedDefId" :options="definitionOptions" placeholder="请选择 Buff" />
         </Field>
 
-        <div
-          v-if="aoeBlocked"
-          class="border border-debuff/40 rounded bg-debuff/10 px-2 py-1.5 text-xs text-debuff"
-        >
-          AoE 挂载将在 Plan 06 接入,这里暂时禁用。
-        </div>
+        <template v-if="selectedDefinition?.scope === 'aoe'">
+          <Field label="半径" hint="Chebyshev 格,= 米">
+            <Input v-model.number="aoeRadius" type="number" min="1" class="w-20" />
+          </Field>
+          <div class="border border-white/10 rounded bg-black/20 px-2 py-1.5 text-xs text-white/70">
+            <div class="mb-1 text-white/80">
+              预览覆盖({{ coveragePreview.length }} 人)
+            </div>
+            <ul v-if="coveragePreview.length" class="list-disc pl-3">
+              <li v-for="cid in coveragePreview" :key="cid">
+                {{ charNameOf(cid) }}
+              </li>
+            </ul>
+            <div v-else class="text-white/40">
+              无覆盖
+            </div>
+          </div>
+        </template>
 
         <div
           v-if="selectedDefinition"
