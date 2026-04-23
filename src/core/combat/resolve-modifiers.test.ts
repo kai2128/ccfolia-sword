@@ -37,6 +37,15 @@ describe('resolveDefense', () => {
   it('returns 0 when no 防御 slot', () => {
     expect(resolveDefense([], DEFAULT_STATUS_LABEL_MAP, [])).toBe(0)
   })
+
+  it('adds extraMods defense contribution (AoE injected)', () => {
+    const s: CcfoliaStatus[] = [{ label: '防御', value: 3, max: 3 }]
+    const result = resolveDefense(s, DEFAULT_STATUS_LABEL_MAP, [
+      { target: 'defense', value: 2 },
+      { target: 'attack', value: 99 }, // 不同 target,应忽略
+    ])
+    expect(result).toBe(5)
+  })
 })
 
 describe('sumModifiers', () => {

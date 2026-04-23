@@ -2,6 +2,7 @@
 import type { SummaryRow } from './ResultSummary.vue'
 import type { StatusChange } from '@/ccfolia/writers/apply-action-batch'
 import type { ActionDraft, ActionTarget, DamageType, ResistType } from '@/types/action'
+import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed, ref, toRefs, watch } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
@@ -11,6 +12,7 @@ import { applyHealToTarget } from '@/core/combat/apply-heal'
 import { collectDefenseMods, resolveDefense } from '@/core/combat/resolve-modifiers'
 import { readStatusSlot } from '@/core/status-slot'
 import { useActionDraftStore } from '@/stores/action-draft'
+import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useEncounterStore } from '@/stores/encounter'
 import { useSettingsStore } from '@/stores/settings'
 import ResultSummary from './ResultSummary.vue'
@@ -36,7 +38,20 @@ interface TargetRowVm {
 const settings = useSettingsStore()
 const chars = useRoomCharactersStore()
 const encounter = useEncounterStore()
+const buffsDerived = useBuffsDerivedStore()
 const { ready: firestoreReady } = useFirestoreReady()
+
+// 合并单体 buff + 覆盖本角色的 AoE buff 的 defense modifier(仅 enabled)。
+function defenseModsFor(char: CcfoliaCharacter) {
+  const single = collectDefenseMods(char)
+  const aoe = buffsDerived
+    .aoeBuffsCoveringCharacter(char._id)
+    .filter(b => b.enabled)
+    .flatMap(b => b.snapshot.modifiers)
+    .filter(m => m.target === 'defense')
+    .map(m => ({ target: m.target, value: m.value }))
+  return [...single, ...aoe]
+}
 
 const draftStore = useActionDraftStore()
 const {
@@ -169,7 +184,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
   }
 
   const defenseText = kind.value === 'damage' && damageType.value === 'physical'
-    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, collectDefenseMods(char))}`
+    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, defenseModsFor(char))}`
     : undefined
 
   // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
@@ -207,7 +222,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     const result = applyDamageToTarget(
       draft.value,
       target,
-      { status: char.status, mods: collectDefenseMods(char), currentHp: hp.value },
+      { status: char.status, mods: defenseModsFor(char), currentHp: hp.value },
       settings.statusLabelMap,
     )
 
