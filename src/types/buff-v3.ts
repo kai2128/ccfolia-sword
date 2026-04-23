@@ -64,4 +64,7 @@ export interface BuffInstance {
   turnsRemaining?: number
   attachedAtTurn: number
   note?: string
+  // 被死亡/隐身自动 disable 的标记。只有带这个标记的 buff 会在复活时被自动重启用;
+  // GM 手动 toggle(setBuffEnabled)会清掉它,让 GM 意图优先。
+  disabledByDeath?: boolean
 }

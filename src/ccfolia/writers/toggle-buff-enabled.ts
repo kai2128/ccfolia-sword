@@ -14,10 +14,16 @@ export async function setBuffEnabled(
       return current
 
     const buff = decodeBuff(entry.value)
-    if (!buff || buff.enabled === enabled)
+    if (!buff)
+      return current
+    // GM 手动 toggle 清掉 disabledByDeath 标记 — GM 意图优先于死亡自动恢复
+    const needsEnabledChange = buff.enabled !== enabled
+    const needsFlagClear = buff.disabledByDeath === true
+    if (!needsEnabledChange && !needsFlagClear)
       return current
 
-    const next: BuffInstance = { ...buff, enabled }
+    const { disabledByDeath: _, ...rest } = buff
+    const next: BuffInstance = { ...rest, enabled }
     return applyBuffOps(current, [updateBuff(next)])
   })
 }
