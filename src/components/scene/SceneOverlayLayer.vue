@@ -12,7 +12,6 @@ import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useEncounterStore } from '@/stores/encounter'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
-import AoeCircle from './AoeCircle.vue'
 import RangeCircle from './RangeCircle.vue'
 
 const pieces = usePiecesStore()
@@ -82,13 +81,8 @@ const entries = computed<OverlayEntry[]>(() => {
 
 <template>
   <div class="scene-overlay-layer">
-    <!-- AoE 圆:立绘下层(z-index 负),piece 和 overlay 仍覆盖其上 -->
-    <AoeCircle
-      v-for="buff in buffsDerived.allAoeBuffs"
-      :key="`aoe-${buff.id}`"
-      :buff="buff"
-    />
-    <!-- 射程圈:青虚线,区分 AoE 蓝实线;纯视觉、不参与结算 -->
+    <!-- AoE 圆已从画布移除:AoE 作用范围只在 BuffRow 的 "AoE Nm" 角标 + 覆盖徽章反映。 -->
+    <!-- 射程圈:青虚线,纯视觉、不参与结算 -->
     <!-- TODO: piece 气泡入口。overlay 宿主 pointer-events: none,需要另装 click 监听(scene-mount 上未暴露) -->
     <RangeCircle
       v-for="rc in rangeCircleEntries"

@@ -30,7 +30,7 @@ watch(
   () => [props.open, props.buff] as const,
   ([open, buff]) => {
     if (open && buff)
-      form.value = instanceToForm(buff.snapshot, buff.turnsRemaining)
+      form.value = instanceToForm(buff.snapshot, buff.turnsRemaining, buff.attachedTo)
   },
   { immediate: true },
 )
@@ -68,7 +68,7 @@ async function save() {
     title="编辑 Buff"
     @update:open="emit('update:open', $event)"
   >
-    <BuffForm v-model="form" />
+    <BuffForm v-model="form" :show-scope="true" />
     <div class="flex justify-end gap-2 pt-1">
       <Button size="sm" variant="ghost" @click="emit('update:open', false)">
         取消

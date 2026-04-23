@@ -5,8 +5,6 @@ import { Button, Field, Input, Switch, Textarea } from '@/components/ui'
 
 defineProps<{
   showSaveToLibrary?: boolean
-  // 编辑已有 buff 时不暴露 scope —— attach 时就定下,后面改会让 AoE 中心/半径悬空;
-  // create 路径(AttachBuffDialog 现场新建)才显示。
   showScope?: boolean
 }>()
 
@@ -20,24 +18,22 @@ const isPositive = computed({
   },
 })
 
-const isAoe = computed(() => model.value.scope === 'aoe')
-
-function toggleScope() {
-  model.value = {
-    ...model.value,
-    scope: model.value.scope === 'single' ? 'aoe' : 'single',
-  }
-}
+const isAoe = computed({
+  get: () => model.value.scope === 'aoe',
+  set: (v: boolean) => {
+    model.value = { ...model.value, scope: v ? 'aoe' : 'single' }
+  },
+})
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-2">
     <Field label="名字">
       <Input v-model="model.name" placeholder="灼烧" />
     </Field>
 
     <Field label="描述">
-      <Textarea v-model="model.description" rows="3" placeholder="描述效果,例如:每回合受 1d6 火焰伤害" />
+      <Textarea v-model="model.description" rows="2" placeholder="描述效果,例如:每回合受 1d6 火焰伤害" />
     </Field>
 
     <div class="grid grid-cols-2 gap-2">
@@ -51,16 +47,10 @@ function toggleScope() {
 
     <div v-if="showScope" class="grid grid-cols-2 gap-2">
       <Field label="范围">
-        <Button
-          type="button"
-          size="sm"
-          :variant="isAoe ? 'solid' : 'ghost'"
-          class="h-8 w-full justify-center"
-          :title="isAoe ? '点击切回单体' : '点击切到 AoE'"
-          @click="toggleScope"
-        >
-          {{ isAoe ? 'AoE' : '单体' }}
-        </Button>
+        <div class="h-8 flex items-center gap-2">
+          <Switch v-model="isAoe" />
+          <span class="text-xs text-white/80">{{ isAoe ? 'AoE' : '单体' }}</span>
+        </div>
       </Field>
       <Field v-if="isAoe" label="AoE 半径" hint="格=米">
         <Input v-model.number="model.aoeRadius" type="number" min="1" placeholder="2" />

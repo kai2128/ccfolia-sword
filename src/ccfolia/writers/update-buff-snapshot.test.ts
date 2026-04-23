@@ -99,4 +99,40 @@ describe('applyBuffSnapshotPatch', () => {
     expect(next[0]).toEqual({ label: 'hp', value: '10' })
     expect(next[2]).toEqual({ label: 'mp', value: '5' })
   })
+
+  it('single → aoe switches attachedTo and keeps anchor character', () => {
+    const patch = { ...n, scope: 'aoe' as const, aoeRadius: 3 }
+    const next = applyBuffSnapshotPatch(pack(buildBuff()), 'b1', patch)
+    const updated = decodeBuff(next.find(p => p.label === 'cs_buff_b1')!.value)!
+    expect(updated.attachedTo).toEqual({ kind: 'aoe', centerCharacterId: 'c1', radius: 3 })
+  })
+
+  it('aoe → aoe only refreshes radius, preserves includeOverride/excludeOverride', () => {
+    const buff = buildBuff()
+    buff.attachedTo = {
+      kind: 'aoe',
+      centerCharacterId: 'c1',
+      radius: 2,
+      includeOverride: ['x'],
+      excludeOverride: ['y'],
+    }
+    const patch = { ...n, scope: 'aoe' as const, aoeRadius: 5 }
+    const next = applyBuffSnapshotPatch(pack(buff), 'b1', patch)
+    const updated = decodeBuff(next.find(p => p.label === 'cs_buff_b1')!.value)!
+    expect(updated.attachedTo).toEqual({
+      kind: 'aoe',
+      centerCharacterId: 'c1',
+      radius: 5,
+      includeOverride: ['x'],
+      excludeOverride: ['y'],
+    })
+  })
+
+  it('aoe → single drops radius + overrides, keeps anchor', () => {
+    const buff = buildBuff()
+    buff.attachedTo = { kind: 'aoe', centerCharacterId: 'c1', radius: 2 }
+    const next = applyBuffSnapshotPatch(pack(buff), 'b1', n)
+    const updated = decodeBuff(next.find(p => p.label === 'cs_buff_b1')!.value)!
+    expect(updated.attachedTo).toEqual({ kind: 'single', characterId: 'c1' })
+  })
 })

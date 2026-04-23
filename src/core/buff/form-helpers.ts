@@ -94,7 +94,11 @@ export function definitionToForm(def: StatusEffectDefinition): BuffFormState {
   }
 }
 
-export function instanceToForm(snapshot: BuffSnapshot, turnsRemaining: number | undefined): BuffFormState {
+export function instanceToForm(
+  snapshot: BuffSnapshot,
+  turnsRemaining: number | undefined,
+  attachedTo?: { kind: 'single' } | { kind: 'aoe', radius: number },
+): BuffFormState {
   return {
     name: snapshot.name,
     description: snapshot.description,
@@ -102,8 +106,7 @@ export function instanceToForm(snapshot: BuffSnapshot, turnsRemaining: number | 
     polarity: snapshot.polarity,
     icon: snapshot.icon,
     actionValue: snapshot.actionValue ?? '',
-    // instance 不携带 scope(attach 层面决定),这里只用作 edit 表单的初值 → 默认 single
-    scope: 'single',
-    aoeRadius: snapshot.defaultAoeRadius ?? '',
+    scope: attachedTo?.kind === 'aoe' ? 'aoe' : 'single',
+    aoeRadius: attachedTo?.kind === 'aoe' ? attachedTo.radius : (snapshot.defaultAoeRadius ?? ''),
   }
 }
