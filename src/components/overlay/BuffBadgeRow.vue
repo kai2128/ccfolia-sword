@@ -37,9 +37,20 @@ const visibleBuffs = computed(() => sortedBuffs.value.slice(0, maxVisible.value)
 const overflow = computed(() => Math.max(0, props.buffs.length - visibleBuffs.value.length))
 
 function pillClass(buff: BuffInstance): string {
-  return buff.snapshot.polarity === 'positive'
+  const polarity = buff.snapshot.polarity === 'positive'
     ? 'bg-buff/85 text-white border-buff'
     : 'bg-debuff/85 text-white border-debuff'
+  // AoE 覆盖徽章用虚线描边,和挂在自己身上的单体 buff 视觉区分
+  const shape = buff.attachedTo.kind === 'aoe' ? 'border-dashed' : ''
+  return `${polarity} ${shape}`
+}
+
+function pillTitle(buff: BuffInstance): string {
+  const prefix = buff.attachedTo.kind === 'aoe' ? '[AoE] ' : ''
+  const actionValue = buff.snapshot.actionValue !== undefined ? ` (${buff.snapshot.actionValue})` : ''
+  const turns = buff.turnsRemaining !== undefined ? ` · ${buff.turnsRemaining}T` : ''
+  const desc = buff.snapshot.description ? `\n${buff.snapshot.description}` : ''
+  return `${prefix}${buff.snapshot.name}${actionValue}${turns}${desc}`
 }
 </script>
 
@@ -51,7 +62,7 @@ function pillClass(buff: BuffInstance): string {
       class="inline-flex shrink-0 items-center justify-center border rounded leading-none"
       :style="{ width: `${pillPx}px`, height: `${pillPx}px` }"
       :class="[pillClass(buff), { 'opacity-40 grayscale': !buff.enabled }]"
-      :title="`${buff.snapshot.name}${buff.snapshot.actionValue !== undefined ? ` (${buff.snapshot.actionValue})` : ''}${buff.turnsRemaining !== undefined ? ` · ${buff.turnsRemaining}T` : ''}${buff.snapshot.description ? `\n${buff.snapshot.description}` : ''}`"
+      :title="pillTitle(buff)"
     >
       <BuffIcon :icon="buff.snapshot.icon" :style="{ fontSize: `${iconPx}px` }" />
     </span>

@@ -8,6 +8,7 @@ import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
 import HpIndicator from '@/components/overlay/HpIndicator.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
+import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -15,6 +16,7 @@ const pieces = usePiecesStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
 const overlayVis = useOverlayVisibilityStore()
+const buffsDerived = useBuffsDerivedStore()
 
 interface OverlayEntry {
   key: string
@@ -50,7 +52,10 @@ const entries = computed<OverlayEntry[]>(() => {
       const char = chars.byId(p.characterId)
       const hp = char ? readStatusSlot(char.status, 'hp', settings.statusLabelMap) : null
       const mp = char ? readStatusSlot(char.status, 'mp', settings.statusLabelMap) : null
-      const buffs = char ? collectBuffs(char) : []
+      // 本角色的单体 buff + 覆盖本角色的 AoE buff(AoE buff 本身挂在中心角色,不在 collectBuffs(char) 里)
+      const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
+      const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
+      const buffs = [...self, ...aoe]
       // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × settings.cellSize
       const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
       return {
