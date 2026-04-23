@@ -79,11 +79,16 @@ async function save() {
     return
   busy.value = true
   try {
+    // 规范化:UI 只展示"在 autoSet 的 exclude 候选"和"不在 autoSet 的 include 候选";
+    // 若角色因为半径/位置变动换了桶,旧 override 会隐形残留在另一半 draft 里,这里统一清掉。
+    // 规则:include_effective = includeDraft − autoSet;exclude_effective = excludeDraft ∩ autoSet
+    const includeEff = Array.from(includeDraft.value).filter(id => !autoSet.value.has(id))
+    const excludeEff = Array.from(excludeDraft.value).filter(id => autoSet.value.has(id))
     await updateAoeCoverage(
       props.centerCharacterId,
       props.buff.id,
-      Array.from(includeDraft.value),
-      Array.from(excludeDraft.value),
+      includeEff,
+      excludeEff,
     )
     emit('update:open', false)
   }
