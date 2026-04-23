@@ -3,6 +3,7 @@ import type { BuffInstance } from '@/types/buff-v3'
 import { computed, ref } from 'vue'
 import { detachBuff } from '@/ccfolia/writers/detach-buff'
 import { setBuffEnabled } from '@/ccfolia/writers/toggle-buff-enabled'
+import AoeCoverageEditor from '@/components/buffs/AoeCoverageEditor.vue'
 import BuffEditDialog from '@/components/buffs/BuffEditDialog.vue'
 import BuffIcon from '@/components/buffs/BuffIcon.vue'
 import { Button } from '@/components/ui'
@@ -14,7 +15,9 @@ const props = defineProps<{
 
 const busy = ref(false)
 const editing = ref(false)
+const coverageEditing = ref(false)
 const isPositive = computed(() => props.buff.snapshot.polarity === 'positive')
+const isAoe = computed(() => props.buff.attachedTo.kind === 'aoe')
 
 async function toggle() {
   if (busy.value)
@@ -75,6 +78,9 @@ async function remove() {
     <Button size="xs" variant="ghost" :disabled="busy" :title="buff.enabled ? '禁用' : '启用'" @click="toggle">
       <span class="i-lucide-power text-3.5" />
     </Button>
+    <Button v-if="isAoe" size="xs" variant="ghost" :disabled="busy" title="调整覆盖" @click="coverageEditing = true">
+      <span class="i-lucide-users text-3.5" />
+    </Button>
     <Button size="xs" variant="ghost" :disabled="busy" title="编辑" @click="editing = true">
       <span class="i-lucide-pencil text-3.5" />
     </Button>
@@ -87,6 +93,13 @@ async function remove() {
       :buff="buff"
       :open="editing"
       @update:open="editing = $event"
+    />
+    <AoeCoverageEditor
+      v-if="isAoe"
+      :buff="buff"
+      :center-character-id="characterId"
+      :open="coverageEditing"
+      @update:open="coverageEditing = $event"
     />
   </div>
 </template>
