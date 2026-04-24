@@ -66,8 +66,8 @@ const entries = computed<OverlayEntry[]>(() => {
       const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
       const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
       const buffs = [...self, ...aoe]
-      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × settings.cellSize
-      const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
+      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × ccfolia 一格(= cellSize/2)
+      const widthPx = sizeMap.get(p.characterId) ?? (p.widthCells * settings.grid.cellSizePx) / 2
       return {
         key: p.characterId,
         centerX: p.x + widthPx / 2,
