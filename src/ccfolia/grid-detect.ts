@@ -1,9 +1,4 @@
-import type { Pinia } from 'pinia'
 import type { GridConfig } from '@/core/range/types'
-import { createLogger } from '@/infra/log'
-import { useSettingsStore } from '@/stores/settings'
-
-const log = createLogger('grid-detect')
 
 // 反编译源:src/containers/Screen/Screen/Field.tsx 画的根 div 就是我们要找的"场地"。
 // 它的特征:
@@ -33,13 +28,16 @@ export function detectGridFromCanvas(canvas: HTMLElement): GridConfig | null {
   const field = findFieldElement(canvas)
   if (!field)
     return null
-  const cellSizePx = Number.parseFloat(field.style.backgroundSize.split('px')[0])
+  const ccfoliaCellSize = Number.parseFloat(field.style.backgroundSize.split('px')[0])
   const left = Number.parseFloat(field.style.left) || 0
   const top = Number.parseFloat(field.style.top) || 0
   const width = Number.parseFloat(field.style.width) || 0
   const height = Number.parseFloat(field.style.height) || 0
-  if (cellSizePx <= 0 || width <= 0 || height <= 0)
+  if (ccfoliaCellSize <= 0 || width <= 0 || height <= 0)
     return null
+  // sword 一格 = ccfolia 两格(cellSize * 2 = 48px)。这样在 SW2.5 标准 19×34 逻辑棋盘下,
+  // 用户需要把 ccfolia 房间的 fieldWidth/Height 设为 38×68,校准就能映射到 19×34。
+  const cellSizePx = ccfoliaCellSize * 2
   return {
     originPx: { x: left, y: top },
     cellSizePx,
@@ -51,27 +49,3 @@ export function detectGridFromCanvas(canvas: HTMLElement): GridConfig | null {
   }
 }
 
-function sameGrid(a: GridConfig, b: GridConfig): boolean {
-  return a.cellSizePx === b.cellSizePx
-    && a.cols === b.cols
-    && a.rows === b.rows
-    && a.originPx.x === b.originPx.x
-    && a.originPx.y === b.originPx.y
-    && a.pieceAnchor === b.pieceAnchor
-}
-
-// 被动校准:探到 Field 就把 settings.grid 同步过去,同值时短路跳过。
-// 找不到(场景未就绪)返 false,让 caller 知道可以稍后再试。
-export function autoCalibrateGrid(canvas: HTMLElement, pinia: Pinia): boolean {
-  const detected = detectGridFromCanvas(canvas)
-  if (!detected) {
-    log.debug('auto-calibrate: Field div not found yet')
-    return false
-  }
-  const settings = useSettingsStore(pinia)
-  if (sameGrid(settings.grid, detected))
-    return true
-  settings.$patch({ grid: detected })
-  log.info('grid auto-calibrated', detected)
-  return true
-}

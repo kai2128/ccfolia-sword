@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { detectGridFromCanvas } from '@/ccfolia/grid-detect'
+import { findCanvasContainer } from '@/ccfolia/scene-mount'
 import { Button, Field, Input, Select, Switch } from '@/components/ui'
 import { clearLog, getLogEntries, getLogSize } from '@/infra/log'
 import { useSettingsStore } from '@/stores/settings'
@@ -11,22 +13,67 @@ const anchorOptions = [
   { value: 'top-left', label: 'top-left' },
 ]
 
-// UnoCSS 的 attributify / utility 搭配时,number input 的 v-model.number 在空串时会回落成
-// 0 → normalizer 再兜底成默认值,视觉上会跳字。这里用 @change(失焦时触发)而不是 @input,
-// 调参节奏上也更符合校准场景(用户填完才提交)。
-function onGridFieldChange(key: 'cols' | 'rows' | 'cellSizePx', raw: unknown) {
-  const n = Number(raw)
-  settings.setGrid({ [key]: n })
-}
+// 本地 draft。不能直接把 `:model-value="settings.grid.xxx"` 绑到 input —— 下方
+// logSize 的 setInterval 每秒触发 SettingsTab 重渲染,Vue 会把 input DOM value 回填成
+// store 值,用户输到一半(比如 "20" 只输了 "2" 停顿 > 1s)会被打回旧值。
+// 做法:本地 ref 承接输入,`@change`(失焦/回车)才提交到 store;同时 watch store
+// 回灌 draft,覆盖 resetGrid /手动校准 等外部改动。
+const colsDraft = ref<number | string>(settings.grid.cols)
+const rowsDraft = ref<number | string>(settings.grid.rows)
+const cellSizeDraft = ref<number | string>(settings.grid.cellSizePx)
+const originXDraft = ref<number | string>(settings.grid.originPx.x)
+const originYDraft = ref<number | string>(settings.grid.originPx.y)
 
-function onOriginChange(axis: 'x' | 'y', raw: unknown) {
-  const n = Number(raw)
-  settings.setGrid({ originPx: { ...settings.grid.originPx, [axis]: n } })
+watch(() => settings.grid.cols, (v) => { colsDraft.value = v })
+watch(() => settings.grid.rows, (v) => { rowsDraft.value = v })
+watch(() => settings.grid.cellSizePx, (v) => { cellSizeDraft.value = v })
+watch(() => settings.grid.originPx.x, (v) => { originXDraft.value = v })
+watch(() => settings.grid.originPx.y, (v) => { originYDraft.value = v })
+
+function commitCols() { settings.setGrid({ cols: Number(colsDraft.value) }) }
+function commitRows() { settings.setGrid({ rows: Number(rowsDraft.value) }) }
+function commitCellSize() { settings.setGrid({ cellSizePx: Number(cellSizeDraft.value) }) }
+function commitOriginX() {
+  settings.setGrid({ originPx: { ...settings.grid.originPx, x: Number(originXDraft.value) } })
+}
+function commitOriginY() {
+  settings.setGrid({ originPx: { ...settings.grid.originPx, y: Number(originYDraft.value) } })
 }
 
 function onAnchorChange(v: string | undefined) {
   if (v === 'center' || v === 'top-left')
     settings.setGrid({ pieceAnchor: v })
+}
+
+// --- 手动校准 ---
+// 从 ccfolia 画布读出当前 Field 的格网参数并写入 settings。结果通过 calibrateStatus
+// 短暂显示,3 秒后自动清除,避免需要引入 toast 系统。
+const calibrateStatus = ref<{ kind: 'ok' | 'err', msg: string } | null>(null)
+let calibrateStatusTimer: ReturnType<typeof setTimeout> | null = null
+
+function showCalibrateStatus(kind: 'ok' | 'err', msg: string) {
+  calibrateStatus.value = { kind, msg }
+  if (calibrateStatusTimer !== null)
+    clearTimeout(calibrateStatusTimer)
+  calibrateStatusTimer = setTimeout(() => {
+    calibrateStatus.value = null
+    calibrateStatusTimer = null
+  }, 3000)
+}
+
+function calibrateGrid() {
+  const canvas = findCanvasContainer()
+  if (!canvas) {
+    showCalibrateStatus('err', '找不到 ccfolia 画布,请先进入房间')
+    return
+  }
+  const detected = detectGridFromCanvas(canvas)
+  if (!detected) {
+    showCalibrateStatus('err', '探不到 Field,场景还没渲染完')
+    return
+  }
+  settings.$patch({ grid: detected })
+  showCalibrateStatus('ok', `已同步 · ${detected.cols}×${detected.rows} · ${detected.cellSizePx}px`)
 }
 
 // --- 日志 ---
@@ -43,6 +90,10 @@ onBeforeUnmount(() => {
   if (logTimer !== null) {
     clearInterval(logTimer)
     logTimer = null
+  }
+  if (calibrateStatusTimer !== null) {
+    clearTimeout(calibrateStatusTimer)
+    calibrateStatusTimer = null
   }
 })
 
@@ -77,10 +128,24 @@ function onClearLog() {
         <h4 class="text-sm text-white font-medium">
           格网校准
         </h4>
-        <Button size="sm" variant="ghost" @click="settings.resetGrid()">
-          恢复默认
-        </Button>
+        <div class="flex items-center gap-1">
+          <Button size="sm" @click="calibrateGrid">
+            <span class="i-lucide-crosshair text-3" />
+            从画布校准
+          </Button>
+          <Button size="sm" variant="ghost" @click="settings.resetGrid()">
+            恢复默认
+          </Button>
+        </div>
       </div>
+
+      <p
+        v-if="calibrateStatus"
+        class="text-xs"
+        :class="calibrateStatus.kind === 'ok' ? 'text-accent' : 'text-hp'"
+      >
+        {{ calibrateStatus.msg }}
+      </p>
 
       <label class="flex items-center gap-2 text-xs text-white/80">
         <Switch
@@ -90,29 +155,38 @@ function onClearLog() {
         显示在画布上
       </label>
 
+      <p class="flex items-start gap-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/60 leading-relaxed">
+        <span class="i-lucide-info mt-0.5 flex-shrink-0 text-3 text-accent" />
+        <span>
+          要让「从画布校准」映射到 SW2.5 标准 19×34,请在 ccfolia 房间设置里
+          <span class="text-white">Change the foreground and background &gt; Field settings — Width: 38 &amp; Height: 68</span>。
+          sword 一格 = ccfolia 两格。
+        </span>
+      </p>
+
       <div class="grid grid-cols-2 gap-2">
         <Field label="Cols">
           <Input
+            v-model="colsDraft"
             type="number"
             min="1"
-            :model-value="settings.grid.cols"
-            @change="onGridFieldChange('cols', ($event.target as HTMLInputElement).value)"
+            @change="commitCols"
           />
         </Field>
         <Field label="Rows">
           <Input
+            v-model="rowsDraft"
             type="number"
             min="1"
-            :model-value="settings.grid.rows"
-            @change="onGridFieldChange('rows', ($event.target as HTMLInputElement).value)"
+            @change="commitRows"
           />
         </Field>
         <Field label="Cell (px)">
           <Input
+            v-model="cellSizeDraft"
             type="number"
             min="1"
-            :model-value="settings.grid.cellSizePx"
-            @change="onGridFieldChange('cellSizePx', ($event.target as HTMLInputElement).value)"
+            @change="commitCellSize"
           />
         </Field>
         <Field label="Anchor">
@@ -124,16 +198,16 @@ function onClearLog() {
         </Field>
         <Field label="Origin X">
           <Input
+            v-model="originXDraft"
             type="number"
-            :model-value="settings.grid.originPx.x"
-            @change="onOriginChange('x', ($event.target as HTMLInputElement).value)"
+            @change="commitOriginX"
           />
         </Field>
         <Field label="Origin Y">
           <Input
+            v-model="originYDraft"
             type="number"
-            :model-value="settings.grid.originPx.y"
-            @change="onOriginChange('y', ($event.target as HTMLInputElement).value)"
+            @change="commitOriginY"
           />
         </Field>
       </div>

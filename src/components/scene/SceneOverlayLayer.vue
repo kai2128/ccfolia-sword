@@ -39,7 +39,8 @@ interface OverlayEntry {
   buffs: BuffInstance[]
 }
 
-// ccfolia 不同房间 cellSize 不同(实测 24 / 48 都见过),settings.grid.cellSizePx 默认 50
+// ccfolia 实际 cellSize 恒为 24(app state 硬编码);sword 一格 = ccfolia 两格,所以
+// settings.grid.cellSizePx 默认 48。房间 fieldWidth/Height=38/68 时,校准正好给出 19×34。
 // 大概率对不上。直接从 .movable.offsetWidth 读真实 px,绕开配置校准。
 function collectMovableSizes(): Map<string, number> {
   const out = new Map<string, number>()
