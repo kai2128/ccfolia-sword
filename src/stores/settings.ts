@@ -25,6 +25,7 @@ interface SettingsState {
   panelCollapsed: boolean
   panelVisible: boolean
   grid: GridConfig
+  gridOverlayVisible: boolean
   statusLabelMap: StatusLabelMap
 }
 
@@ -137,6 +138,7 @@ export const useSettingsStore = defineStore('settings', {
     // 默认隐藏。首次进房间只有 launcher icon,Alt+S 或点击 icon 展开
     panelVisible: false,
     grid: normalizeGridConfig(undefined),
+    gridOverlayVisible: false,
     statusLabelMap: normalizeStatusLabelMap(undefined),
   }),
   actions: {
@@ -172,6 +174,25 @@ export const useSettingsStore = defineStore('settings', {
     },
     hidePanel() {
       this.panelVisible = false
+    },
+    // Settings tab 调它改 grid。patch 允许嵌套 originPx 部分更新(只给 x 不丢 y),
+    // 最后统一走 normalizeGridConfig 把脏值(NaN / 0 / 负数 / 空串)回落到默认。
+    setGrid(patch: Partial<GridConfig>) {
+      const next: GridConfig = {
+        ...this.grid,
+        ...patch,
+        originPx: {
+          ...this.grid.originPx,
+          ...(patch.originPx ?? {}),
+        },
+      }
+      this.grid = normalizeGridConfig(next)
+    },
+    resetGrid() {
+      this.grid = normalizeGridConfig(undefined)
+    },
+    setGridOverlayVisible(v: boolean) {
+      this.gridOverlayVisible = v
     },
   },
   persist: {

@@ -12,6 +12,7 @@ import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useEncounterStore } from '@/stores/encounter'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
+import GridOverlay from './GridOverlay.vue'
 import RangeCircle from './RangeCircle.vue'
 
 const pieces = usePiecesStore()
@@ -81,6 +82,8 @@ const entries = computed<OverlayEntry[]>(() => {
 
 <template>
   <div class="scene-overlay-layer">
+    <!-- 格网校准叠加,仅 settings.gridOverlayVisible=true 时渲染 -->
+    <GridOverlay />
     <!-- AoE 圆已从画布移除:AoE 作用范围只在 BuffRow 的 "AoE Nm" 角标 + 覆盖徽章反映。 -->
     <!-- 射程圈:青虚线,纯视觉、不参与结算 -->
     <!-- TODO: piece 气泡入口。overlay 宿主 pointer-events: none,需要另装 click 监听(scene-mount 上未暴露) -->

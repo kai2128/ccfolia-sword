@@ -34,6 +34,19 @@ export function setRingSize(n: number) {
     ring.shift()
 }
 
+// 给 settings tab / 外部消费方的只读快照,浅拷贝避免泄漏内部引用。
+export function getLogEntries(): LogEntry[] {
+  return ring.slice()
+}
+
+export function getLogSize(): number {
+  return ring.length
+}
+
+export function clearLog(): void {
+  ring.length = 0
+}
+
 function write(level: LogLevel, tag: string, msg: string, data?: unknown) {
   const entry: LogEntry = { t: Date.now(), level, tag, msg, data }
   ring.push(entry)
@@ -82,7 +95,7 @@ export function installLogPanel() {
     byTag: (tag: string): LogEntry[] => ring.filter(e => e.tag.startsWith(tag)),
     byLevel: (level: LogLevel): LogEntry[] =>
       ring.filter(e => levelOrder[e.level] >= levelOrder[level]),
-    clear: () => { ring.length = 0 },
+    clear: () => clearLog(),
     setMirrorLevel: (l: LogLevel) => { mirrorLevel = l },
     // 打印成可读表格,时间戳转相对 ms
     print: (n = 30) => {
