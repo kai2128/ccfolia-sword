@@ -1,3 +1,4 @@
+import type { TickPrompt } from '@/ccfolia/writers/tick-buff-turns'
 import { defineStore } from 'pinia'
 import { tickBuffTurnsForAllCharacters } from '@/ccfolia/writers/tick-buff-turns'
 import { readSharedValue, writeSharedValue } from '@/infra/gm-values'
@@ -133,13 +134,19 @@ export const useEncounterStore = defineStore('encounter', {
       if (this.local.currentActorId === id)
         this.local.currentActorId = null
     },
-    nextTurn() {
+    async nextTurn(): Promise<TickPrompt[]> {
       this.shared.turn += 1
       this.local.pendingIds = [...this.local.pendingIds, ...this.local.actedIds]
       this.local.actedIds = []
       this.local.currentActorId = null
-      // 推进所有角色身上 buff 的 turnsRemaining;-1 后到 0 自动卸载。fire-and-forget。
-      tickBuffTurnsForAllCharacters().catch(error => log.error('tick buff turns failed', { error }))
+      // 推进所有角色身上 buff 的 turnsRemaining;-1 后到 0 自动卸载。同时收集本回合需提示的 prompts。
+      try {
+        return await tickBuffTurnsForAllCharacters()
+      }
+      catch (error) {
+        log.error('tick buff turns failed', { error })
+        return []
+      }
     },
     addParticipant(id: string) {
       if (!this.isParticipant(id))
