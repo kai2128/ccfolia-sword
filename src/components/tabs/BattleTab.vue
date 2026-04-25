@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import type { TickPrompt } from '@/ccfolia/writers/tick-buff-turns'
+import { computed, ref } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import ActionForm from '@/components/combat/ActionForm.vue'
 import TargetQuickPicker from '@/components/combat/TargetQuickPicker.vue'
+import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
 import { useEncounterStore } from '@/stores/encounter'
 
 const encounter = useEncounterStore()
@@ -37,12 +39,19 @@ function finishActor() {
     encounter.finishActor(encounter.local.currentActorId)
 }
 
-function nextTurn() {
+const promptsOpen = ref(false)
+const lastPrompts = ref<TickPrompt[]>([])
+
+async function nextTurn() {
   // 这里需要同步确认框,允许 GM 在还有未行动者时强行推进回合。
   // eslint-disable-next-line no-alert
   if (encounter.local.pendingIds.length > 0 && !window.confirm('还有人未行动,确认推进回合?'))
     return
-  encounter.nextTurn()
+  const prompts = await encounter.nextTurn()
+  if (prompts.length > 0) {
+    lastPrompts.value = prompts
+    promptsOpen.value = true
+  }
 }
 
 function endCombat() {
@@ -134,5 +143,7 @@ function endCombat() {
         </button>
       </footer>
     </template>
+
+    <TickPromptDialog v-model:open="promptsOpen" :prompts="lastPrompts" />
   </section>
 </template>
