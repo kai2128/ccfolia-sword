@@ -2,14 +2,19 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
+import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
+import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
 import BuffRow from '@/components/buffs/BuffRow.vue'
 import HpMpEditor from '@/components/combat/HpMpEditor.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { collectBuffs } from '@/core/buff/collect'
+import { formatCellRef, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
+import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
 
 const props = defineProps<{
@@ -54,6 +59,59 @@ const primary = computed(() =>
   pickPrimaryTag(resolveTags(readTagInstances(props.char), lib.byId)),
 )
 const buffs = computed(() => collectBuffs(props.char))
+
+const settings = useSettingsStore()
+
+// 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")
+const cellText = computed(() => {
+  const cell = pxToCell({ x: props.char.x as number, y: props.char.y as number }, settings.grid)
+  return cell ? formatCellRef(cell) : ''
+})
+
+const offBoard = computed(() => {
+  const cell = pxToCell({ x: props.char.x as number, y: props.char.y as number }, settings.grid)
+  return cell === null
+})
+
+async function onCellInputChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const raw = input.value.trim()
+  if (!raw)
+    return
+  try {
+    await setCharacterCell(props.char._id, raw, settings.grid)
+  }
+  catch (err) {
+    // eslint-disable-next-line no-alert
+    alert((err as Error).message)
+    input.value = cellText.value
+  }
+}
+
+async function onMoveOffBoard() {
+  if (offBoard.value)
+    return
+  try {
+    await moveCharacterOffBoard(props.char._id)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`移出板失败:${(e as Error).message}`)
+  }
+}
+
+async function onSetInactive() {
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(`将 ${props.char.name} 设为非激活?可在 ccfolia 角色管理重新激活。`))
+    return
+  try {
+    await setCharacterActive(props.char._id, false)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`设非激活失败:${(e as Error).message}`)
+  }
+}
 </script>
 
 <template>
@@ -109,6 +167,34 @@ const buffs = computed(() => collectBuffs(props.char))
       <span v-else class="shrink-0 text-xs text-white/40">MP —</span>
 
       <TagAttachPopover :char="char" :primary="primary" />
+
+      <input
+        type="text"
+        :value="cellText"
+        :placeholder="offBoard ? '板外' : '5J'"
+        class="h-5 w-12 shrink-0 border border-white/20 rounded bg-black/30 px-1 text-center text-xs text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
+        title="输入格位(例 5J)定位 piece"
+        @change="onCellInputChange"
+      >
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white disabled:opacity-30"
+        :disabled="offBoard"
+        title="移出板(可用格位输入框拉回)"
+        @click="onMoveOffBoard"
+      >
+        <span class="i-lucide-archive text-3.5" />
+      </button>
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-debuff/20 hover:text-debuff"
+        title="设为非激活(从 sword roster 移除,可在 ccfolia 恢复)"
+        @click="onSetInactive"
+      >
+        <span class="i-lucide-power-off text-3.5" />
+      </button>
 
       <button
         type="button"
