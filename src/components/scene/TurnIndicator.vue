@@ -7,8 +7,8 @@ const encounter = useEncounterStore()
 <template>
   <div
     v-if="encounter.shared.inCombat"
-    class="pointer-events-none absolute right-3 top-3 select-none rounded bg-black/55 px-3 py-1 text-base text-white font-bold"
-    style="z-index: 9998;"
+    class="pointer-events-none fixed right-3 select-none rounded bg-black/55 px-3 py-1 text-base text-white font-bold"
+    style="top: 25vh; z-index: 99999;"
   >
     回合 {{ encounter.shared.turn }}
   </div>

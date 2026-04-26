@@ -4,7 +4,6 @@
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import SceneOverlayLayer from './SceneOverlayLayer.vue'
-import TurnIndicator from './TurnIndicator.vue'
 
 declare const unsafeWindow: Window & typeof globalThis
 
@@ -25,7 +24,6 @@ catch { /* ignore */ }
 <template>
   <div class="ccs-scene-overlay">
     <SceneOverlayLayer />
-    <TurnIndicator />
   </div>
 </template>
 
