@@ -57,19 +57,37 @@ function cancelEdit() {
   editing.value = false
 }
 
-// 方向键:Shift+click ×5,和 NumberEdit 的手感对齐。
-function move(dx: number, dy: number, ev: MouseEvent) {
+// Shift+click / Shift+ArrowKey ×5,和 NumberEdit 的手感对齐。
+function move(dx: number, dy: number, shift: boolean) {
   if (props.offBoard)
     return
-  const m = ev.shiftKey ? 5 : 1
+  const m = shift ? 5 : 1
   emit('move', { dx: dx * m, dy: dy * m })
 }
 
+// draft 为空时,←↑→↓ 直接驱动移动(快捷路径:开 edit、连按方向键、Esc 收工)。
+// draft 有内容时让方向键回归 input 原生光标导航,避免吃掉用户改 +2,-3 这种表达式中间字符的操作。
+const ARROW_DELTA: Record<string, { dx: number, dy: number }> = {
+  ArrowUp: { dx: 0, dy: -1 },
+  ArrowDown: { dx: 0, dy: 1 },
+  ArrowLeft: { dx: -1, dy: 0 },
+  ArrowRight: { dx: 1, dy: 0 },
+}
+
 function onKey(ev: KeyboardEvent) {
-  if (ev.key === 'Enter')
+  if (ev.key === 'Enter') {
     commitEdit()
-  else if (ev.key === 'Escape')
+    return
+  }
+  if (ev.key === 'Escape') {
     cancelEdit()
+    return
+  }
+  const arrow = ARROW_DELTA[ev.key]
+  if (arrow && draft.value === '') {
+    ev.preventDefault()
+    move(arrow.dx, arrow.dy, ev.shiftKey)
+  }
 }
 </script>
 
@@ -106,7 +124,7 @@ function onKey(ev: KeyboardEvent) {
         class="absolute bottom-full left-1/2 z-10 mb-0.5 h-4 w-5 flex items-center justify-center border border-white/20 rounded bg-black/85 text-[10px] text-white/70 leading-none -translate-x-1/2 hover:bg-white/15 hover:text-white disabled:opacity-30"
         :disabled="offBoard"
         title="上 1 格(Shift+click ×5)"
-        @mousedown.prevent="move(0, -1, $event)"
+        @mousedown.prevent="move(0, -1, $event.shiftKey)"
       >
         ▲
       </button>
@@ -115,7 +133,7 @@ function onKey(ev: KeyboardEvent) {
         class="absolute left-1/2 top-full z-10 mt-0.5 h-4 w-5 flex items-center justify-center border border-white/20 rounded bg-black/85 text-[10px] text-white/70 leading-none -translate-x-1/2 hover:bg-white/15 hover:text-white disabled:opacity-30"
         :disabled="offBoard"
         title="下 1 格(Shift+click ×5)"
-        @mousedown.prevent="move(0, 1, $event)"
+        @mousedown.prevent="move(0, 1, $event.shiftKey)"
       >
         ▼
       </button>
@@ -124,7 +142,7 @@ function onKey(ev: KeyboardEvent) {
         class="absolute right-full top-1/2 z-10 mr-0.5 h-4 w-4 flex items-center justify-center border border-white/20 rounded bg-black/85 text-[10px] text-white/70 leading-none -translate-y-1/2 hover:bg-white/15 hover:text-white disabled:opacity-30"
         :disabled="offBoard"
         title="左 1 格(Shift+click ×5)"
-        @mousedown.prevent="move(-1, 0, $event)"
+        @mousedown.prevent="move(-1, 0, $event.shiftKey)"
       >
         ◀
       </button>
@@ -133,7 +151,7 @@ function onKey(ev: KeyboardEvent) {
         class="absolute left-full top-1/2 z-10 ml-0.5 h-4 w-4 flex items-center justify-center border border-white/20 rounded bg-black/85 text-[10px] text-white/70 leading-none -translate-y-1/2 hover:bg-white/15 hover:text-white disabled:opacity-30"
         :disabled="offBoard"
         title="右 1 格(Shift+click ×5)"
-        @mousedown.prevent="move(1, 0, $event)"
+        @mousedown.prevent="move(1, 0, $event.shiftKey)"
       >
         ▶
       </button>
