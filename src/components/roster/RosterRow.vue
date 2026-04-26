@@ -6,9 +6,10 @@ import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
 import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
 import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
+import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
-import { CellEdit, NumberEdit } from '@/components/ui'
+import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffs } from '@/core/buff/collect'
 import { formatCellRef, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
@@ -54,7 +55,6 @@ function onRangeInput(e: Event) {
     encounter.setRangeRadius(props.char._id, v)
 }
 
-// Tag selector 放在行末,按钮颜色直接取主 tag 色 —— 不再在行里重复渲染 tag chips
 const lib = useTagLibraryStore()
 const primary = computed(() =>
   pickPrimaryTag(resolveTags(readTagInstances(props.char), lib.byId)),
@@ -73,6 +73,9 @@ const offBoard = computed(() => {
   const cell = pxToCell({ x: props.char.x as number, y: props.char.y as number }, settings.grid)
   return cell === null
 })
+
+// hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
+const isHidden = computed(() => props.char.hideStatus === true)
 
 async function onCellSubmit(raw: string) {
   try {
@@ -94,22 +97,35 @@ async function onCellMove(delta: { dx: number, dy: number }) {
   }
 }
 
-async function onMoveOffBoard() {
-  if (offBoard.value)
-    return
+// 双向 toggle:在板上 → 移出收纳位;在板外 → 放回画布中央格
+async function onToggleBoard() {
   try {
-    await moveCharacterOffBoard(props.char._id, settings.grid)
+    if (offBoard.value) {
+      const grid = settings.grid
+      const center = { col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) }
+      await setCharacterCell(props.char._id, formatCellRef(center), grid)
+    }
+    else {
+      await moveCharacterOffBoard(props.char._id, settings.grid)
+    }
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`移出板失败:${(e as Error).message}`)
+    alert(`操作失败:${(e as Error).message}`)
+  }
+}
+
+async function onToggleHideStatus() {
+  try {
+    await setCharacterHideStatus(props.char._id, !isHidden.value)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`切换失败:${(e as Error).message}`)
   }
 }
 
 async function onSetInactive() {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(`将 ${props.char.name} 设为非激活?可在 ccfolia 角色管理重新激活。`))
-    return
   try {
     await setCharacterActive(props.char._id, false)
   }
@@ -123,39 +139,7 @@ async function onSetInactive() {
 <template>
   <li class="border-b border-white/5 px-1 py-1 last:border-b-0">
     <div class="flex items-center gap-1.5">
-      <button
-        type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="pillVisible ? 'text-white' : 'text-white/30'"
-        :title="pillVisible ? '隐藏场景上的 HP/MP 指示' : '显示场景上的 HP/MP 指示'"
-        @click="togglePill"
-      >
-        <span :class="pillVisible ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="text-3.5" />
-      </button>
-
-      <div class="relative inline-flex shrink-0">
-        <button
-          type="button"
-          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
-          :class="rangeActive ? 'text-white' : 'text-white/30'"
-          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
-          @click="toggleRange"
-        >
-          <span class="i-lucide-ruler text-3.5" />
-        </button>
-        <!-- 射程半径输入浮在按钮下方,绝对定位避开行 reflow -->
-        <input
-          v-if="rangeActive"
-          type="number"
-          min="1"
-          :value="rangeRadius"
-          class="absolute left-1/2 top-full z-10 mt-0.5 h-5 w-12 border border-white/20 rounded bg-black/85 px-1 text-center text-xs text-white -translate-x-1/2 focus:outline-none focus:ring-1 focus:ring-accent"
-          title="射程半径(格=米)"
-          @change="onRangeInput"
-        >
-      </div>
-
-      <span class="min-w-14 flex-1 truncate text-sm text-white">{{ char.name }}</span>
+      <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 
       <NumberEdit
         v-if="hp"
@@ -180,24 +164,74 @@ async function onSetInactive() {
         @move="onCellMove"
       />
 
-      <button
-        type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white disabled:opacity-30"
-        :disabled="offBoard"
-        title="移出板(可用格位输入框拉回)"
-        @click="onMoveOffBoard"
-      >
-        <span class="i-lucide-archive text-3.5" />
-      </button>
+      <div class="inline-flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
+          :class="rangeActive ? 'text-white' : 'text-white/30'"
+          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
+          @click="toggleRange"
+        >
+          <span class="i-lucide-ruler text-3.5" />
+        </button>
+        <input
+          v-if="rangeActive"
+          type="number"
+          min="1"
+          :value="rangeRadius"
+          class="h-5 w-10 border border-white/20 rounded bg-black/40 px-1 text-center text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent"
+          title="射程半径(格=米)"
+          @change="onRangeInput"
+        >
+      </div>
 
       <button
         type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-debuff/20 hover:text-debuff"
-        title="设为非激活(可在 ccfolia 重新添加)"
-        @click="onSetInactive"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+        :class="pillVisible ? 'text-white' : 'text-white/30'"
+        :title="pillVisible ? '隐藏场景上的 HP/MP 指示' : '显示场景上的 HP/MP 指示'"
+        @click="togglePill"
       >
-        <span class="i-lucide-power-off text-3.5" />
+        <span class="i-lucide-chart-bar-big text-3.5" />
       </button>
+
+      <PopConfirm
+        :message="offBoard ? `把 ${char.name} 放回画布中央?` : `把 ${char.name} 移动到 board 外?`"
+        confirm-text="确认"
+        @confirm="onToggleBoard"
+      >
+        <button
+          type="button"
+          class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
+          :title="offBoard ? '放回画布中央' : '移动到 board 外'"
+        >
+          <span class="i-lucide-archive text-3.5" />
+        </button>
+      </PopConfirm>
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+        :class="isHidden ? 'text-white/30' : 'text-white'"
+        :title="isHidden ? 'ccfolia 板上角色一览已隐藏 · 点击恢复' : '从 ccfolia 板上角色一览隐藏'"
+        @click="onToggleHideStatus"
+      >
+        <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-3.5" />
+      </button>
+
+      <PopConfirm
+        :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
+        confirm-text="确认"
+        @confirm="onSetInactive"
+      >
+        <button
+          type="button"
+          class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-debuff/20 hover:text-debuff"
+          title="移出 board(可在 ccfolia 重新添加)"
+        >
+          <span class="i-lucide-trash-2 text-3.5" />
+        </button>
+      </PopConfirm>
 
       <button
         type="button"
