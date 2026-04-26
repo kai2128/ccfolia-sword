@@ -141,6 +141,27 @@ async function onSetInactive() {
     <div class="flex items-center gap-1.5">
       <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 
+      <div class="inline-flex shrink-0 items-center gap-1">
+        <input
+          v-if="rangeActive"
+          type="number"
+          min="1"
+          :value="rangeRadius"
+          class="h-5 w-10 border border-white/20 rounded bg-black/40 px-1 text-center text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent"
+          title="射程半径(格=米)"
+          @change="onRangeInput"
+        >
+        <button
+          type="button"
+          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
+          :class="rangeActive ? 'text-white' : 'text-white/30'"
+          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
+          @click="toggleRange"
+        >
+          <span class="i-lucide-ruler text-3.5" />
+        </button>
+      </div>
+
       <NumberEdit
         v-if="hp"
         :value="hp.value"
@@ -164,27 +185,6 @@ async function onSetInactive() {
         @move="onCellMove"
       />
 
-      <div class="inline-flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
-          :class="rangeActive ? 'text-white' : 'text-white/30'"
-          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
-          @click="toggleRange"
-        >
-          <span class="i-lucide-ruler text-3.5" />
-        </button>
-        <input
-          v-if="rangeActive"
-          type="number"
-          min="1"
-          :value="rangeRadius"
-          class="h-5 w-10 border border-white/20 rounded bg-black/40 px-1 text-center text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent"
-          title="射程半径(格=米)"
-          @change="onRangeInput"
-        >
-      </div>
-
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
@@ -193,6 +193,16 @@ async function onSetInactive() {
         @click="togglePill"
       >
         <span class="i-lucide-chart-bar-big text-3.5" />
+      </button>
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+        :class="isHidden ? 'text-white/30' : 'text-white'"
+        :title="isHidden ? 'ccfolia 板上角色一览已隐藏 · 点击恢复' : '从 ccfolia 板上角色一览隐藏'"
+        @click="onToggleHideStatus"
+      >
+        <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-3.5" />
       </button>
 
       <PopConfirm
@@ -208,16 +218,6 @@ async function onSetInactive() {
           <span class="i-lucide-archive text-3.5" />
         </button>
       </PopConfirm>
-
-      <button
-        type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="isHidden ? 'text-white/30' : 'text-white'"
-        :title="isHidden ? 'ccfolia 板上角色一览已隐藏 · 点击恢复' : '从 ccfolia 板上角色一览隐藏'"
-        @click="onToggleHideStatus"
-      >
-        <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-3.5" />
-      </button>
 
       <PopConfirm
         :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"

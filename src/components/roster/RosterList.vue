@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { StatusSlot } from '@/core/status-slot'
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
@@ -19,7 +19,8 @@ const pieces = usePiecesStore()
 const lib = useTagLibraryStore()
 const view = useRosterViewStore()
 const settings = useSettingsStore()
-const expandedId = ref<string | null>(null)
+// 多展开:每个 id 独立 toggle,互不收起
+const expandedIds = reactive(new Set<string>())
 const attachingId = ref<string | null>(null)
 
 // "画布上" = 三个条件同时成立:
@@ -52,7 +53,10 @@ const groups = computed(() =>
 )
 
 function toggleExpand(id: string) {
-  expandedId.value = expandedId.value === id ? null : id
+  if (expandedIds.has(id))
+    expandedIds.delete(id)
+  else
+    expandedIds.add(id)
 }
 
 async function onChange(charId: string, slot: StatusSlot, newValue: number) {
@@ -96,7 +100,7 @@ async function onChange(charId: string, slot: StatusSlot, newValue: number) {
             :key="char._id"
             :char="char"
             :label-map="settings.statusLabelMap"
-            :expanded="expandedId === char._id"
+            :expanded="expandedIds.has(char._id)"
             @change="(slot, v) => onChange(char._id, slot, v)"
             @toggle-expand="toggleExpand(char._id)"
             @attach-buff="attachingId = char._id"
