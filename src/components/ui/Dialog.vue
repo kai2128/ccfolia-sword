@@ -14,6 +14,8 @@ import { usePortalTarget } from './portal'
 defineProps<{
   title?: string
   description?: string
+  // 宽 dialog(矩阵 / 列表场景),默认窄
+  wide?: boolean
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -32,7 +34,8 @@ const target = usePortalTarget()
         class="ccs-dialog-overlay fixed inset-0 bg-black/60"
       />
       <DialogContent
-        class="ccs-dialog-content fixed left-1/2 top-1/2 max-h-[85vh] w-[min(90vw,24rem)] flex flex-col gap-3 border border-white/10 rounded-md bg-surface p-4 text-white shadow-xl -translate-x-1/2 -translate-y-1/2 focus:outline-none"
+        class="ccs-dialog-content fixed left-1/2 top-1/2 max-h-[85vh] flex flex-col gap-3 border border-white/10 rounded-md bg-surface p-4 text-white shadow-xl -translate-x-1/2 -translate-y-1/2 focus:outline-none"
+        :class="wide ? 'w-auto max-w-[min(95vw,52rem)]' : 'w-[min(90vw,24rem)]'"
       >
         <DialogTitle v-if="title" class="text-sm font-semibold">
           {{ title }}
