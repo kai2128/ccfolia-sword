@@ -11,7 +11,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 <template>
   <Dialog v-model:open="open" title="本回合 Buff 提示">
-    <ul class="m-0 flex flex-col gap-1.5 list-none p-0">
+    <ul class="m-0 flex flex-col list-none gap-1.5 p-0">
       <li
         v-for="(p, i) in prompts"
         :key="`${p.characterId}-${p.buffId}-${i}`"

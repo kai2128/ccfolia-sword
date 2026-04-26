@@ -2,12 +2,13 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
 import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
 import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
 import BuffRow from '@/components/buffs/BuffRow.vue'
-import HpMpEditor from '@/components/combat/HpMpEditor.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
+import { CellEdit, NumberEdit } from '@/components/ui'
 import { collectBuffs } from '@/core/buff/collect'
 import { formatCellRef, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
@@ -73,18 +74,23 @@ const offBoard = computed(() => {
   return cell === null
 })
 
-async function onCellInputChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const raw = input.value.trim()
-  if (!raw)
-    return
+async function onCellSubmit(raw: string) {
   try {
     await setCharacterCell(props.char._id, raw, settings.grid)
   }
   catch (err) {
     // eslint-disable-next-line no-alert
     alert((err as Error).message)
-    input.value = cellText.value
+  }
+}
+
+async function onCellMove(delta: { dx: number, dy: number }) {
+  try {
+    await moveCharacterByCells(props.char._id, delta.dx, delta.dy, settings.grid)
+  }
+  catch (err) {
+    // eslint-disable-next-line no-alert
+    alert((err as Error).message)
   }
 }
 
@@ -146,20 +152,18 @@ async function onSetInactive() {
         @change="onRangeInput"
       >
 
-      <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
+      <span class="min-w-14 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 
-      <HpMpEditor
+      <NumberEdit
         v-if="hp"
-        kind="hp"
         :value="hp.value"
         :max="hp.max"
         @change="v => emit('change', 'hp', v)"
       />
       <span v-else class="shrink-0 text-xs text-white/40">HP —</span>
 
-      <HpMpEditor
+      <NumberEdit
         v-if="mp"
-        kind="mp"
         :value="mp.value"
         :max="mp.max"
         @change="v => emit('change', 'mp', v)"
@@ -168,14 +172,12 @@ async function onSetInactive() {
 
       <TagAttachPopover :char="char" :primary="primary" />
 
-      <input
-        type="text"
-        :value="cellText"
-        :placeholder="offBoard ? '板外' : '5J'"
-        class="h-5 w-12 shrink-0 border border-white/20 rounded bg-black/30 px-1 text-center text-xs text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
-        title="输入格位(例 5J)定位 piece"
-        @change="onCellInputChange"
-      >
+      <CellEdit
+        :cell="cellText"
+        :off-board="offBoard"
+        @submit="onCellSubmit"
+        @move="onCellMove"
+      />
 
       <button
         type="button"
@@ -190,7 +192,7 @@ async function onSetInactive() {
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-debuff/20 hover:text-debuff"
-        title="设为非激活(从 sword roster 移除,可在 ccfolia 恢复)"
+        title="设为非激活(可在 ccfolia 重新添加)"
         @click="onSetInactive"
       >
         <span class="i-lucide-power-off text-3.5" />

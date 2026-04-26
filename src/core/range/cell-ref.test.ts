@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCellRef, parseCellRef } from './cell-ref'
+import { formatCellRef, parseCellDelta, parseCellRef } from './cell-ref'
 import { DEFAULT_GRID_CONFIG } from './types'
 
 const cfg = DEFAULT_GRID_CONFIG
@@ -52,6 +52,40 @@ describe('formatCellRef', () => {
 
   it('formats col 18 row 33 -> "34S"', () => {
     expect(formatCellRef({ col: 18, row: 33 })).toBe('34S')
+  })
+})
+
+describe('parseCellDelta', () => {
+  it('parses directional shorthand', () => {
+    expect(parseCellDelta('u10')).toEqual({ dx: 0, dy: -10 })
+    expect(parseCellDelta('d3')).toEqual({ dx: 0, dy: 3 })
+    expect(parseCellDelta('l2')).toEqual({ dx: -2, dy: 0 })
+    expect(parseCellDelta('r5')).toEqual({ dx: 5, dy: 0 })
+  })
+
+  it('directional shorthand is case-insensitive and trims', () => {
+    expect(parseCellDelta('  U7  ')).toEqual({ dx: 0, dy: -7 })
+  })
+
+  it('parses dRow,dCol with signs', () => {
+    expect(parseCellDelta('+2,-3')).toEqual({ dx: -3, dy: 2 })
+    expect(parseCellDelta('2,-3')).toEqual({ dx: -3, dy: 2 })
+    expect(parseCellDelta('-3,0')).toEqual({ dx: 0, dy: -3 })
+    expect(parseCellDelta('0, 5')).toEqual({ dx: 5, dy: 0 })
+  })
+
+  it('does not collide with absolute "5J" form', () => {
+    expect(parseCellDelta('5J')).toBeNull()
+    expect(parseCellDelta('5j')).toBeNull()
+  })
+
+  it('returns null on empty / malformed', () => {
+    expect(parseCellDelta('')).toBeNull()
+    expect(parseCellDelta('u')).toBeNull()
+    expect(parseCellDelta('u0')).toBeNull()
+    expect(parseCellDelta('x3')).toBeNull()
+    expect(parseCellDelta('u-1')).toBeNull()
+    expect(parseCellDelta('1,2,3')).toBeNull()
   })
 })
 

@@ -48,4 +48,3 @@ export function detectGridFromCanvas(canvas: HTMLElement): GridConfig | null {
     pieceAnchor: 'top-left',
   }
 }
-
