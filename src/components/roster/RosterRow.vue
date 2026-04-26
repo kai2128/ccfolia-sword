@@ -133,24 +133,27 @@ async function onSetInactive() {
         <span :class="pillVisible ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="text-3.5" />
       </button>
 
-      <button
-        type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="rangeActive ? 'text-white' : 'text-white/30'"
-        :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
-        @click="toggleRange"
-      >
-        <span class="i-lucide-ruler text-3.5" />
-      </button>
-      <input
-        v-if="rangeActive"
-        type="number"
-        min="1"
-        :value="rangeRadius"
-        class="h-5 w-10 shrink-0 border border-white/20 rounded bg-black/30 px-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent"
-        title="射程半径(格=米)"
-        @change="onRangeInput"
-      >
+      <div class="relative inline-flex shrink-0">
+        <button
+          type="button"
+          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
+          :class="rangeActive ? 'text-white' : 'text-white/30'"
+          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
+          @click="toggleRange"
+        >
+          <span class="i-lucide-ruler text-3.5" />
+        </button>
+        <!-- 射程半径输入浮在按钮下方,绝对定位避开行 reflow -->
+        <input
+          v-if="rangeActive"
+          type="number"
+          min="1"
+          :value="rangeRadius"
+          class="absolute left-1/2 top-full z-10 mt-0.5 h-5 w-12 border border-white/20 rounded bg-black/85 px-1 text-center text-xs text-white -translate-x-1/2 focus:outline-none focus:ring-1 focus:ring-accent"
+          title="射程半径(格=米)"
+          @change="onRangeInput"
+        >
+      </div>
 
       <span class="min-w-14 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 

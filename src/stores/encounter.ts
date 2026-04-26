@@ -134,6 +134,10 @@ export const useEncounterStore = defineStore('encounter', {
       if (this.local.currentActorId === id)
         this.local.currentActorId = null
     },
+    // 手动修正回合数(GM 数错了 / 跳着记)。不触发 buff tick、不重置行动池——那是 nextTurn 的事。
+    setTurn(n: number) {
+      this.shared.turn = Math.max(0, Math.floor(n))
+    },
     async nextTurn(): Promise<TickPrompt[]> {
       this.shared.turn += 1
       this.local.pendingIds = [...this.local.pendingIds, ...this.local.actedIds]
