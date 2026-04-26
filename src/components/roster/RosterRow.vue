@@ -173,8 +173,6 @@ async function onSetInactive() {
       />
       <span v-else class="shrink-0 text-xs text-white/40">MP —</span>
 
-      <TagAttachPopover :char="char" :primary="primary" />
-
       <CellEdit
         :cell="cellText"
         :off-board="offBoard"
@@ -212,19 +210,22 @@ async function onSetInactive() {
     </div>
 
     <div v-if="expanded" class="mt-2 flex flex-col gap-1 pl-6">
+      <div class="flex items-center gap-1.5">
+        <TagAttachPopover :char="char" :primary="primary" />
+        <button
+          type="button"
+          class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+          @click="emit('attachBuff')"
+        >
+          + 挂 buff
+        </button>
+      </div>
       <BuffRow
         v-for="buff in buffs"
         :key="buff.id"
         :character-id="char._id"
         :buff="buff"
       />
-      <button
-        type="button"
-        class="self-start border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-        @click="emit('attachBuff')"
-      >
-        + 挂 buff
-      </button>
     </div>
   </li>
 </template>
