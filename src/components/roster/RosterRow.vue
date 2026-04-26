@@ -92,7 +92,7 @@ async function onMoveOffBoard() {
   if (offBoard.value)
     return
   try {
-    await moveCharacterOffBoard(props.char._id)
+    await moveCharacterOffBoard(props.char._id, settings.grid)
   }
   catch (e) {
     // eslint-disable-next-line no-alert
