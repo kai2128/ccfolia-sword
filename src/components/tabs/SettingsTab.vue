@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import logoUrl from '@/assets/logo.png'
 import { detectGridFromCanvas } from '@/ccfolia/grid-detect'
 import { findCanvasContainer } from '@/ccfolia/scene-mount'
 import { Button, Field, Input, Select, Switch } from '@/components/ui'
@@ -121,9 +122,16 @@ function onClearLog() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="relative flex flex-col gap-3">
+    <!-- 背景图:logo 大幅居中淡显,不拦截点击 -->
+    <div
+      class="pointer-events-none absolute inset-0 bg-center bg-no-repeat opacity-25"
+      :style="{ backgroundImage: `url(${logoUrl})`, backgroundSize: 'min(120%, 560px)' }"
+      aria-hidden="true"
+    />
+
     <!-- 格网校准 -->
-    <section class="flex flex-col gap-2 card">
+    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75 backdrop-blur-sm">
       <div class="flex items-center justify-between">
         <h4 class="text-sm text-white font-medium">
           格网校准
@@ -214,7 +222,7 @@ function onClearLog() {
     </section>
 
     <!-- 调试 -->
-    <section class="flex flex-col gap-2 card">
+    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75 backdrop-blur-sm">
       <h4 class="text-sm text-white font-medium">
         调试
       </h4>

@@ -1,9 +1,15 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import unocss from '@unocss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 import monkey from 'vite-plugin-monkey'
+
+// 把 favicon 内联成 data URL,作为 userscript 图标,避免依赖外部图床。
+const iconDataUrl = `data:image/x-icon;base64,${readFileSync(
+  fileURLToPath(new URL('./src/assets/favicon.ico', import.meta.url)),
+).toString('base64')}`
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -19,10 +25,9 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         'name': 'ccfolia-sword',
-        'namespace': 'https://github.com/tofu/ccfolia-sword',
-        'description': '剑之世界 2.5 战斗引擎 · ccfolia 伴侣',
-        // 'icon': 'https://ccfolia.com/favicon.ico',
-        'icon': 'https://i.imgur.com/M5ZRBm4.png',
+        'namespace': 'https://github.com/kai2128/ccfolia-sword',
+        'description': '剑之世界 2.5 战斗助手 · ccfolia ',
+        'icon': iconDataUrl,
         'match': ['https://ccfolia.com/rooms/*'],
         // sniffer 必须比 ccfolia 的 Firebase SDK 更早装钩子,否则抓不到 Write/channel。
         'run-at': 'document-start',
