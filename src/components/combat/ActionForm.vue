@@ -11,7 +11,7 @@ import { extractParts } from '@/core/character/parts'
 import { applyDamageToTarget, validateDraft } from '@/core/combat/apply-damage'
 import { applyHealToTarget } from '@/core/combat/apply-heal'
 import { collectDefenseMods, resolveDefense } from '@/core/combat/resolve-modifiers'
-import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
+import { formatActorDisplayName, formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { readStatusSlot } from '@/core/status-slot'
 import { useActionDraftStore } from '@/stores/action-draft'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
@@ -46,20 +46,16 @@ const encounter = useEncounterStore()
 const buffsDerived = useBuffsDerivedStore()
 const { ready: firestoreReady } = useFirestoreReady()
 
-// 解析 actor:char + partKey
 const actorParsed = computed(() => props.actorRef ? parseActorRef(props.actorRef) : null)
 const actor = computed<CcfoliaCharacter | null>(() =>
   actorParsed.value ? chars.byId(actorParsed.value.charId) ?? null : null,
 )
 const actorPartKey = computed(() => actorParsed.value?.partKey ?? '')
+const actorDisplayName = computed(() =>
+  actor.value ? formatActorDisplayName(actor.value.name, actorPartKey.value) : '',
+)
 
-// 多部位时显示 `角色 · 部位`
-const actorDisplayName = computed(() => {
-  if (!actor.value)
-    return ''
-  return actorPartKey.value ? `${actor.value.name} · ${actorPartKey.value}` : actor.value.name
-})
-
+// 合并单体 buff + 覆盖本角色的 AoE buff 的 defense modifier(仅 enabled)。
 function defenseModsFor(char: CcfoliaCharacter) {
   const single = collectDefenseMods(char)
   const aoe = buffsDerived
@@ -92,14 +88,17 @@ function defaultResistFor(type: DamageType): ResistType {
 }
 
 watch(kind, (value) => {
+  // heal 没有抵抗概念;切回 damage 时按 damageType 恢复默认。
   resistType.value = value === 'heal' ? 'none' : defaultResistFor(damageType.value)
 })
 
+// 切换伤害类型时自动选对应的默认抵抗;用户随后可手动改成其它值,直到下次再切 damageType。
 watch(damageType, (value) => {
   if (kind.value === 'damage')
     resistType.value = defaultResistFor(value)
 })
 
+// 切换行动者或行动类型时,命中/行使值应归零,避免串到下一个角色。
 watch([() => props.actorRef, kind], () => {
   hitValue.value = undefined
 })
@@ -120,7 +119,6 @@ watch([mpCost, kind, () => props.actorRef], resetCast)
 
 const hitValueLabel = computed(() => (damageType.value === 'magical' ? '行使值' : '命中值'))
 
-// MP 读取按 actor 自己的 partKey(多部位场景下子部位可能没有 MP,落到 null)
 const actorMp = computed(() => {
   if (!actor.value)
     return null
@@ -194,7 +192,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     }
   }
 
-  const charName = partKey ? `${char.name} · ${partKey}` : char.name
+  const charName = formatActorDisplayName(char.name, partKey)
 
   const hp = readStatusSlot(char.status, 'hp', settings.statusLabelMap, partKey)
   if (!hp) {
@@ -216,6 +214,8 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, defenseModsFor(char))}`
     : undefined
 
+  // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
+  // 让 TargetRow 的 preview 直接显示"待裁决"而不是把异常文案漏给 GM。
   if (kind.value === 'damage' && resistType.value !== 'none' && !target.resistResult) {
     return {
       ref,
@@ -269,6 +269,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
       target,
       newHp: result.newHp,
       currentHp: hp.value,
+      // 抵抗未裁决时 preview 的数字实际是"抵抗失败"分支,summary 里先不显示以免误导。
       finalValue: canApply ? result.finalDamage : null,
     }
   }
@@ -340,19 +341,17 @@ const flowSteps = computed(() => {
   return items.map((item, index) => ({ ...item, active: index === activeIndex }))
 })
 
-// 添加目标的下拉:多部位 char 把每个 part 列成单独 option
 interface TargetOption {
   ref: string
   label: string
 }
 const targetOptions = computed<TargetOption[]>(() =>
-  chars.all.flatMap((c) => {
-    const parts = extractParts(c, settings.statusLabelMap)
-    return parts.map(p => ({
+  chars.all.flatMap(c =>
+    extractParts(c, settings.statusLabelMap).map(p => ({
       ref: formatActorRef(c._id, p.partKey),
-      label: p.partKey ? `${c.name} · ${p.partKey}` : c.name,
-    }))
-  }),
+      label: formatActorDisplayName(c.name, p.partKey),
+    })),
+  ),
 )
 
 async function runWrite(
@@ -452,6 +451,7 @@ async function applyOne(vm: TargetRowVm) {
 }
 
 async function applyAll() {
+  // 只校验真的能应用的目标,避免未裁决抵抗的目标冒出 `missing resistResult` 提示。
   const applicable = vms.value.filter(vm => vm.canApply).map(vm => vm.target)
   if (applicable.length === 0)
     return
@@ -485,6 +485,7 @@ async function applyAll() {
       if (chargedMp)
         mpConsumed.value = true
       targets.value = targets.value.filter(target =>
+        // 保留未裁决抵抗的目标,让 GM 回头再处理。
         !vms.value.find(vm => vm.target === target)?.canApply,
       )
     },

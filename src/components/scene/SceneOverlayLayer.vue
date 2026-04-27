@@ -30,7 +30,7 @@ const rangeCircleEntries = computed(() =>
 
 interface OverlayPart {
   key: string
-  label: string // '' = 单部位无前缀;多部位为 'XX' / 'X1' 等
+  label: string // 多部位时是 partKey,单部位为空
   hp: { value: number, max: number } | null
   mp: { value: number, max: number } | null
 }
@@ -42,7 +42,6 @@ interface OverlayEntry {
   centerX: number
   topY: number
   widthPx: number
-  // 多部位:每 part 一个 pill;单部位:一个无 label 的 pill
   parts: OverlayPart[]
   buffs: BuffInstance[]
 }
@@ -68,13 +67,12 @@ const entries = computed<OverlayEntry[]>(() => {
     .filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
     .map((p) => {
       const char = chars.byId(p.characterId)
-      // 多部位:每 part 一个 OverlayPart;单部位:走单条无 label 的退化路径。
       const partsList = char ? extractParts(char, settings.statusLabelMap) : []
-      const isMultipart = partsList.length > 1
+      const showLabel = partsList.length > 1
       const parts: OverlayPart[] = char
         ? partsList.map(pv => ({
             key: pv.partKey || 'main',
-            label: isMultipart ? pv.partKey : '',
+            label: showLabel ? pv.partKey : '',
             hp: readStatusSlot(char.status, 'hp', settings.statusLabelMap, pv.partKey),
             mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
           }))

@@ -24,19 +24,16 @@ const props = defineProps<{
   char: CcfoliaCharacter
   labelMap: StatusLabelMap
   expanded: boolean
-  // 单部位 / 无 HP 角色:partView 给一个 partKey='' 的视图,HP/MP 编辑可用。
-  // 多部位:partView=null,主行不显示 HP/MP(子行各自显示)。
+  // null 表示多部位主行 —— HP/MP 由子行显示,主行只放占位保持横向对齐。
   partView: CharacterPartView | null
 }>()
 
 const emit = defineEmits<{
-  // 多部位时第三个参数是 partKey,父级 RosterList 用它拼 status label 前缀
   (e: 'change', slot: StatusSlot, newValue: number, partKey: string): void
   (e: 'toggleExpand'): void
   (e: 'attachBuff'): void
 }>()
 
-// partView=null:主行不渲染 HP/MP NumberEdit,但保留 invisible 占位以保对齐
 const hasEditor = computed(() => props.partView !== null)
 const hp = computed(() =>
   props.partView
@@ -48,7 +45,6 @@ const mp = computed(() =>
     ? readStatusSlot(props.char.status, 'mp', props.labelMap, props.partView.partKey)
     : null,
 )
-// 当前 partKey('' 或 'XX' 等),不存在时给 ''(永远不会被用到,因为 hasEditor=false)
 const partKey = computed(() => props.partView?.partKey ?? '')
 
 const overlayVis = useOverlayVisibilityStore()
@@ -179,7 +175,6 @@ async function onSetInactive() {
         </button>
       </div>
 
-      <!-- 多部位 parent / 无 HP 角色:不渲染 HP/MP 编辑器,只放 invisible 占位保持对齐 -->
       <template v-if="hasEditor">
         <NumberEdit
           v-if="hp"

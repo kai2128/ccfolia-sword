@@ -1,7 +1,7 @@
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot/default-label-map'
-import { extractParts, isMultipart } from './parts'
+import { extractParts } from './parts'
 
 function mkChar(status: Array<{ label: string, value?: number, max?: number }>): CcfoliaCharacter {
   return {
@@ -20,7 +20,6 @@ describe('extractParts', () => {
     expect(parts).toEqual([
       { charId: 'c1', partKey: '', isMain: true, hpLabel: 'HP', mpLabel: 'MP', partName: '' },
     ])
-    expect(isMultipart(parts)).toBe(false)
   })
 
   it('单部位无 MP:返回 mpLabel=null', () => {
@@ -50,7 +49,6 @@ describe('extractParts', () => {
     expect(parts[1]).toMatchObject({ partKey: 'X1', isMain: false, hpLabel: 'X1HP', mpLabel: null })
     expect(parts[2]).toMatchObject({ partKey: 'X2', isMain: false, hpLabel: 'X2HP', mpLabel: null })
     expect(parts[3]).toMatchObject({ partKey: 'X3', isMain: false, hpLabel: 'X3HP', mpLabel: null })
-    expect(isMultipart(parts)).toBe(true)
   })
 
   it('多部位部分有 MP:XX/X1 有 MP,X2 无', () => {

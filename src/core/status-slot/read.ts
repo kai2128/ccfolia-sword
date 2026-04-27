@@ -6,7 +6,6 @@ export interface StatusSlotRead {
   max: number
 }
 
-// partPrefix:多部位场景下传 'XX' / 'X1' 等;非多部位调用方不传,行为不变。
 export function readStatusSlot(
   status: CcfoliaStatus[],
   slot: StatusSlot,

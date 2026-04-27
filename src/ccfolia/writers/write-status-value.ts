@@ -7,7 +7,6 @@ export async function writeStatusValue(args: {
   slot: StatusSlot
   newValue: number
   labelMap: StatusLabelMap
-  // 多部位场景下传 'XX' / 'X1' 等;非多部位不传,行为同改动前。
   partPrefix?: string
 }): Promise<void> {
   const { char, slot, newValue, labelMap, partPrefix = '' } = args

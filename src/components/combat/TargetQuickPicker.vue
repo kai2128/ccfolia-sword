@@ -1,21 +1,16 @@
 <script setup lang="ts">
-// 紧凑目标选择器:列 "在画布上" 的角色(active + 非 invisible + 坐标在 grid 内),
-// 按 primary tag 分组。多部位角色每个 part 渲染独立 chip。
+// 紧凑目标选择器:列画布上的角色(每个 part 一个 chip),按 primary tag 分组。
 // 输入/输出统一用 actorRef(`${charId}::${partKey}`),与 encounter store 同源。
 import { computed } from 'vue'
-import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
-import { extractParts } from '@/core/character/parts'
-import { formatActorRef } from '@/core/encounter/actor-ref'
-import { pxToCell } from '@/core/range/grid'
+import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
+import { usePartsByCharId } from '@/composables/usePartsByCharId'
+import { formatActorDisplayName, formatActorRef } from '@/core/encounter/actor-ref'
 import { groupRoster } from '@/core/roster/group'
-import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
 
 const props = defineProps<{
-  // 已选目标的 actorRef 列表
   selectedIds?: string[]
-  // 限定候选 actorRef 集合;未传则用所有画布上的角色 + 它们所有 part
   allowedIds?: string[]
   emptyText?: string
 }>()
@@ -25,32 +20,16 @@ const emit = defineEmits<{
 }>()
 
 const chars = useRoomCharactersStore()
-const pieces = usePiecesStore()
-const settings = useSettingsStore()
 const lib = useTagLibraryStore()
-
-const onCanvasIds = computed(() => {
-  const grid = settings.grid
-  const ids = new Set<string>()
-  for (const piece of pieces.list) {
-    if (piece.invisible)
-      continue
-    if (pxToCell({ x: piece.x, y: piece.y }, grid) === null)
-      continue
-    ids.add(piece.characterId)
-  }
-  return ids
-})
+const onCanvasIds = useOnCanvasIds()
+const partsByCharId = usePartsByCharId()
 
 const selected = computed(() => new Set(props.selectedIds ?? []))
 const allowed = computed(() => props.allowedIds ? new Set(props.allowedIds) : null)
 
 interface ChipView {
   ref: string
-  charId: string
-  partKey: string
-  charName: string
-  label: string // 显示文案
+  label: string
 }
 
 interface GroupView {
@@ -61,13 +40,11 @@ interface GroupView {
 
 const groups = computed<GroupView[]>(() => {
   const allowSet = allowed.value
-  // allowed 限定时,先把允许出现的 charId 算出来作为 groupRoster 的输入
+  const partsMap = partsByCharId.value
   const sourceChars = allowSet
-    ? chars.all.filter((c) => {
-        // char 的任一 part ref 在 allowed 里则通过
-        const parts = extractParts(c, settings.statusLabelMap)
-        return parts.some(p => allowSet.has(formatActorRef(c._id, p.partKey)))
-      })
+    ? chars.all.filter(c =>
+        (partsMap.get(c._id) ?? []).some(p => allowSet.has(formatActorRef(c._id, p.partKey))),
+      )
     : chars.all
 
   const baseGroups = groupRoster({
@@ -80,18 +57,14 @@ const groups = computed<GroupView[]>(() => {
   return baseGroups.map(g => ({
     primaryTagId: g.primaryTagId,
     primaryTag: g.primaryTag,
-    chips: g.chars.flatMap((c) => {
-      const parts = extractParts(c, settings.statusLabelMap)
-      return parts
+    chips: g.chars.flatMap(c =>
+      (partsMap.get(c._id) ?? [])
         .map<ChipView>(p => ({
           ref: formatActorRef(c._id, p.partKey),
-          charId: c._id,
-          partKey: p.partKey,
-          charName: c.name,
-          label: p.partKey ? `${c.name} · ${p.partKey}` : c.name,
+          label: formatActorDisplayName(c.name, p.partKey),
         }))
-        .filter(chip => !allowSet || allowSet.has(chip.ref))
-    }),
+        .filter(chip => !allowSet || allowSet.has(chip.ref)),
+    ),
   }))
 })
 

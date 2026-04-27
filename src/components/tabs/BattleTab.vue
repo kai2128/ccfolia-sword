@@ -6,7 +6,7 @@ import ActionForm from '@/components/combat/ActionForm.vue'
 import TargetQuickPicker from '@/components/combat/TargetQuickPicker.vue'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
 import { extractParts } from '@/core/character/parts'
-import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
+import { formatActorDisplayName, formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { useEncounterStore } from '@/stores/encounter'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -16,11 +16,7 @@ const settings = useSettingsStore()
 
 interface ActorView {
   ref: string
-  charId: string
-  partKey: string
-  charName: string
-  partName: string // 多部位 part 后缀,如 'X1';单部位 ''
-  displayName: string // `角色 · X1` 或 `角色`
+  displayName: string
 }
 
 function buildActorView(actorRef: string): ActorView | null {
@@ -28,14 +24,9 @@ function buildActorView(actorRef: string): ActorView | null {
   const char = chars.byId(charId)
   if (!char)
     return null
-  const partName = partKey
   return {
     ref: actorRef,
-    charId,
-    partKey,
-    charName: char.name,
-    partName,
-    displayName: partName ? `${char.name} · ${partName}` : char.name,
+    displayName: formatActorDisplayName(char.name, partKey),
   }
 }
 
