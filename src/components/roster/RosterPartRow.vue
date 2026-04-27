@@ -3,17 +3,22 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import BuffRow from '@/components/buffs/BuffRow.vue'
 import { NumberEdit } from '@/components/ui'
+import { collectBuffsForPart } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
   char: CcfoliaCharacter
   part: CharacterPartView
+  expanded: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'change', slot: StatusSlot, newValue: number, partKey: string): void
+  (e: 'toggleExpand'): void
+  (e: 'attachBuff'): void
 }>()
 
 const settings = useSettingsStore()
@@ -24,6 +29,7 @@ const mp = computed(() =>
     ? readStatusSlot(props.char.status, 'mp', settings.statusLabelMap, props.part.partKey)
     : null,
 )
+const buffs = computed(() => collectBuffsForPart(props.char, props.part.partKey))
 </script>
 
 <template>
@@ -57,7 +63,31 @@ const mp = computed(() =>
       <span aria-hidden="true" class="invisible h-5 w-5 shrink-0" />
       <span aria-hidden="true" class="invisible ml-1.5 h-5 w-5 shrink-0" />
       <span aria-hidden="true" class="invisible h-5 w-5 shrink-0" />
-      <span aria-hidden="true" class="invisible h-5 w-5 shrink-0" />
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-xs text-white/60 hover:bg-white/10 hover:text-white"
+        :title="expanded ? '收起 buff' : '展开 buff'"
+        @click="emit('toggleExpand')"
+      >
+        {{ expanded ? '▾' : '▸' }}
+      </button>
+    </div>
+
+    <div v-if="expanded" class="mt-2 flex flex-col gap-1 pl-6">
+      <button
+        type="button"
+        class="self-start border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+        @click="emit('attachBuff')"
+      >
+        + 挂 buff
+      </button>
+      <BuffRow
+        v-for="buff in buffs"
+        :key="buff.id"
+        :character-id="char._id"
+        :buff="buff"
+      />
     </div>
   </li>
 </template>

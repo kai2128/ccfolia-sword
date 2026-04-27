@@ -11,7 +11,7 @@ import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-sta
 import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
-import { collectBuffs } from '@/core/buff/collect'
+import { collectBuffsForPart } from '@/core/buff/collect'
 import { formatCellRef, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
@@ -72,7 +72,10 @@ const lib = useTagLibraryStore()
 const primary = computed(() =>
   pickPrimaryTag(resolveTags(readTagInstances(props.char), lib.byId)),
 )
-const buffs = computed(() => collectBuffs(props.char))
+// 多部位主行(partView=null)展示 char 级 buff(partKey='');单部位 / 子行展示自己 partKey 的
+const buffs = computed(() =>
+  collectBuffsForPart(props.char, props.partView?.partKey ?? ''),
+)
 
 const settings = useSettingsStore()
 

@@ -25,8 +25,13 @@ function isLifecycle(value: unknown): value is BuffInstance['lifecycle'] {
 function isAttachedTarget(value: unknown): boolean {
   if (!isRecord(value) || typeof value.kind !== 'string')
     return false
-  if (value.kind === 'single')
-    return typeof value.characterId === 'string'
+  if (value.kind === 'single') {
+    if (typeof value.characterId !== 'string')
+      return false
+    if (value.partKey !== undefined && typeof value.partKey !== 'string')
+      return false
+    return true
+  }
   if (value.kind === 'aoe')
     return typeof value.centerCharacterId === 'string' && typeof value.radius === 'number'
   return false

@@ -21,3 +21,11 @@ export function collectBuffs(character: CcfoliaCharacter): BuffInstance[] {
 
   return buffs
 }
+
+// 多部位:返回挂在指定 partKey 的 single buff(partKey 缺省视为 '')。
+// AoE buff 不参与 —— 它由中心角色的位置决定覆盖,与 part 无关。
+export function collectBuffsForPart(character: CcfoliaCharacter, partKey: string): BuffInstance[] {
+  return collectBuffs(character).filter(b =>
+    b.attachedTo.kind === 'single' && (b.attachedTo.partKey ?? '') === partKey,
+  )
+}

@@ -11,7 +11,7 @@ import RosterRow from '@/components/roster/RosterRow.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
-import { formatActorRef } from '@/core/encounter/actor-ref'
+import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { groupRoster } from '@/core/roster/group'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
@@ -21,8 +21,10 @@ const chars = useRoomCharactersStore()
 const lib = useTagLibraryStore()
 const view = useRosterViewStore()
 const settings = useSettingsStore()
-const expandedIds = reactive(new Set<string>())
-const attachingId = ref<string | null>(null)
+// expandedRefs / attachingRef 都用 actorRef(charId::partKey)做键 —— 多部位每个 part 独立展开/挂 buff
+const expandedRefs = reactive(new Set<string>())
+const attachingRef = ref<string | null>(null)
+const attachingParsed = computed(() => attachingRef.value ? parseActorRef(attachingRef.value) : null)
 
 const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
@@ -36,11 +38,11 @@ const groups = computed(() =>
   }),
 )
 
-function toggleExpand(id: string) {
-  if (expandedIds.has(id))
-    expandedIds.delete(id)
+function toggleExpand(ref: string) {
+  if (expandedRefs.has(ref))
+    expandedRefs.delete(ref)
   else
-    expandedIds.add(id)
+    expandedRefs.add(ref)
 }
 
 async function onChange(charId: string, slot: StatusSlot, newValue: number, partKey: string) {
@@ -96,18 +98,21 @@ function partRowsFor(charId: string): CharacterPartView[] {
             <RosterRow
               :char="char"
               :label-map="settings.statusLabelMap"
-              :expanded="expandedIds.has(char._id)"
+              :expanded="expandedRefs.has(formatActorRef(char._id, ''))"
               :part-view="mainRowPartView(char._id)"
               @change="(slot, v, partKey) => onChange(char._id, slot, v, partKey)"
-              @toggle-expand="toggleExpand(char._id)"
-              @attach-buff="attachingId = char._id"
+              @toggle-expand="toggleExpand(formatActorRef(char._id, ''))"
+              @attach-buff="attachingRef = formatActorRef(char._id, '')"
             />
             <RosterPartRow
               v-for="part in partRowsFor(char._id)"
               :key="formatActorRef(char._id, part.partKey)"
               :char="char"
               :part="part"
+              :expanded="expandedRefs.has(formatActorRef(char._id, part.partKey))"
               @change="(slot, v, partKey) => onChange(char._id, slot, v, partKey)"
+              @toggle-expand="toggleExpand(formatActorRef(char._id, part.partKey))"
+              @attach-buff="attachingRef = formatActorRef(char._id, part.partKey)"
             />
           </template>
         </ul>
@@ -115,11 +120,12 @@ function partRowsFor(charId: string): CharacterPartView[] {
     </template>
 
     <AttachBuffDialog
-      :open="attachingId !== null"
-      :character-id="attachingId ?? ''"
+      :open="attachingParsed !== null"
+      :character-id="attachingParsed?.charId ?? ''"
+      :part-key="attachingParsed?.partKey"
       @update:open="value => {
         if (!value)
-          attachingId = null
+          attachingRef = null
       }"
     />
   </div>

@@ -23,6 +23,8 @@ import { useStatusLibraryStore } from '@/stores/status-library'
 
 const props = defineProps<{
   characterId: string
+  // 多部位:挂到具体 part(如 'XX' / 'X1');省略 / '' = 整体或单部位
+  partKey?: string
   open: boolean
 }>()
 
@@ -110,7 +112,7 @@ async function confirmFromLibrary() {
 
   const attachedTo: AttachTarget = def.scope === 'aoe'
     ? { kind: 'aoe', centerCharacterId: props.characterId, radius: aoeRadius.value }
-    : { kind: 'single', characterId: props.characterId }
+    : { kind: 'single', characterId: props.characterId, partKey: props.partKey || undefined }
 
   const buff: BuffInstance = {
     id: uuid(),
@@ -156,7 +158,7 @@ async function confirmCreate() {
 
   const createAttached: AttachTarget = n.scope === 'aoe' && n.aoeRadius !== undefined
     ? { kind: 'aoe', centerCharacterId: props.characterId, radius: n.aoeRadius }
-    : { kind: 'single', characterId: props.characterId }
+    : { kind: 'single', characterId: props.characterId, partKey: props.partKey || undefined }
 
   const buff: BuffInstance = {
     id: instanceId,

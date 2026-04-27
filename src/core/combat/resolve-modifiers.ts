@@ -2,7 +2,7 @@ import type { StatusLabelMap } from '@/core/status-slot'
 import type { BuffInstance } from '@/types/buff-v3'
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
 import type { Modifier, ModifierTarget } from '@/types/modifier'
-import { collectBuffs } from '@/core/buff/collect'
+import { collectBuffsForPart } from '@/core/buff/collect'
 import { readStatusValue } from '@/core/status-slot'
 
 // resolve 阶段只关心 target 和 value; 其余字段由上游托管。
@@ -41,7 +41,11 @@ export function sumModifiersFromBuffs(
   return out
 }
 
-export function collectDefenseMods(character: CcfoliaCharacter): ModifierContribution[] {
-  const buffs = collectBuffs(character).filter(buff => buff.attachedTo.kind === 'single')
+// 多部位:char 级 buff(partKey='')对所有 part 生效;part 级 buff(partKey='X1')只对该 part 生效。
+// 单部位传 partKey=''(默认),退化为只读 char 级 buff —— 即原始行为。
+export function collectDefenseMods(character: CcfoliaCharacter, partKey: string = ''): ModifierContribution[] {
+  const buffs = partKey === ''
+    ? collectBuffsForPart(character, '')
+    : [...collectBuffsForPart(character, ''), ...collectBuffsForPart(character, partKey)]
   return sumModifiersFromBuffs(buffs, 'defense')
 }

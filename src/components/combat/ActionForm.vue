@@ -55,9 +55,10 @@ const actorDisplayName = computed(() =>
   actor.value ? formatActorDisplayName(actor.value.name, actorPartKey.value) : '',
 )
 
-// 合并单体 buff + 覆盖本角色的 AoE buff 的 defense modifier(仅 enabled)。
-function defenseModsFor(char: CcfoliaCharacter) {
-  const single = collectDefenseMods(char)
+// 合并单体 buff(过滤到对应 part)+ 覆盖本角色的 AoE buff 的 defense modifier(仅 enabled)。
+// AoE 不区分 part —— 覆盖到角色就对整角色所有 part 生效。
+function defenseModsFor(char: CcfoliaCharacter, partKey: string) {
+  const single = collectDefenseMods(char, partKey)
   const aoe = buffsDerived
     .aoeBuffsCoveringCharacter(char._id)
     .filter(b => b.enabled)
@@ -211,7 +212,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
   }
 
   const defenseText = kind.value === 'damage' && damageType.value === 'physical'
-    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, defenseModsFor(char))}`
+    ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, defenseModsFor(char, partKey))}`
     : undefined
 
   // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
@@ -253,7 +254,7 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     const result = applyDamageToTarget(
       draft.value,
       target,
-      { status: char.status, mods: defenseModsFor(char), currentHp: hp.value },
+      { status: char.status, mods: defenseModsFor(char, partKey), currentHp: hp.value },
       settings.statusLabelMap,
     )
 

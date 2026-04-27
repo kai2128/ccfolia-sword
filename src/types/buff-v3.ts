@@ -42,6 +42,8 @@ export interface BuffSnapshot {
 export interface AttachSingle {
   kind: 'single'
   characterId: string
+  // 多部位:绑到具体 part(如 'XX' / 'X1');省略 / '' = 整体或单部位角色
+  partKey?: string
 }
 
 export interface AttachAoe {
