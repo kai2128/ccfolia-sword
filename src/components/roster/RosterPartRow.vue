@@ -3,8 +3,9 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import BuffRow from '@/components/buffs/BuffRow.vue'
-import { NumberEdit } from '@/components/ui'
+import { NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
 import { readStatusSlot } from '@/core/status-slot'
 import { useSettingsStore } from '@/stores/settings'
@@ -30,6 +31,19 @@ const mp = computed(() =>
     : null,
 )
 const buffs = computed(() => collectBuffsForPart(props.char, props.part.partKey))
+
+async function onClearBuffs() {
+  try {
+    await applyBuffBatch({
+      kind: 'clear',
+      targets: [{ characterId: props.char._id, partKey: props.part.partKey || undefined }],
+    })
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`清除 buff 失败:${(e as Error).message}`)
+  }
+}
 </script>
 
 <template>
@@ -75,13 +89,29 @@ const buffs = computed(() => collectBuffsForPart(props.char, props.part.partKey)
     </div>
 
     <div v-if="expanded" class="mt-2 flex flex-col gap-1 pl-6">
-      <button
-        type="button"
-        class="self-start border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-        @click="emit('attachBuff')"
-      >
-        + 挂 buff
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+          @click="emit('attachBuff')"
+        >
+          + 挂 buff
+        </button>
+        <PopConfirm
+          v-if="buffs.length > 0"
+          :message="`清空 ${char.name} · ${part.partName} 上全部单体 buff(${buffs.length} 条)?`"
+          confirm-text="清空"
+          @confirm="onClearBuffs"
+        >
+          <button
+            type="button"
+            class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
+            title="清空当前 part 上所有单体 buff"
+          >
+            清空 buff
+          </button>
+        </PopConfirm>
+      </div>
       <BuffRow
         v-for="buff in buffs"
         :key="buff.id"

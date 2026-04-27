@@ -3,6 +3,7 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
 import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
@@ -150,6 +151,19 @@ async function onSetInactive() {
     alert(`设非激活失败:${(e as Error).message}`)
   }
 }
+
+async function onClearBuffs() {
+  try {
+    await applyBuffBatch({
+      kind: 'clear',
+      targets: [{ characterId: props.char._id, partKey: partKey.value || undefined }],
+    })
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`清除 buff 失败:${(e as Error).message}`)
+  }
+}
 </script>
 
 <template>
@@ -275,6 +289,20 @@ async function onSetInactive() {
         >
           + 挂 buff
         </button>
+        <PopConfirm
+          v-if="buffs.length > 0"
+          :message="`清空 ${char.name} 身上全部单体 buff(${buffs.length} 条)?`"
+          confirm-text="清空"
+          @confirm="onClearBuffs"
+        >
+          <button
+            type="button"
+            class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
+            title="清空当前 part 上所有单体 buff"
+          >
+            清空 buff
+          </button>
+        </PopConfirm>
       </div>
       <BuffRow
         v-for="buff in buffs"

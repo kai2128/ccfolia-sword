@@ -35,7 +35,7 @@ const target = usePortalTarget()
       />
       <DialogContent
         class="ccs-dialog-content fixed left-1/2 top-1/2 max-h-[85vh] flex flex-col gap-3 border border-white/10 rounded-md bg-surface p-4 text-white shadow-xl -translate-x-1/2 -translate-y-1/2 focus:outline-none"
-        :class="wide ? 'w-auto max-w-[min(95vw,52rem)]' : 'w-[min(90vw,24rem)]'"
+        :class="wide ? 'w-[min(95vw,34rem)]' : 'w-[min(90vw,24rem)]'"
       >
         <DialogTitle v-if="title" class="text-sm font-semibold">
           {{ title }}

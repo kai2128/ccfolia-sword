@@ -3,7 +3,7 @@ import type { TickPrompt } from '@/ccfolia/writers/tick-buff-turns'
 import { nextTick, ref } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
-import BatchAssignTagsDialog from '@/components/roster/BatchAssignTagsDialog.vue'
+import BatchApplyDialog from '@/components/roster/BatchApplyDialog.vue'
 import { PopConfirm } from '@/components/ui'
 import { extractParts } from '@/core/character/parts'
 import { formatActorRef } from '@/core/encounter/actor-ref'
@@ -20,7 +20,7 @@ const settings = useSettingsStore()
 // 的常用动作搬到 roster 顶栏,GM 不必为推回合切 tab。
 const promptsOpen = ref(false)
 const lastPrompts = ref<TickPrompt[]>([])
-const batchTagOpen = ref(false)
+const batchOpsOpen = ref(false)
 
 function startCombat() {
   // 把每个 char 展开成它所有 part 的 actorRef,多部位会出现多个 slot
@@ -93,11 +93,11 @@ function onTurnKey(ev: KeyboardEvent) {
     <button
       type="button"
       class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-2 text-xs text-white/70 transition-colors hover:bg-white/10"
-      title="批量挂 tag(矩阵勾选)"
-      @click="batchTagOpen = true"
+      title="批量操作:HP/MP · Buff · Tag · 场景指示"
+      @click="batchOpsOpen = true"
     >
-      <span class="i-lucide-tags text-3" />
-      批量 tag
+      <span class="i-lucide-layers text-3" />
+      批量操作
     </button>
 
     <div class="ml-auto flex items-center gap-1">
@@ -174,6 +174,6 @@ function onTurnKey(ev: KeyboardEvent) {
     </div>
 
     <TickPromptDialog v-model:open="promptsOpen" :prompts="lastPrompts" />
-    <BatchAssignTagsDialog v-model:open="batchTagOpen" />
+    <BatchApplyDialog v-model:open="batchOpsOpen" />
   </div>
 </template>
