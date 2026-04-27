@@ -7,6 +7,7 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
 import HpIndicator from '@/components/overlay/HpIndicator.vue'
 import { collectBuffs } from '@/core/buff/collect'
+import { extractParts } from '@/core/character/parts'
 import { readStatusSlot } from '@/core/status-slot'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useEncounterStore } from '@/stores/encounter'
@@ -27,6 +28,13 @@ const rangeCircleEntries = computed(() =>
   Object.entries(encounter.shared.rangeCircles).map(([characterId, radius]) => ({ characterId, radius })),
 )
 
+interface OverlayPart {
+  key: string
+  label: string // '' = 单部位无前缀;多部位为 'XX' / 'X1' 等
+  hp: { value: number, max: number } | null
+  mp: { value: number, max: number } | null
+}
+
 interface OverlayEntry {
   key: string
   // piece.x 实测是 .movable 的 canvas-local 左边(不是中心),所以 centerX 要 + offsetWidth/2。
@@ -34,8 +42,8 @@ interface OverlayEntry {
   centerX: number
   topY: number
   widthPx: number
-  hp: { value: number, max: number } | null
-  mp: { value: number, max: number } | null
+  // 多部位:每 part 一个 pill;单部位:一个无 label 的 pill
+  parts: OverlayPart[]
   buffs: BuffInstance[]
 }
 
@@ -60,8 +68,17 @@ const entries = computed<OverlayEntry[]>(() => {
     .filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
     .map((p) => {
       const char = chars.byId(p.characterId)
-      const hp = char ? readStatusSlot(char.status, 'hp', settings.statusLabelMap) : null
-      const mp = char ? readStatusSlot(char.status, 'mp', settings.statusLabelMap) : null
+      // 多部位:每 part 一个 OverlayPart;单部位:走单条无 label 的退化路径。
+      const partsList = char ? extractParts(char, settings.statusLabelMap) : []
+      const isMultipart = partsList.length > 1
+      const parts: OverlayPart[] = char
+        ? partsList.map(pv => ({
+            key: pv.partKey || 'main',
+            label: isMultipart ? pv.partKey : '',
+            hp: readStatusSlot(char.status, 'hp', settings.statusLabelMap, pv.partKey),
+            mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
+          }))
+        : []
       // 本角色的单体 buff + 覆盖本角色的 AoE buff(AoE buff 本身挂在中心角色,不在 collectBuffs(char) 里)
       const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
       const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
@@ -73,8 +90,7 @@ const entries = computed<OverlayEntry[]>(() => {
         centerX: p.x + widthPx / 2,
         topY: p.y,
         widthPx,
-        hp,
-        mp,
+        parts,
         buffs,
       }
     })
@@ -107,11 +123,13 @@ const entries = computed<OverlayEntry[]>(() => {
           :piece-width="entry.widthPx"
         />
         <HpIndicator
-          v-if="entry.hp"
-          :current="entry.hp.value"
-          :max="entry.hp.max"
-          :mp-current="entry.mp?.value"
-          :mp-max="entry.mp?.max"
+          v-for="part in entry.parts.filter(p => p.hp)"
+          :key="part.key"
+          :label="part.label || undefined"
+          :current="part.hp!.value"
+          :max="part.hp!.max"
+          :mp-current="part.mp?.value"
+          :mp-max="part.mp?.max"
         />
       </div>
     </div>

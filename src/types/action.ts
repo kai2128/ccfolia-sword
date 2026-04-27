@@ -5,6 +5,8 @@ export type ResistOutcome = 'nullify' | 'half'
 
 export interface ActionTarget {
   characterId: string
+  // 多部位时指明部位前缀(如 'XX' / 'X1');省略 / '' = 整体单部位
+  partKey?: string
   resistResult?: ResistResult
   resistOutcome?: ResistOutcome
   finalValueOverride?: number

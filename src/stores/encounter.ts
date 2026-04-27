@@ -15,6 +15,8 @@ export interface SharedEncounterState {
   rangeCircles: Record<string, number>
 }
 
+// pendingIds / actedIds / currentActorId 存的不是 charId,而是 actorRef:`${charId}::${partKey}`。
+// 单部位 partKey='',多部位每个 part 一条。见 src/core/encounter/actor-ref.ts。
 export interface LocalEncounterState {
   pendingIds: string[]
   actedIds: string[]

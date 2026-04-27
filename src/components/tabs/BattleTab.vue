@@ -5,33 +5,62 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import ActionForm from '@/components/combat/ActionForm.vue'
 import TargetQuickPicker from '@/components/combat/TargetQuickPicker.vue'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
+import { extractParts } from '@/core/character/parts'
+import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { useEncounterStore } from '@/stores/encounter'
+import { useSettingsStore } from '@/stores/settings'
 
 const encounter = useEncounterStore()
 const chars = useRoomCharactersStore()
+const settings = useSettingsStore()
+
+interface ActorView {
+  ref: string
+  charId: string
+  partKey: string
+  charName: string
+  partName: string // 多部位 part 后缀,如 'X1';单部位 ''
+  displayName: string // `角色 · X1` 或 `角色`
+}
+
+function buildActorView(actorRef: string): ActorView | null {
+  const { charId, partKey } = parseActorRef(actorRef)
+  const char = chars.byId(charId)
+  if (!char)
+    return null
+  const partName = partKey
+  return {
+    ref: actorRef,
+    charId,
+    partKey,
+    charName: char.name,
+    partName,
+    displayName: partName ? `${char.name} · ${partName}` : char.name,
+  }
+}
 
 const pendingChars = computed(() =>
-  encounter.local.pendingIds
-    .map(id => chars.byId(id))
-    .filter(char => !!char),
+  encounter.local.pendingIds.map(buildActorView).filter((v): v is ActorView => !!v),
 )
 
 const actedChars = computed(() =>
-  encounter.local.actedIds
-    .map(id => chars.byId(id))
-    .filter(char => !!char),
+  encounter.local.actedIds.map(buildActorView).filter((v): v is ActorView => !!v),
 )
 
 const currentActor = computed(() =>
-  encounter.local.currentActorId ? chars.byId(encounter.local.currentActorId) ?? null : null,
+  encounter.local.currentActorId ? buildActorView(encounter.local.currentActorId) : null,
 )
 
 function startCombat() {
-  encounter.beginCombat(chars.all.map(char => char._id))
+  // 多部位:每 part 一个 actor slot
+  const refs = chars.all.flatMap(c =>
+    extractParts(c, settings.statusLabelMap).map(p => formatActorRef(c._id, p.partKey)),
+  )
+  encounter.beginCombat(refs)
 }
 
-function selectActor(id: string) {
-  encounter.selectActor(id)
+function selectActor(actorRef: string) {
+  encounter.selectActor(actorRef)
 }
 
 function finishActor() {
@@ -99,11 +128,11 @@ function endCombat() {
         <div class="flex flex-wrap items-center gap-1 text-xs">
           <span class="shrink-0 text-[11px] text-white/50">已行动 · {{ actedChars.length }}</span>
           <span
-            v-for="char in actedChars"
-            :key="char!._id"
+            v-for="actor in actedChars"
+            :key="actor.ref"
             class="h-5 flex items-center rounded bg-white/8 px-1.5 text-[11px] text-white/45 line-through"
           >
-            {{ char!.name }}
+            {{ actor.displayName }}
           </span>
           <span v-if="actedChars.length === 0" class="text-[11px] text-white/35">
             —
@@ -114,7 +143,7 @@ function endCombat() {
       <section v-if="currentActor" class="flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
           <h4 class="text-sm text-white">
-            当前行动者：{{ currentActor.name }}
+            当前行动者：{{ currentActor.displayName }}
           </h4>
           <button
             type="button"
@@ -124,7 +153,7 @@ function endCombat() {
             结束该角色回合
           </button>
         </div>
-        <ActionForm :key="currentActor._id" :actor-id="currentActor._id" />
+        <ActionForm :key="currentActor.ref" :actor-ref="currentActor.ref" />
       </section>
       <section v-else class="border border-white/10 rounded-md border-dashed px-3 py-4 text-xs text-white/40">
         从未行动池选择一个角色开始本回合行动。

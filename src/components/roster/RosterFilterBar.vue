@@ -5,12 +5,16 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
 import BatchAssignTagsDialog from '@/components/roster/BatchAssignTagsDialog.vue'
 import { PopConfirm } from '@/components/ui'
+import { extractParts } from '@/core/character/parts'
+import { formatActorRef } from '@/core/encounter/actor-ref'
 import { useEncounterStore } from '@/stores/encounter'
 import { useRosterViewStore } from '@/stores/roster-view'
+import { useSettingsStore } from '@/stores/settings'
 
 const view = useRosterViewStore()
 const encounter = useEncounterStore()
 const chars = useRoomCharactersStore()
+const settings = useSettingsStore()
 
 // 战斗回合控制和 BattleTab 行为完全一致(同一 store);此处只是把"开战 / 下一回合 / 结束战斗"
 // 的常用动作搬到 roster 顶栏,GM 不必为推回合切 tab。
@@ -19,7 +23,11 @@ const lastPrompts = ref<TickPrompt[]>([])
 const batchTagOpen = ref(false)
 
 function startCombat() {
-  encounter.beginCombat(chars.all.map(c => c._id))
+  // 把每个 char 展开成它所有 part 的 actorRef,多部位会出现多个 slot
+  const refs = chars.all.flatMap(c =>
+    extractParts(c, settings.statusLabelMap).map(p => formatActorRef(c._id, p.partKey)),
+  )
+  encounter.beginCombat(refs)
 }
 
 async function nextTurn() {

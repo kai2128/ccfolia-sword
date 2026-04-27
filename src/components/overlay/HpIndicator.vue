@@ -6,6 +6,8 @@ const props = defineProps<{
   max: number
   mpCurrent?: number
   mpMax?: number
+  // 多部位场景下显示 part 名作为前缀(如 'XX' / 'X1')
+  label?: string
 }>()
 
 function pct(cur: number, max: number): number {
@@ -32,7 +34,7 @@ const isCritical = computed(() => props.current <= 0)
       <div class="fill" :style="{ width: `${mpPct}%` }" />
     </div>
     <div class="text">
-      {{ current }}/{{ max }}
+      <span v-if="label" class="part-label">{{ label }}</span>{{ current }}/{{ max }}
     </div>
   </div>
 </template>
@@ -76,5 +78,10 @@ const isCritical = computed(() => props.current <= 0)
   font-size: 11px;
   line-height: 1.2;
   margin-top: 1px;
+}
+.part-label {
+  margin-right: 4px;
+  opacity: 0.7;
+  font-size: 10px;
 }
 </style>

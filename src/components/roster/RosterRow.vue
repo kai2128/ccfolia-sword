@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
@@ -23,16 +24,32 @@ const props = defineProps<{
   char: CcfoliaCharacter
   labelMap: StatusLabelMap
   expanded: boolean
+  // 单部位 / 无 HP 角色:partView 给一个 partKey='' 的视图,HP/MP 编辑可用。
+  // 多部位:partView=null,主行不显示 HP/MP(子行各自显示)。
+  partView: CharacterPartView | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'change', slot: StatusSlot, newValue: number): void
+  // 多部位时第三个参数是 partKey,父级 RosterList 用它拼 status label 前缀
+  (e: 'change', slot: StatusSlot, newValue: number, partKey: string): void
   (e: 'toggleExpand'): void
   (e: 'attachBuff'): void
 }>()
 
-const hp = computed(() => readStatusSlot(props.char.status, 'hp', props.labelMap))
-const mp = computed(() => readStatusSlot(props.char.status, 'mp', props.labelMap))
+// partView=null:主行不渲染 HP/MP NumberEdit,但保留 invisible 占位以保对齐
+const hasEditor = computed(() => props.partView !== null)
+const hp = computed(() =>
+  props.partView
+    ? readStatusSlot(props.char.status, 'hp', props.labelMap, props.partView.partKey)
+    : null,
+)
+const mp = computed(() =>
+  props.partView?.mpLabel
+    ? readStatusSlot(props.char.status, 'mp', props.labelMap, props.partView.partKey)
+    : null,
+)
+// 当前 partKey('' 或 'XX' 等),不存在时给 ''(永远不会被用到,因为 hasEditor=false)
+const partKey = computed(() => props.partView?.partKey ?? '')
 
 const overlayVis = useOverlayVisibilityStore()
 const pillVisible = computed(() => overlayVis.isVisible(props.char._id))
@@ -162,21 +179,28 @@ async function onSetInactive() {
         </button>
       </div>
 
-      <NumberEdit
-        v-if="hp"
-        :value="hp.value"
-        :max="hp.max"
-        @change="v => emit('change', 'hp', v)"
-      />
-      <span v-else class="shrink-0 text-xs text-white/40">HP —</span>
+      <!-- 多部位 parent / 无 HP 角色:不渲染 HP/MP 编辑器,只放 invisible 占位保持对齐 -->
+      <template v-if="hasEditor">
+        <NumberEdit
+          v-if="hp"
+          :value="hp.value"
+          :max="hp.max"
+          @change="v => emit('change', 'hp', v, partKey)"
+        />
+        <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
 
-      <NumberEdit
-        v-if="mp"
-        :value="mp.value"
-        :max="mp.max"
-        @change="v => emit('change', 'mp', v)"
-      />
-      <span v-else class="shrink-0 text-xs text-white/40">MP —</span>
+        <NumberEdit
+          v-if="mp"
+          :value="mp.value"
+          :max="mp.max"
+          @change="v => emit('change', 'mp', v, partKey)"
+        />
+        <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+      </template>
+      <template v-else>
+        <span aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+        <span aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+      </template>
 
       <CellEdit
         :cell="cellText"

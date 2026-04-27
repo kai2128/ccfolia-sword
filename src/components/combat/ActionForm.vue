@@ -7,9 +7,11 @@ import { computed, ref, toRefs, watch } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { useFirestoreReady } from '@/composables/useFirestoreReady'
+import { extractParts } from '@/core/character/parts'
 import { applyDamageToTarget, validateDraft } from '@/core/combat/apply-damage'
 import { applyHealToTarget } from '@/core/combat/apply-heal'
 import { collectDefenseMods, resolveDefense } from '@/core/combat/resolve-modifiers'
+import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { readStatusSlot } from '@/core/status-slot'
 import { useActionDraftStore } from '@/stores/action-draft'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
@@ -20,12 +22,15 @@ import TargetQuickPicker from './TargetQuickPicker.vue'
 import TargetRow from './TargetRow.vue'
 
 const props = defineProps<{
-  actorId?: string | null
+  // actorRef = `${charId}::${partKey}`,见 src/core/encounter/actor-ref.ts
+  actorRef?: string | null
 }>()
 
 interface TargetRowVm {
+  ref: string // 用作 :key
   charId: string
-  charName: string
+  partKey: string
+  charName: string // 已含 part 后缀 '· X1'
   defenseText?: string
   preview: string
   canApply: boolean
@@ -41,7 +46,20 @@ const encounter = useEncounterStore()
 const buffsDerived = useBuffsDerivedStore()
 const { ready: firestoreReady } = useFirestoreReady()
 
-// 合并单体 buff + 覆盖本角色的 AoE buff 的 defense modifier(仅 enabled)。
+// 解析 actor:char + partKey
+const actorParsed = computed(() => props.actorRef ? parseActorRef(props.actorRef) : null)
+const actor = computed<CcfoliaCharacter | null>(() =>
+  actorParsed.value ? chars.byId(actorParsed.value.charId) ?? null : null,
+)
+const actorPartKey = computed(() => actorParsed.value?.partKey ?? '')
+
+// 多部位时显示 `角色 · 部位`
+const actorDisplayName = computed(() => {
+  if (!actor.value)
+    return ''
+  return actorPartKey.value ? `${actor.value.name} · ${actorPartKey.value}` : actor.value.name
+})
+
 function defenseModsFor(char: CcfoliaCharacter) {
   const single = collectDefenseMods(char)
   const aoe = buffsDerived
@@ -74,18 +92,15 @@ function defaultResistFor(type: DamageType): ResistType {
 }
 
 watch(kind, (value) => {
-  // heal 没有抵抗概念;切回 damage 时按 damageType 恢复默认。
   resistType.value = value === 'heal' ? 'none' : defaultResistFor(damageType.value)
 })
 
-// 切换伤害类型时自动选对应的默认抵抗;用户随后可手动改成其它值,直到下次再切 damageType。
 watch(damageType, (value) => {
   if (kind.value === 'damage')
     resistType.value = defaultResistFor(value)
 })
 
-// 切换行动者或行动类型时,命中/行使值应归零,避免串到下一个角色。
-watch([() => props.actorId, kind], () => {
+watch([() => props.actorRef, kind], () => {
   hitValue.value = undefined
 })
 
@@ -101,15 +116,17 @@ watch(
   },
 )
 
-watch([mpCost, kind, () => props.actorId], resetCast)
+watch([mpCost, kind, () => props.actorRef], resetCast)
 
 const hitValueLabel = computed(() => (damageType.value === 'magical' ? '行使值' : '命中值'))
-const actor = computed(() => (props.actorId ? chars.byId(props.actorId) ?? null : null))
+
+// MP 读取按 actor 自己的 partKey(多部位场景下子部位可能没有 MP,落到 null)
 const actorMp = computed(() => {
   if (!actor.value)
     return null
-  return readStatusSlot(actor.value.status, 'mp', settings.statusLabelMap)?.value ?? null
+  return readStatusSlot(actor.value.status, 'mp', settings.statusLabelMap, actorPartKey.value)?.value ?? null
 })
+
 const valueLabel = computed(() => (kind.value === 'heal' ? '治疗' : '伤害'))
 
 const draft = computed<ActionDraft>(() => ({
@@ -117,48 +134,56 @@ const draft = computed<ActionDraft>(() => ({
   kind: kind.value,
   damageType: kind.value === 'damage' ? damageType.value : undefined,
   rawValue: rawValue.value,
-  actorCharacterId: props.actorId ?? undefined,
+  actorCharacterId: actorParsed.value?.charId,
   mpCost: mpCost.value,
   resistType: resistType.value,
   note: note.value,
   targets: targets.value,
 }))
 
-function addTarget(characterId: string) {
-  if (!characterId)
-    return
-  if (targets.value.some(target => target.characterId === characterId))
-    return
-  targets.value.push({ characterId })
+function targetMatchesRef(target: ActionTarget, actorRef: string): boolean {
+  return formatActorRef(target.characterId, target.partKey ?? '') === actorRef
 }
 
-function removeTarget(characterId: string) {
-  targets.value = targets.value.filter(target => target.characterId !== characterId)
+function addTarget(actorRef: string) {
+  if (!actorRef)
+    return
+  if (targets.value.some(t => targetMatchesRef(t, actorRef)))
+    return
+  const { charId, partKey } = parseActorRef(actorRef)
+  targets.value.push({ characterId: charId, partKey: partKey || undefined })
 }
 
-function toggleTarget(characterId: string) {
-  if (targets.value.some(target => target.characterId === characterId))
-    removeTarget(characterId)
+function removeTarget(actorRef: string) {
+  targets.value = targets.value.filter(t => !targetMatchesRef(t, actorRef))
+}
+
+function toggleTarget(actorRef: string) {
+  if (targets.value.some(t => targetMatchesRef(t, actorRef)))
+    removeTarget(actorRef)
   else
-    addTarget(characterId)
+    addTarget(actorRef)
 }
 
 function endActorTurn() {
-  if (props.actorId)
-    encounter.finishActor(props.actorId)
+  if (props.actorRef)
+    encounter.finishActor(props.actorRef)
 }
 
-function updateTarget(characterId: string, next: ActionTarget) {
-  targets.value = targets.value.map(target =>
-    target.characterId === characterId ? next : target,
-  )
+function updateTarget(actorRef: string, next: ActionTarget) {
+  targets.value = targets.value.map(t => targetMatchesRef(t, actorRef) ? next : t)
 }
 
 function buildPreviewVm(target: ActionTarget): TargetRowVm {
+  const partKey = target.partKey ?? ''
+  const ref = formatActorRef(target.characterId, partKey)
   const char = chars.byId(target.characterId)
+
   if (!char) {
     return {
+      ref,
       charId: target.characterId,
+      partKey,
       charName: '???',
       preview: '—',
       canApply: false,
@@ -169,11 +194,15 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     }
   }
 
-  const hp = readStatusSlot(char.status, 'hp', settings.statusLabelMap)
+  const charName = partKey ? `${char.name} · ${partKey}` : char.name
+
+  const hp = readStatusSlot(char.status, 'hp', settings.statusLabelMap, partKey)
   if (!hp) {
     return {
+      ref,
       charId: target.characterId,
-      charName: char.name,
+      partKey,
+      charName,
       preview: '缺少 HP',
       canApply: false,
       target,
@@ -187,12 +216,12 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     ? `防御 ${resolveDefense(char.status, settings.statusLabelMap, defenseModsFor(char))}`
     : undefined
 
-  // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
-  // 让 TargetRow 的 preview 直接显示"待裁决"而不是把异常文案漏给 GM。
   if (kind.value === 'damage' && resistType.value !== 'none' && !target.resistResult) {
     return {
+      ref,
       charId: target.characterId,
-      charName: char.name,
+      partKey,
+      charName,
       defenseText,
       preview: '待裁决',
       canApply: false,
@@ -207,8 +236,10 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
     if (kind.value === 'heal') {
       const result = applyHealToTarget(draft.value, target, { currentHp: hp.value, maxHp: hp.max })
       return {
+        ref,
         charId: target.characterId,
-        charName: char.name,
+        partKey,
+        charName,
         defenseText,
         preview: String(result.healedAmount),
         canApply: true,
@@ -228,22 +259,25 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
 
     const canApply = draft.value.resistType === 'none' || !!target.resistResult
     return {
+      ref,
       charId: target.characterId,
-      charName: char.name,
+      partKey,
+      charName,
       defenseText,
       preview: String(result.finalDamage),
       canApply,
       target,
       newHp: result.newHp,
       currentHp: hp.value,
-      // 抵抗未裁决时 preview 的数字实际是"抵抗失败"分支,summary 里先不显示以免误导。
       finalValue: canApply ? result.finalDamage : null,
     }
   }
   catch (error) {
     return {
+      ref,
       charId: target.characterId,
-      charName: char.name,
+      partKey,
+      charName,
       defenseText,
       preview: error instanceof Error ? error.message : '结算失败',
       canApply: false,
@@ -273,7 +307,7 @@ const summaryRows = computed<SummaryRow[]>(() =>
 )
 
 const canApplyMp = computed(() =>
-  !!props.actorId
+  !!props.actorRef
   && mpCost.value > 0
   && !mpConsumed.value
   && actorMp.value !== null
@@ -305,6 +339,21 @@ const flowSteps = computed(() => {
   const activeIndex = firstPending < 0 ? items.length - 1 : firstPending
   return items.map((item, index) => ({ ...item, active: index === activeIndex }))
 })
+
+// 添加目标的下拉:多部位 char 把每个 part 列成单独 option
+interface TargetOption {
+  ref: string
+  label: string
+}
+const targetOptions = computed<TargetOption[]>(() =>
+  chars.all.flatMap((c) => {
+    const parts = extractParts(c, settings.statusLabelMap)
+    return parts.map(p => ({
+      ref: formatActorRef(c._id, p.partKey),
+      label: p.partKey ? `${c.name} · ${p.partKey}` : c.name,
+    }))
+  }),
+)
 
 async function runWrite(
   buildChanges: () => StatusChange[],
@@ -339,14 +388,14 @@ async function runWrite(
 function buildMpChange(): StatusChange | null {
   if (mpConsumed.value)
     return null
-  if (!props.actorId || mpCost.value <= 0)
+  if (!actorParsed.value || mpCost.value <= 0)
     return null
 
-  const current = chars.byId(props.actorId)
+  const current = chars.byId(actorParsed.value.charId)
   if (!current)
     return null
 
-  const mp = readStatusSlot(current.status, 'mp', settings.statusLabelMap)
+  const mp = readStatusSlot(current.status, 'mp', settings.statusLabelMap, actorPartKey.value)
   if (!mp)
     return null
 
@@ -354,6 +403,7 @@ function buildMpChange(): StatusChange | null {
     char: current,
     slot: 'mp',
     newValue: Math.max(0, mp.value - mpCost.value),
+    partPrefix: actorPartKey.value,
   }
 }
 
@@ -385,7 +435,7 @@ async function applyOne(vm: TargetRowVm) {
       if (!char)
         return []
 
-      const changes: StatusChange[] = [{ char, slot: 'hp', newValue: vm.newHp }]
+      const changes: StatusChange[] = [{ char, slot: 'hp', newValue: vm.newHp, partPrefix: vm.partKey }]
       const mpChange = buildMpChange()
       if (mpChange) {
         changes.push(mpChange)
@@ -396,13 +446,12 @@ async function applyOne(vm: TargetRowVm) {
     () => {
       if (chargedMp)
         mpConsumed.value = true
-      removeTarget(vm.charId)
+      removeTarget(vm.ref)
     },
   )
 }
 
 async function applyAll() {
-  // 只校验真的能应用的目标,避免未裁决抵抗的目标冒出 `missing resistResult` 提示。
   const applicable = vms.value.filter(vm => vm.canApply).map(vm => vm.target)
   if (applicable.length === 0)
     return
@@ -422,7 +471,7 @@ async function applyAll() {
         if (!vm.canApply)
           return []
         const char = chars.byId(vm.charId)
-        return char ? [{ char, slot: 'hp' as const, newValue: vm.newHp }] : []
+        return char ? [{ char, slot: 'hp' as const, newValue: vm.newHp, partPrefix: vm.partKey }] : []
       })
 
       const mpChange = buildMpChange()
@@ -436,7 +485,6 @@ async function applyAll() {
       if (chargedMp)
         mpConsumed.value = true
       targets.value = targets.value.filter(target =>
-        // 保留未裁决抵抗的目标,让 GM 回头再处理。
         !vms.value.find(vm => vm.target === target)?.canApply,
       )
     },
@@ -446,7 +494,7 @@ async function applyAll() {
 
 <template>
   <section class="flex flex-col gap-2">
-    <!-- 流程指示条:参考 ResolverPanel/FlowBar,告诉 GM 当前卡在哪一步 -->
+    <!-- 流程指示条 -->
     <div class="flex flex-wrap items-center gap-1 rounded bg-white/5 px-2 py-1 text-xs">
       <template v-for="(step, index) in flowSteps" :key="step.key">
         <span
@@ -467,7 +515,7 @@ async function applyAll() {
     <!-- 行动头 -->
     <div class="flex flex-col gap-2 rounded bg-white/5 p-2">
       <div class="text-xs text-white/60 font-medium">
-        行动
+        行动 <span v-if="actorDisplayName" class="text-white/40">· {{ actorDisplayName }}</span>
       </div>
       <div class="flex flex-wrap items-center gap-3 text-xs text-white/80">
         <label class="inline-flex items-center gap-1">
@@ -522,7 +570,6 @@ async function applyAll() {
             >
           </label>
         </template>
-        <!-- MP 消耗 + 单独扣除按钮:GM 常用场景是吟唱即扣 MP,不用等伤害结算。 -->
         <label
           class="inline-flex items-center gap-1"
           :title="actorMp !== null ? `当前 MP ${actorMp}` : '选中行动者后显示当前 MP'"
@@ -589,14 +636,14 @@ async function applyAll() {
           <option value="">
             ＋ 添加目标
           </option>
-          <option v-for="char in chars.all" :key="char._id" :value="char._id">
-            {{ char.name }}
+          <option v-for="opt in targetOptions" :key="opt.ref" :value="opt.ref">
+            {{ opt.label }}
           </option>
         </select>
       </div>
 
       <TargetQuickPicker
-        :selected-ids="vms.map(vm => vm.charId)"
+        :selected-ids="vms.map(vm => vm.ref)"
         @toggle="toggleTarget"
       />
 
@@ -605,7 +652,7 @@ async function applyAll() {
       </div>
       <TargetRow
         v-for="vm in vms"
-        :key="vm.charId"
+        :key="vm.ref"
         :char-name="vm.charName"
         :defense-text="vm.defenseText"
         :hit-value-text="resistType !== 'none' && hitValue !== undefined ? `${hitValueLabel} ${hitValue}` : undefined"
@@ -613,9 +660,9 @@ async function applyAll() {
         :preview="vm.preview"
         :target="vm.target"
         :can-apply="vm.canApply && firestoreReady && !writing"
-        @update:target="updateTarget(vm.charId, $event)"
+        @update:target="updateTarget(vm.ref, $event)"
         @apply="applyOne(vm)"
-        @remove="removeTarget(vm.charId)"
+        @remove="removeTarget(vm.ref)"
       />
     </div>
 
@@ -624,7 +671,7 @@ async function applyAll() {
       :kind="kind"
       :damage-type="damageType"
       :resist-type="resistType"
-      :actor-name="actor?.name"
+      :actor-name="actorDisplayName || undefined"
       :actor-mp="actorMp ?? undefined"
       :mp-consumed="mpConsumed"
       :raw-value="rawValue"
@@ -646,8 +693,8 @@ async function applyAll() {
       <button
         type="button"
         class="h-9 flex-1 rounded bg-white/10 px-3 text-sm text-white/80 transition-colors disabled:cursor-not-allowed hover:bg-white/15 disabled:opacity-40"
-        :disabled="!actorId"
-        :title="actorId ? '结束当前角色回合,进入已行动' : '先选一个行动者'"
+        :disabled="!actorRef"
+        :title="actorRef ? '结束当前角色回合,进入已行动' : '先选一个行动者'"
         @click="endActorTurn"
       >
         结束角色回合

@@ -6,12 +6,14 @@ export interface StatusSlotRead {
   max: number
 }
 
+// partPrefix:多部位场景下传 'XX' / 'X1' 等;非多部位调用方不传,行为不变。
 export function readStatusSlot(
   status: CcfoliaStatus[],
   slot: StatusSlot,
   labelMap: StatusLabelMap,
+  partPrefix: string = '',
 ): StatusSlotRead | null {
-  const label = labelMap[slot]
+  const label = partPrefix + labelMap[slot]
   const entry = status.find(s => s.label === label)
   if (!entry)
     return null
@@ -22,14 +24,16 @@ export function readStatusValue(
   status: CcfoliaStatus[],
   slot: StatusSlot,
   labelMap: StatusLabelMap,
+  partPrefix: string = '',
 ): number | null {
-  return readStatusSlot(status, slot, labelMap)?.value ?? null
+  return readStatusSlot(status, slot, labelMap, partPrefix)?.value ?? null
 }
 
 export function readStatusMax(
   status: CcfoliaStatus[],
   slot: StatusSlot,
   labelMap: StatusLabelMap,
+  partPrefix: string = '',
 ): number | null {
-  return readStatusSlot(status, slot, labelMap)?.max ?? null
+  return readStatusSlot(status, slot, labelMap, partPrefix)?.max ?? null
 }

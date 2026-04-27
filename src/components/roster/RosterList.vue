@@ -6,8 +6,11 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import AttachBuffDialog from '@/components/buffs/AttachBuffDialog.vue'
 import RosterFilterBar from '@/components/roster/RosterFilterBar.vue'
+import RosterPartRow from '@/components/roster/RosterPartRow.vue'
 import RosterRow from '@/components/roster/RosterRow.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
+import { extractParts } from '@/core/character/parts'
+import { formatActorRef } from '@/core/encounter/actor-ref'
 import { pxToCell } from '@/core/range/grid'
 import { groupRoster } from '@/core/roster/group'
 import { useRosterViewStore } from '@/stores/roster-view'
@@ -59,18 +62,26 @@ function toggleExpand(id: string) {
     expandedIds.add(id)
 }
 
-async function onChange(charId: string, slot: StatusSlot, newValue: number) {
+async function onChange(charId: string, slot: StatusSlot, newValue: number, partKey: string) {
   const char = chars.byId(charId)
   if (!char)
     return
   try {
-    await writeStatusValue({ char, slot, newValue, labelMap: settings.statusLabelMap })
+    await writeStatusValue({ char, slot, newValue, labelMap: settings.statusLabelMap, partPrefix: partKey })
   }
   catch (e) {
     // eslint-disable-next-line no-alert
     alert(`写入失败:${(e as Error).message}`)
   }
 }
+
+// 每个 char 的 part 视图缓存(extractParts 是 O(N status) 纯计算)
+const partsByCharId = computed(() => {
+  const map = new Map<string, ReturnType<typeof extractParts>>()
+  for (const c of chars.all)
+    map.set(c._id, extractParts(c, settings.statusLabelMap))
+  return map
+})
 </script>
 
 <template>
@@ -95,16 +106,26 @@ async function onChange(charId: string, slot: StatusSlot, newValue: number) {
           :count="group.chars.length"
         />
         <ul class="m-0 list-none p-0">
-          <RosterRow
-            v-for="char in group.chars"
-            :key="char._id"
-            :char="char"
-            :label-map="settings.statusLabelMap"
-            :expanded="expandedIds.has(char._id)"
-            @change="(slot, v) => onChange(char._id, slot, v)"
-            @toggle-expand="toggleExpand(char._id)"
-            @attach-buff="attachingId = char._id"
-          />
+          <template v-for="char in group.chars" :key="char._id">
+            <RosterRow
+              :char="char"
+              :label-map="settings.statusLabelMap"
+              :expanded="expandedIds.has(char._id)"
+              :part-view="(partsByCharId.get(char._id) ?? []).length > 1 ? null : (partsByCharId.get(char._id) ?? [])[0] ?? null"
+              @change="(slot, v, partKey) => onChange(char._id, slot, v, partKey)"
+              @toggle-expand="toggleExpand(char._id)"
+              @attach-buff="attachingId = char._id"
+            />
+            <!-- 多部位:所有 part(包含 XX)都作为子行渲染。单部位:不渲染子行。 -->
+            <template v-if="(partsByCharId.get(char._id) ?? []).length > 1">
+              <RosterPartRow
+                v-for="part in partsByCharId.get(char._id) ?? []"
+                :key="formatActorRef(char._id, part.partKey)"
+                :char="char"
+                :part="part"
+              />
+            </template>
+          </template>
         </ul>
       </section>
     </template>
