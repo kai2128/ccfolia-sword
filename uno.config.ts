@@ -1,4 +1,4 @@
-import { defineConfig, presetIcons, presetWind3 } from 'unocss'
+import { defineConfig, presetIcons, presetWebFonts, presetWind3 } from 'unocss'
 
 export default defineConfig({
   presets: [
@@ -8,6 +8,14 @@ export default defineConfig({
       collections: {
         lucide: () => import('@iconify-json/lucide/icons.json').then(i => i.default),
         mdi: () => import('@iconify-json/mdi/icons.json').then(i => i.default),
+      },
+    }),
+    // Capsule HP/MP 指示器要的字体栈;@font-face 经 cssSideEffects 进 Shadow DOM。
+    presetWebFonts({
+      provider: 'google',
+      fonts: {
+        serif: ['Cinzel:700', 'Noto Serif SC:600,700'],
+        mono: ['JetBrains Mono:700'],
       },
     }),
   ],
@@ -20,6 +28,18 @@ export default defineConfig({
       accent: '#4b6ef7e6',
       surface: '#2a2a2a',
       bg: '#1e1e1e',
+      // Capsule 系列 — 单一来源在 src/styles/tokens.css,这里走 var() 引用便于 utility 用。
+      capsule: {
+        hp: { 1: 'var(--cap-hp-1)', 2: 'var(--cap-hp-2)' },
+        mp: { 1: 'var(--cap-mp-1)', 2: 'var(--cap-mp-2)' },
+        sp: { 1: 'var(--cap-sp-1)', 2: 'var(--cap-sp-2)' },
+        shield: { 1: 'var(--cap-shield-1)', 2: 'var(--cap-shield-2)' },
+        danger: { 1: 'var(--cap-danger-1)', 2: 'var(--cap-danger-2)' },
+        bg: { top: 'var(--cap-bg-top)', bot: 'var(--cap-bg-bot)' },
+        rim: { top: 'var(--cap-rim-top)', mid: 'var(--cap-rim-mid)', bot: 'var(--cap-rim-bot)' },
+        name: 'var(--cap-multipart-name)',
+        label: 'var(--cap-part-label)',
+      },
     },
   },
   shortcuts: {

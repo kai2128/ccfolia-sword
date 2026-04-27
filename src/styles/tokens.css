@@ -1,0 +1,101 @@
+/* Capsule HP/MP 指示器 — motion + 配色 token + keyframes 一站式。
+   注入路径:vite-plugin-monkey 的 cssSideEffects → __CCS_CSS__ → shadow-mount.ts 注入到 Shadow DOM。
+   shadow 内 :root 不匹配宿主,必须靠 :host;light DOM 备一份 :root 防御未来扩展。 */
+
+:root,
+:host {
+  /* Motion */
+  --t-instant: 90ms;
+  --t-quick: 180ms;
+  --t-base: 320ms;
+  --t-slow: 620ms;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.6, 0.05, 0.4, 1);
+  --ease-snap: cubic-bezier(0.5, 1.6, 0.4, 1);
+
+  /* Capsule fill 渐变停止色 (top → bottom) */
+  --cap-hp-1: #b8f5c8;
+  --cap-hp-2: #3aa86a;
+  --cap-mp-1: #b8d8ff;
+  --cap-mp-2: #3a72c8;
+  --cap-sp-1: #fce39a;
+  --cap-sp-2: #cf9533;
+  --cap-shield-1: #e0e6ee;
+  --cap-shield-2: #7a8497;
+  --cap-danger-1: #ffb3b3;
+  --cap-danger-2: #b8434c;
+
+  /* Bar 背景 (深色渐变) */
+  --cap-bg-top: #1a2240;
+  --cap-bg-bot: #06091a;
+
+  /* 银边 */
+  --cap-rim-top: #f4f6fa;
+  --cap-rim-mid: #a8b0bc;
+  --cap-rim-bot: #4a505a;
+
+  /* 多部位文字色 */
+  --cap-multipart-name: #e0e6ee;
+  --cap-part-label: #ffd166;
+  --cap-part-label-broken: #b8676c;
+}
+
+/* 受击抖动 — 命中 280ms,可用 setTimeout 切回 false 重触发 */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.fx-shake {
+  animation: shake 280ms var(--ease-in-out);
+}
+
+/* 浮动伤害/治疗数字 — MVP 未启用,留接口 */
+@keyframes floatDamage {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -10px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50px) scale(0.95);
+    opacity: 0;
+  }
+}
+.fx-float {
+  animation: floatDamage 1100ms var(--ease-out) forwards;
+}
+
+@keyframes healBloom {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.fx-heal {
+  animation: healBloom 900ms var(--ease-out) forwards;
+}

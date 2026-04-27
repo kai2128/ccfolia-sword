@@ -18,6 +18,8 @@ import { useSettingsStore } from './stores/settings'
 // 顺序重要:同特异度时后来者胜,reset 在前可让 .m-4 等 utility 覆盖通用边距。
 import '@unocss/reset/tailwind-compat.css'
 import 'virtual:uno.css'
+// Capsule HP/MP token + keyframes;放在 uno 之后,utility 仍可覆盖动效以外的样式。
+import './styles/tokens.css'
 
 declare const unsafeWindow: Window & typeof globalThis
 

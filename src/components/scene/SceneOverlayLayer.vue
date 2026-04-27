@@ -5,7 +5,7 @@ import { getCharacterFromElement } from '@/ccfolia/fiber-reader'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
-import HpIndicator from '@/components/overlay/HpIndicator.vue'
+import OverlayCharacterIndicator from '@/components/overlay/OverlayCharacterIndicator.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { extractParts } from '@/core/character/parts'
 import { readStatusSlot } from '@/core/status-slot'
@@ -31,6 +31,7 @@ const rangeCircleEntries = computed(() =>
 interface OverlayPart {
   key: string
   label: string // 多部位时是 partKey,单部位为空
+  isMain: boolean
   hp: { value: number, max: number } | null
   mp: { value: number, max: number } | null
 }
@@ -73,6 +74,7 @@ const entries = computed<OverlayEntry[]>(() => {
         ? partsList.map(pv => ({
             key: pv.partKey || 'main',
             label: showLabel ? pv.partKey : '',
+            isMain: pv.isMain,
             hp: readStatusSlot(char.status, 'hp', settings.statusLabelMap, pv.partKey),
             mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
           }))
@@ -120,14 +122,10 @@ const entries = computed<OverlayEntry[]>(() => {
           :buffs="entry.buffs"
           :piece-width="entry.widthPx"
         />
-        <HpIndicator
-          v-for="part in entry.parts.filter(p => p.hp)"
-          :key="part.key"
-          :label="part.label || undefined"
-          :current="part.hp!.value"
-          :max="part.hp!.max"
-          :mp-current="part.mp?.value"
-          :mp-max="part.mp?.max"
+        <OverlayCharacterIndicator
+          v-if="entry.parts.some(p => p.hp)"
+          :parts="entry.parts"
+          :width-px="entry.widthPx"
         />
       </div>
     </div>
@@ -150,7 +148,7 @@ const entries = computed<OverlayEntry[]>(() => {
   position: absolute;
   left: 50%;
   top: 0;
-  transform: translate(-50%, calc(-100% - 4px));
+  transform: translate(-50%, calc(-100% - 16px));
   display: flex;
   flex-direction: column;
   align-items: center;
