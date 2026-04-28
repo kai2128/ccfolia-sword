@@ -12,11 +12,12 @@ import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
-import { Button, Checkbox, Dialog, Field, Input, NumberEdit, Select, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
+import { Button, Checkbox, Dialog, Field, Input, NumberEdit, Select, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
 import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
+import { evaluateExpression } from '@/core/combat/eval-expr'
 import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
@@ -205,8 +206,7 @@ const selectedActors = computed<SelectedActor[]>(() => {
 type SlotKind = 'hp' | 'mp'
 const hpMp = reactive({
   slot: 'hp' as SlotKind,
-  mode: 'delta' as 'delta' | 'absolute',
-  input: 0,
+  input: '',
   // 默认不截顶,与单角色 NumberEdit 行为一致;GM 想避免过量治疗就手动勾上
   clampMax: false,
 })
@@ -214,26 +214,43 @@ const slotOptions: Array<{ value: SlotKind, label: string }> = [
   { value: 'hp', label: 'HP' },
   { value: 'mp', label: 'MP' },
 ]
-const isAbsolute = computed({
-  get: () => hpMp.mode === 'absolute',
-  set: (v: boolean) => {
-    hpMp.mode = v ? 'absolute' : 'delta'
-  },
-})
 
 const hpMpBusy = ref(false)
+
+// 解析批量输入,语义与单角色 NumberEdit / applyAdjustment 完全一致:
+//   '='          → absolute(允许负)。例:=10 / =-5 / =10+5
+//   + - * /      → 在 current 上做算术。例:+5 / -3 / *2 / /2
+//   裸数字/表达式 → absolute。例:10 / 2*5 / (1+2)*3
+// 解析失败返 null,调用方跳过该 target。截顶/截底走 resolveNewValue。
+function resolveBatchInput(read: { value: number, max: number }, raw: string): number | null {
+  const s = raw.trim()
+  if (!s)
+    return null
+  const first = s[0]
+  let evaluated: number | null
+  if (first === '=')
+    evaluated = evaluateExpression(s.slice(1))
+  else if (first === '+' || first === '-' || first === '*' || first === '/')
+    evaluated = evaluateExpression(`${read.value}${s}`)
+  else
+    evaluated = evaluateExpression(s)
+  if (evaluated === null)
+    return null
+  return resolveNewValue(read.value, { mode: 'absolute', input: evaluated, max: read.max, clampMax: hpMp.clampMax })
+}
 
 async function applyHpMp() {
   if (selectedCount.value === 0 || hpMpBusy.value)
     return
-  if (!Number.isFinite(hpMp.input)) {
+  if (!hpMp.input.trim()) {
     // eslint-disable-next-line no-alert
-    alert('请输入有效数字')
+    alert('请输入数字或表达式(+5 / -3 / =10 / 2*5)')
     return
   }
 
   const labelMap = settings.statusLabelMap
   const changes: StatusChange[] = []
+  let invalidExpr = false
 
   for (const actor of selectedActors.value) {
     if (!actor.part)
@@ -243,13 +260,18 @@ async function applyHpMp() {
     const read = readStatusSlot(actor.char.status, hpMp.slot, labelMap, actor.part.partKey)
     if (!read)
       continue
-    const newValue = resolveNewValue(read.value, {
-      mode: hpMp.mode,
-      input: hpMp.input,
-      max: read.max,
-      clampMax: hpMp.clampMax,
-    })
+    const newValue = resolveBatchInput(read, hpMp.input)
+    if (newValue === null) {
+      invalidExpr = true
+      continue
+    }
     changes.push({ char: actor.char, slot: hpMp.slot, newValue, partPrefix: actor.part.partKey })
+  }
+
+  if (invalidExpr && changes.length === 0) {
+    // eslint-disable-next-line no-alert
+    alert(`表达式无法解析:${hpMp.input}`)
+    return
   }
 
   if (changes.length === 0) {
@@ -467,7 +489,7 @@ const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay'>('hpmp')
 watch(open, (v) => {
   if (!v) {
     selected.clear()
-    hpMp.input = 0
+    hpMp.input = ''
     detachDefId.value = ''
   }
 })
@@ -593,18 +615,16 @@ async function writeRow(
 
         <!-- HP/MP -->
         <TabsContent value="hpmp" class="flex flex-col gap-2 pt-3">
-          <div class="grid grid-cols-[100px_120px_1fr_auto] items-end gap-2">
+          <div class="grid grid-cols-[100px_1fr_auto] items-end gap-2">
             <Field label="对象">
               <Select v-model="hpMp.slot" :options="slotOptions" />
             </Field>
-            <Field label="模式">
-              <div class="h-8 flex items-center gap-2">
-                <Switch v-model="isAbsolute" />
-                <span class="text-xs text-white/80">{{ isAbsolute ? '设为' : '增减' }}</span>
-              </div>
-            </Field>
-            <Field :label="isAbsolute ? '设为' : '增减(可负)'">
-              <Input v-model.number="hpMp.input" type="number" :placeholder="isAbsolute ? '设为 ?' : '+10 / -5'" />
+            <Field label="数值(支持表达式)">
+              <Input
+                v-model="hpMp.input"
+                placeholder="+5 / -3 / =10 / 2*5"
+                title="与单角色编辑一致:+5/-3/*2/ 对 current 做算术;=10 absolute(允许负);裸数字/表达式 absolute"
+              />
             </Field>
             <Button
               size="md"
