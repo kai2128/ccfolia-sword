@@ -9,7 +9,7 @@ const encounter = useEncounterStore()
   <div
     v-if="encounter.shared.inCombat"
     class="pointer-events-none fixed flex select-none items-center gap-4 font-serif"
-    style="top: 12px; left: 50%; transform: translateX(-50%); z-index: 99999; min-width: 360px;"
+    style="bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 99999; min-width: 260px;"
   >
     <span
       style="height: 2px; flex: 1; background: linear-gradient(90deg, transparent, var(--cap-rim-top));"
