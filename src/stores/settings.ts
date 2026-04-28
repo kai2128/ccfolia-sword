@@ -28,6 +28,7 @@ interface SettingsState {
   gridOverlayVisible: boolean
   statusLabelMap: StatusLabelMap
   autoRotateAllyOnDown: boolean
+  combatFxEnabled: boolean
 }
 
 const DEFAULT_PANEL_SIZE: PanelSize = { width: 320, height: 360 }
@@ -142,6 +143,7 @@ export const useSettingsStore = defineStore('settings', {
     gridOverlayVisible: false,
     statusLabelMap: normalizeStatusLabelMap(undefined),
     autoRotateAllyOnDown: true,
+    combatFxEnabled: true,
   }),
   actions: {
     setDefaultPowerTable(id: string | null) {
@@ -199,6 +201,9 @@ export const useSettingsStore = defineStore('settings', {
     setAutoRotateAllyOnDown(v: boolean) {
       this.autoRotateAllyOnDown = v
     },
+    setCombatFxEnabled(v: boolean) {
+      this.combatFxEnabled = v
+    },
   },
   persist: {
     storage: gmStorage,
@@ -209,6 +214,46 @@ export const useSettingsStore = defineStore('settings', {
       s.grid = normalizeGridConfig(s.grid)
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
       s.ensurePanelVisible()
+      bindSharedSettingsCrossTabSync(s)
     },
   },
 })
+
+// 跨 tab 同步:另一 tab 改设置时,本 tab 立即跟进。
+// 注意只同步"全局/自动化"维度的字段(SHARED_FIELDS),per-tab UX 字段(panelPos / panelVisible /
+// panelCollapsed / gridOverlayVisible 等)不同步,避免另一个 tab 把面板挪到自己用户视角下。
+// remote=false 表示本 tab 自己写的,跳过以免自触发。
+const SHARED_FIELDS = ['combatFxEnabled', 'autoRotateAllyOnDown'] as const
+type SharedField = typeof SHARED_FIELDS[number]
+
+function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStore>): void {
+  if (typeof GM_addValueChangeListener !== 'function') {
+    console.warn('[ccs] settings: GM_addValueChangeListener 不可用,settings 跨 tab 同步关闭')
+    return
+  }
+  GM_addValueChangeListener('ccs:store:settings', (_k, _old, newValue, remote) => {
+    if (!remote)
+      return
+    try {
+      const parsed = typeof newValue === 'string' ? JSON.parse(newValue) : newValue
+      if (!parsed || typeof parsed !== 'object')
+        return
+      const next = parsed as Record<string, unknown>
+      store.$patch((state) => {
+        for (const key of SHARED_FIELDS) {
+          const v = next[key]
+          if (typeof v === 'boolean')
+            (state as Record<SharedField, boolean>)[key] = v
+        }
+      })
+    }
+    catch (e) {
+      console.warn('[ccs] settings: apply remote change failed', e)
+    }
+  })
+}
+
+declare function GM_addValueChangeListener(
+  key: string,
+  listener: (k: string, oldValue: unknown, newValue: unknown, remote: boolean) => void,
+): number

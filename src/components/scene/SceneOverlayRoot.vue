@@ -3,6 +3,7 @@
 // 这里多做一件事:把 overlay 侧拿到的 pieces-store 暴露出去,方便验收两边是不是同一实例。
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
+import FxLayer from './FxLayer.vue'
 import SceneOverlayLayer from './SceneOverlayLayer.vue'
 
 declare const unsafeWindow: Window & typeof globalThis
@@ -24,6 +25,7 @@ catch { /* ignore */ }
 <template>
   <div class="ccs-scene-overlay">
     <SceneOverlayLayer />
+    <FxLayer />
   </div>
 </template>
 

@@ -99,3 +99,38 @@
 .fx-heal {
   animation: healBloom 900ms var(--ease-out) forwards;
 }
+
+/* 十字斩 — 短暂横扫,带 forwards 末态 opacity:0,组件挂载时长由父层用 setTimeout 控 */
+@keyframes slash {
+  0% {
+    transform: translate(-50%, -50%) rotate(-25deg) scaleX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  60% {
+    transform: translate(-50%, -50%) rotate(-25deg) scaleX(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-25deg) scaleX(1.1);
+    opacity: 0;
+  }
+}
+.fx-slash {
+  animation: slash 520ms var(--ease-out) forwards;
+}
+
+/* 慢转 — heal 符文圈用;6s 一圈,组件实际只活 ~1.4s,只播 ~25% 一圈 */
+@keyframes auraSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.fx-aura {
+  animation: auraSpin 6s linear infinite;
+}

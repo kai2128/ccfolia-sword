@@ -1,7 +1,10 @@
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { defineStore } from 'pinia'
+import { extractParts } from '@/core/character/parts'
+import { readStatusSlot } from '@/core/status-slot'
 import { readStatusValue } from '@/core/status-slot/read'
 import { readTagInstances } from '@/core/tag/read'
+import { emitFx } from '@/infra/fx-bus'
 import { useSettingsStore } from '@/stores/settings'
 import { getReduxStore, subscribeSlice } from './redux-store'
 import { batchSetBuffsEnabledForCharacter } from './writers/batch-toggle-buff-enabled'
@@ -61,6 +64,10 @@ let unsub: (() => void) | null = null
 let bootstrapTimer: number | null = null
 let aliveCache = new Map<string, AliveState>()
 let hpZeroCache = new Map<string, HpZeroState>()
+// 跨 tab FX 同步:每个客户端的 onSnapshot 都会推 HP 变化,各自跑 diff 喷自己 tab 的演出。
+// cache 是"上一帧观察到的 HP 总和(累加多部位)";prev=undefined 的冷启动一帧只填 cache 不喷,
+// 避免进房间时把所有现有 HP 当成 +N 治疗演一遍。
+let hpFxCache = new Map<string, number>()
 
 // 冷启动时 ccfolia Redux store 可能要几百 ms ~ 几秒才就位(用户先打开首页再进房间时尤其明显)。
 // 和 composables/useCcfoliaCharacters 一致,用退避轮询直到 store 出现,subscribe 成功后立刻停轮询。
@@ -107,6 +114,41 @@ function isAllyCharacter(character: CcfoliaCharacter): boolean {
   return readTagInstances(character).some(t => t.definitionId === ALLY_TAG_ID)
 }
 
+// 多部位累加 HP。多部位 char 在同一帧里两个部位反向变化(罕见)按净 delta 喷一次。
+function totalHp(character: CcfoliaCharacter, labelMap: ReturnType<typeof useSettingsStore>['statusLabelMap']): number {
+  let sum = 0
+  for (const part of extractParts(character, labelMap)) {
+    const slot = readStatusSlot(character.status, 'hp', labelMap, part.partKey)
+    if (slot)
+      sum += slot.value
+  }
+  return sum
+}
+
+function reconcileHpFxDiff(list: CcfoliaCharacter[]) {
+  const settings = useSettingsStore()
+  const labelMap = settings.statusLabelMap
+  // 关掉演出仍然更新 cache,这样切回开启不会把这段时间累积的 delta 一次性补播。
+  const enabled = settings.combatFxEnabled
+  for (const character of list) {
+    const next = totalHp(character, labelMap)
+    const prev = hpFxCache.get(character._id)
+    hpFxCache.set(character._id, next)
+    if (!enabled)
+      continue
+    if (prev === undefined)
+      continue
+    const delta = next - prev
+    if (delta === 0)
+      continue
+    emitFx({
+      kind: delta < 0 ? 'damage' : 'heal',
+      charId: character._id,
+      amount: Math.abs(delta),
+    })
+  }
+}
+
 // 盟友 HP 跨过 0 时旋转 token:倒地 -> 90°,复活 -> 0°。
 // 冷启动(prev === undefined)只填 cache 不写 Firestore,避免进房间时把已经躺着的角色再 set 一遍。
 // 设置里关掉时仍照常维护 cache,这样切回开启不会立刻把当前所有倒地盟友补写一遍。
@@ -139,6 +181,7 @@ function trySubscribe(): boolean {
   pinia.replace(materialize(selectRoomCharacters(store.getState())))
   reconcileAliveDiff(pinia.list)
   reconcileAllyHpZeroDiff(pinia.list)
+  reconcileHpFxDiff(pinia.list)
   unsub = subscribeSlice(
     store,
     selectRoomCharacters,
@@ -146,6 +189,7 @@ function trySubscribe(): boolean {
       pinia.replace(materialize(slice))
       reconcileAliveDiff(pinia.list)
       reconcileAllyHpZeroDiff(pinia.list)
+      reconcileHpFxDiff(pinia.list)
     },
     { emitInitial: false },
   )
@@ -169,4 +213,5 @@ export function stopRoomCharactersSync(): void {
   unsub = null
   aliveCache = new Map()
   hpZeroCache = new Map()
+  hpFxCache = new Map()
 }

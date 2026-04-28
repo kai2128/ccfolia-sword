@@ -257,6 +257,17 @@ function resetAllData() {
       <p class="text-[11px] text-white/60 leading-relaxed">
         带「盟友」标签的角色 HP 跌到 0 时旋转 token (90°),复活时转回正立 (0°)。
       </p>
+
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.combatFxEnabled"
+          @update:model-value="settings.setCombatFxEnabled($event ?? false)"
+        />
+        HP 变化演出特效
+      </label>
+      <p class="text-[11px] text-white/60 leading-relaxed">
+        受到伤害时播放十字斩,治疗时播放符文圆。所有打开本房间的玩家 tab 都会看到。
+      </p>
     </section>
 
     <!-- 重置 -->
