@@ -9,6 +9,9 @@ import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
 
+// 由 vite define 注入,值来自 package.json#version。
+const appVersion = __APP_VERSION__
+
 const anchorOptions = [
   { value: 'center', label: 'center' },
   { value: 'top-left', label: 'top-left' },
@@ -305,6 +308,7 @@ function resetAllData() {
 
     <p class="pt-1 text-center text-sm text-white/40 italic">
       - by rara -
+      <span class="ml-1 not-italic">v{{ appVersion }}</span>
     </p>
   </div>
 </template>

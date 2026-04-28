@@ -11,8 +11,19 @@ const iconDataUrl = `data:image/x-icon;base64,${readFileSync(
   fileURLToPath(new URL('./src/assets/favicon.ico', import.meta.url)),
 ).toString('base64')}`
 
+// 从 package.json 读版本号,作为 userscript metadata 的唯一真相源。
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8'),
+) as { version: string }
+
+// GitHub Releases 的 latest 链接永远指向最新 release 的 asset,不随版本号变化。
+const releaseBase = 'https://github.com/kai2128/ccfolia-sword/releases/latest/download'
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -26,8 +37,13 @@ export default defineConfig({
       userscript: {
         'name': 'ccfolia-sword',
         'namespace': 'https://github.com/kai2128/ccfolia-sword',
+        'version': pkg.version,
         'description': '剑之世界 2.5 战斗助手 · ccfolia ',
         'icon': iconDataUrl,
+        'homepage': 'https://github.com/kai2128/ccfolia-sword',
+        'supportURL': 'https://github.com/kai2128/ccfolia-sword/issues',
+        'updateURL': `${releaseBase}/ccfolia-sword.meta.js`,
+        'downloadURL': `${releaseBase}/ccfolia-sword.user.js`,
         'match': ['https://ccfolia.com/rooms/*'],
         // sniffer 必须比 ccfolia 的 Firebase SDK 更早装钩子,否则抓不到 Write/channel。
         'run-at': 'document-start',
@@ -49,6 +65,8 @@ export default defineConfig({
         // 所有 CSS(含 UnoCSS)都交给 Shadow DOM 自行注入。
         // 写成字符串以便 monkey 原样嵌进 userscript;避免 node tsconfig 缺少 DOM lib 误报。
         cssSideEffects: '(css) => { (window.__CCS_CSS__ ||= []).push(css) }',
+        // 同时产出 *.meta.js,Tampermonkey 检查更新时只拉这个小文件。
+        metaFileName: true,
       },
     }),
   ],

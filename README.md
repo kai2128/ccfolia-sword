@@ -1,11 +1,47 @@
-# Vue 3 + TypeScript + Vite
+<h1 align="center">
+  <img src="src/assets/logo.png" alt="" width="96" align="center" />
+  &nbsp;ccfolia-sword
+</h1>
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+<p align="center">
+  剑之世界 2.5 战斗助手 · ccfolia 浏览器 userscript。在 ccfolia 房间里挂上 HP/MP/buff/回合等战斗流程的增强面板。
+</p>
 
-## Recommended IDE Setup
+## 安装
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+1. 浏览器装一个 userscript 管理器，推荐 [Tampermonkey](https://www.tampermonkey.net/)。
+2. 点这个链接安装：[**ccfolia-sword.user.js**](https://github.com/kai2128/ccfolia-sword/releases/latest/download/ccfolia-sword.user.js)
+   Tampermonkey 会自动识别并弹出确认框。
+3. 打开 `https://ccfolia.com/rooms/*` 任意房间，面板会出现在画布上。
 
-## Type Support For `.vue` Imports in TS
+之后 Tampermonkey 会按 `@updateURL` 周期检查更新，无需手动操作。
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## 开发
+
+```bash
+pnpm install
+pnpm dev          # 启动 vite userscript dev 模式
+pnpm build        # 输出 dist/ccfolia-sword.user.js
+pnpm lint
+pnpm test         # vitest run
+```
+
+## 发版
+
+版本号唯一来源是 `package.json`。本地：
+
+```bash
+pnpm release:patch    # 0.1.0 → 0.1.1，自动 commit + tag + push
+pnpm release:minor
+pnpm release:major
+```
+
+推上 tag 后，[GitHub Actions](.github/workflows/release.yml) 会跑 lint + test + build，并把 `ccfolia-sword.user.js` 和 `ccfolia-sword.meta.js` 作为 asset 发布到 [Releases](https://github.com/kai2128/ccfolia-sword/releases)，release notes 由 GitHub 基于 commit 自动生成。
+
+## 反馈
+
+bug / 功能请求 → [Issues](https://github.com/kai2128/ccfolia-sword/issues)。
+
+## License
+
+[MIT](./LICENSE) © kai2128
