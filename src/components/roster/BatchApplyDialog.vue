@@ -8,10 +8,11 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
+import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
-import { Button, Checkbox, Dialog, Field, Input, Select, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
+import { Button, Checkbox, Dialog, Field, Input, NumberEdit, Select, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
@@ -206,8 +207,8 @@ const hpMp = reactive({
   slot: 'hp' as SlotKind,
   mode: 'delta' as 'delta' | 'absolute',
   input: 0,
-  // 批量场景默认截顶 —— 群体回血常见,过量治疗在 batch 里几乎都是误操作
-  clampMax: true,
+  // 默认不截顶,与单角色 NumberEdit 行为一致;GM 想避免过量治疗就手动勾上
+  clampMax: false,
 })
 const slotOptions: Array<{ value: SlotKind, label: string }> = [
   { value: 'hp', label: 'HP' },
@@ -518,6 +519,41 @@ function toggleChar(charId: string) {
       selected.add(ref)
   }
 }
+
+// --- 行内 NumberEdit:与 RosterRow / RosterList 同款单角色写入路径 ---
+function rowHp(char: CcfoliaCharacter, partKey: string) {
+  return readStatusSlot(char.status, 'hp', settings.statusLabelMap, partKey)
+}
+function rowMp(char: CcfoliaCharacter, partKey: string) {
+  // 没 mpLabel 的 part 不显示 MP 编辑器(留 invisible 占位保持横向对齐)
+  const part = partsOf(char._id).find(p => p.partKey === partKey)
+  if (!part?.mpLabel)
+    return null
+  return readStatusSlot(char.status, 'mp', settings.statusLabelMap, partKey)
+}
+function singlePartKey(charId: string): string {
+  return partsOf(charId)[0]?.partKey ?? ''
+}
+async function writeRow(
+  char: CcfoliaCharacter,
+  slot: 'hp' | 'mp',
+  newValue: number,
+  partKey: string,
+) {
+  try {
+    await writeStatusValue({
+      char,
+      slot,
+      newValue,
+      labelMap: settings.statusLabelMap,
+      partPrefix: partKey,
+    })
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`写入失败:${(e as Error).message}`)
+  }
+}
 </script>
 
 <template>
@@ -580,7 +616,7 @@ function toggleChar(charId: string) {
           </div>
           <label class="flex items-center gap-2 text-xs text-white/70">
             <Checkbox v-model="hpMp.clampMax" />
-            不超过上限(默认开;关闭以允许过量治疗)
+            不超过上限(开启以阻止过量治疗,默认关闭与单角色编辑一致)
           </label>
           <p class="text-[11px] text-white/40">
             多部位角色按勾选的 part 各自写入;MP 仅写有 MP slot 的 part。
@@ -797,6 +833,27 @@ function toggleChar(charId: string) {
                         · {{ partsOf(char._id).length }} 部位
                       </span>
                     </span>
+                    <!-- 单部位:父行 = 唯一 part,直接挂 NumberEdit;多部位:汇总行不挂,留占位保持横向对齐 -->
+                    <template v-if="!isMultiPart(char._id)">
+                      <NumberEdit
+                        v-if="rowHp(char, singlePartKey(char._id))"
+                        :value="rowHp(char, singlePartKey(char._id))!.value"
+                        :max="rowHp(char, singlePartKey(char._id))!.max"
+                        @change="v => writeRow(char, 'hp', v, singlePartKey(char._id))"
+                      />
+                      <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+                      <NumberEdit
+                        v-if="rowMp(char, singlePartKey(char._id))"
+                        :value="rowMp(char, singlePartKey(char._id))!.value"
+                        :max="rowMp(char, singlePartKey(char._id))!.max"
+                        @change="v => writeRow(char, 'mp', v, singlePartKey(char._id))"
+                      />
+                      <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+                    </template>
+                    <template v-else>
+                      <span aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+                      <span aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+                    </template>
                     <span
                       class="text-3.5"
                       :class="overlayVis.isVisible(char._id) ? 'i-lucide-chart-bar-big text-white/40' : 'i-lucide-chart-bar-big text-white/15'"
@@ -814,9 +871,23 @@ function toggleChar(charId: string) {
                         :model-value="selected.has(formatActorRef(char._id, part.partKey))"
                         @update:model-value="toggle(formatActorRef(char._id, part.partKey))"
                       />
-                      <span class="text-[11px] text-white/60">
+                      <span class="min-w-0 flex-1 truncate text-[11px] text-white/60">
                         {{ part.partKey || '主' }}
                       </span>
+                      <NumberEdit
+                        v-if="rowHp(char, part.partKey)"
+                        :value="rowHp(char, part.partKey)!.value"
+                        :max="rowHp(char, part.partKey)!.max"
+                        @change="v => writeRow(char, 'hp', v, part.partKey)"
+                      />
+                      <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
+                      <NumberEdit
+                        v-if="rowMp(char, part.partKey)"
+                        :value="rowMp(char, part.partKey)!.value"
+                        :max="rowMp(char, part.partKey)!.max"
+                        @change="v => writeRow(char, 'mp', v, part.partKey)"
+                      />
+                      <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
                     </li>
                   </template>
                 </template>
