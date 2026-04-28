@@ -2,7 +2,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { detectGridFromCanvas } from '@/ccfolia/grid-detect'
 import { findCanvasContainer } from '@/ccfolia/scene-mount'
-import { Button, Field, Input, Select, Switch } from '@/components/ui'
+import { Button, Field, Input, PopConfirm, Select, Switch } from '@/components/ui'
+import { deleteValuesByPrefix } from '@/infra/gm-values'
 import { clearLog, getLogEntries, getLogSize } from '@/infra/log'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -118,6 +119,15 @@ function onClearLog() {
   clearLog()
   logSize.value = 0
 }
+
+// --- 重置 ---
+// 所有 store 的 persist key 都以 `ccs:` 起头(见各 store 的 persist.key)。
+// 直接清掉 GM 值 + 内存日志,然后刷新页面让 store 用 default state 重建。
+function resetAllData() {
+  deleteValuesByPrefix('ccs:')
+  clearLog()
+  window.location.reload()
+}
 </script>
 
 <template>
@@ -210,6 +220,34 @@ function onClearLog() {
             @change="commitOriginY"
           />
         </Field>
+      </div>
+    </section>
+
+    <!-- 重置 -->
+    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75">
+      <h4 class="text-sm text-white font-medium">
+        重置
+      </h4>
+      <p class="flex items-start gap-1 rounded bg-hp/10 px-2 py-1.5 text-[11px] text-white/70 leading-relaxed">
+        <span class="i-lucide-triangle-alert mt-0.5 flex-shrink-0 text-3 text-hp" />
+        <span>
+          清除所有 cc-sword 本地配置和数据(角色、Buff/Tag 库、面板位置、格网设置等),并刷新页面。<span class="text-hp">不可撤销</span>。
+        </span>
+      </p>
+      <div>
+        <PopConfirm
+          message="确认清除全部本地配置和数据?此操作不可撤销,页面会立即刷新。"
+          confirm-text="清除并刷新"
+          @confirm="resetAllData"
+        >
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 border border-hp/40 rounded bg-hp/10 px-2 py-1 text-xs text-hp transition-colors hover:bg-hp/20"
+          >
+            <span class="i-lucide-trash-2 text-3" />
+            清除全部数据
+          </button>
+        </PopConfirm>
       </div>
     </section>
 
