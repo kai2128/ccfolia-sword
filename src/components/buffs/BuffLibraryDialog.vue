@@ -4,7 +4,7 @@ import type { StatusEffectDefinition } from '@/types/buff-v3'
 import { computed, ref } from 'vue'
 import BuffForm from '@/components/buffs/BuffForm.vue'
 import BuffIcon from '@/components/buffs/BuffIcon.vue'
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, PopConfirm } from '@/components/ui'
 import {
 
   buildDefinition,
@@ -34,11 +34,8 @@ function startEdit(definition: StatusEffectDefinition) {
   editorOpen.value = true
 }
 
-function remove(definition: StatusEffectDefinition) {
+function doRemove(definition: StatusEffectDefinition) {
   if (definition.builtin)
-    return
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(`删除 ${definition.name || '未命名 Buff'}?已挂载实例不会受影响。`))
     return
   lib.removeCustom(definition.id)
   if (editingId.value === definition.id) {
@@ -47,10 +44,7 @@ function remove(definition: StatusEffectDefinition) {
   }
 }
 
-function reset() {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm('清空所有自定义 Buff 定义?'))
-    return
+function doReset() {
   lib.resetCustom()
   editorOpen.value = false
   editingId.value = null
@@ -81,9 +75,15 @@ function save() {
         Buff 库
       </h4>
       <div class="flex gap-2">
-        <Button size="sm" variant="ghost" @click="reset">
-          重置自定义
-        </Button>
+        <PopConfirm
+          message="清空所有自定义 Buff 定义?"
+          confirm-text="清空"
+          @confirm="doReset"
+        >
+          <Button size="sm" variant="ghost">
+            重置自定义
+          </Button>
+        </PopConfirm>
         <Button size="sm" @click="startCreate">
           <span class="i-lucide-plus text-3.5" />
           新建
@@ -118,15 +118,20 @@ function save() {
         >
           <span class="i-lucide-pencil text-3.5" />
         </Button>
-        <Button
+        <PopConfirm
           v-if="!definition.builtin"
-          size="xs"
-          variant="ghost"
-          title="删除"
-          @click="remove(definition)"
+          :message="`删除 ${definition.name || '未命名 Buff'}?已挂载实例不会受影响。`"
+          confirm-text="删除"
+          @confirm="doRemove(definition)"
         >
-          <span class="i-lucide-x text-3.5" />
-        </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            title="删除"
+          >
+            <span class="i-lucide-x text-3.5" />
+          </Button>
+        </PopConfirm>
       </li>
     </ul>
 

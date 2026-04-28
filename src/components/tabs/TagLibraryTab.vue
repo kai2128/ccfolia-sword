@@ -2,7 +2,7 @@
 import type { TagDefinition } from '@/types/tag'
 import { ref } from 'vue'
 import TagEditDialog from '@/components/tags/TagEditDialog.vue'
-import { Button, TagChip } from '@/components/ui'
+import { Button, PopConfirm, TagChip } from '@/components/ui'
 import { useTagLibraryStore } from '@/stores/tag-library'
 import { isBuiltinTagId } from '@/types/tag'
 
@@ -20,14 +20,9 @@ function create() {
   dialogOpen.value = true
 }
 
-function remove(tag: TagDefinition) {
+function doRemove(tag: TagDefinition) {
   if (isBuiltinTagId(tag.id))
     return
-
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(`删除 tag「${tag.label}」? 已挂在角色身上的条目会保留在 params 中,但不会再显示。`))
-    return
-
   lib.removeCustom(tag.id)
 }
 </script>
@@ -57,14 +52,16 @@ function remove(tag: TagDefinition) {
         <Button size="sm" variant="ghost" @click="edit(tag)">
           编辑
         </Button>
-        <Button
+        <PopConfirm
           v-if="!isBuiltinTagId(tag.id)"
-          size="sm"
-          variant="danger"
-          @click="remove(tag)"
+          :message="`删除 tag「${tag.label}」? 已挂在角色身上的条目会保留在 params 中,但不会再显示。`"
+          confirm-text="删除"
+          @confirm="doRemove(tag)"
         >
-          删除
-        </Button>
+          <Button size="sm" variant="danger">
+            删除
+          </Button>
+        </PopConfirm>
       </li>
     </ul>
 

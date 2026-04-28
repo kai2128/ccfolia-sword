@@ -2,7 +2,7 @@
 // 角色库列表。接收 runtime 视图,主要显示名字、阵营、主 part 的 HP/MP。
 // 编辑按钮 emit('edit', id);删除按钮直接 confirm + store.remove。
 import type { RuntimeCharacter } from '@/types/character'
-import { Button } from '@/components/ui'
+import { Button, PopConfirm } from '@/components/ui'
 
 defineProps<{
   items: RuntimeCharacter[]
@@ -28,12 +28,6 @@ const factionClass: Record<RuntimeCharacter['faction'], string> = {
 function primary(ch: RuntimeCharacter) {
   return ch.parts[0]
 }
-
-function confirmRemove(ch: RuntimeCharacter) {
-  // eslint-disable-next-line no-alert
-  if (window.confirm(`确认删除角色「${ch.name}」?`))
-    emit('remove', ch.id)
-}
 </script>
 
 <template>
@@ -56,9 +50,15 @@ function confirmRemove(ch: RuntimeCharacter) {
       <Button size="sm" variant="ghost" :title="`编辑 ${ch.name}`" @click="emit('edit', ch.id)">
         <div class="i-lucide-pencil text-3" />
       </Button>
-      <Button size="sm" variant="ghost" :title="`删除 ${ch.name}`" @click="confirmRemove(ch)">
-        <div class="i-lucide-trash text-3 text-hp/80" />
-      </Button>
+      <PopConfirm
+        :message="`确认删除角色「${ch.name}」?`"
+        confirm-text="删除"
+        @confirm="emit('remove', ch.id)"
+      >
+        <Button size="sm" variant="ghost" :title="`删除 ${ch.name}`">
+          <div class="i-lucide-trash text-3 text-hp/80" />
+        </Button>
+      </PopConfirm>
     </li>
   </ul>
 </template>

@@ -12,7 +12,7 @@ import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
-import { Button, Checkbox, Dialog, Field, Input, NumberEdit, Select, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
+import { Button, Checkbox, Dialog, Field, Input, NumberEdit, PopConfirm, Select, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
@@ -379,12 +379,8 @@ async function applyBuffOp() {
       })
     }
     else {
-      // clear:不需要选 def,直接清掉选中 part 上所有 single buff
-      // 先 confirm,避免误点炸全场
-      const partLabel = `${selectedCount.value} 个 part`
-      // eslint-disable-next-line no-alert
-      if (!confirm(`确认清除 ${partLabel} 上的全部 buff${clearIncludeAoe.value ? '(含 AoE)' : ''}?`))
-        return
+      // clear:不需要选 def,直接清掉选中 part 上所有 single buff。
+      // 误点保护由按钮外面包裹的 PopConfirm 提供(buffMode='clear' 才弹气泡)。
       await applyBuffBatch({
         kind: 'clear',
         targets,
@@ -695,18 +691,24 @@ async function writeRow(
           </template>
 
           <div class="flex justify-end pt-1">
-            <Button
-              size="md"
-              :variant="buffMode === 'clear' ? 'danger' : 'solid'"
-              :disabled="
-                selectedCount === 0 || buffBusy
-                  || (buffMode === 'attach' && !picker?.state.valid)
-                  || (buffMode === 'detach' && !detachDefId)
-              "
-              @click="applyBuffOp"
+            <PopConfirm
+              :message="`确认清除 ${selectedCount} 个 part 上的全部 buff${clearIncludeAoe ? '(含 AoE)' : ''}?`"
+              confirm-text="清空"
+              :bypass="buffMode !== 'clear'"
+              @confirm="applyBuffOp"
             >
-              应用 ({{ selectedCount }})
-            </Button>
+              <Button
+                size="md"
+                :variant="buffMode === 'clear' ? 'danger' : 'solid'"
+                :disabled="
+                  selectedCount === 0 || buffBusy
+                    || (buffMode === 'attach' && !picker?.state.valid)
+                    || (buffMode === 'detach' && !detachDefId)
+                "
+              >
+                应用 ({{ selectedCount }})
+              </Button>
+            </PopConfirm>
           </div>
         </TabsContent>
 

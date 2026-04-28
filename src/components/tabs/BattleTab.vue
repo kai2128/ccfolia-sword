@@ -5,6 +5,7 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import ActionForm from '@/components/combat/ActionForm.vue'
 import TargetQuickPicker from '@/components/combat/TargetQuickPicker.vue'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
+import { PopConfirm } from '@/components/ui'
 import { extractParts } from '@/core/character/parts'
 import { formatActorDisplayName, formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 import { useEncounterStore } from '@/stores/encounter'
@@ -62,11 +63,8 @@ function finishActor() {
 const promptsOpen = ref(false)
 const lastPrompts = ref<TickPrompt[]>([])
 
-async function nextTurn() {
-  // 这里需要同步确认框,允许 GM 在还有未行动者时强行推进回合。
-  // eslint-disable-next-line no-alert
-  if (encounter.local.pendingIds.length > 0 && !window.confirm('还有人未行动,确认推进回合?'))
-    return
+// 还有未行动者时,PopConfirm 弹气泡确认;否则 :bypass 走快路径直接推进。
+async function runNextTurn() {
   const prompts = await encounter.nextTurn()
   if (prompts.length > 0) {
     lastPrompts.value = prompts
@@ -151,16 +149,22 @@ function endCombat() {
       </section>
 
       <footer class="flex justify-end">
-        <button
-          type="button"
-          class="h-8 rounded bg-white/10 px-3 text-sm text-white transition-colors hover:bg-white/15"
-          @click="nextTurn"
+        <PopConfirm
+          message="还有人未行动,确认推进回合?"
+          confirm-text="推进"
+          :bypass="encounter.local.pendingIds.length === 0"
+          @confirm="runNextTurn"
         >
-          下一回合
-          <span v-if="encounter.local.pendingIds.length > 0" class="ml-1 text-xs text-white/50">
-            (还 {{ encounter.local.pendingIds.length }} 人未行动)
-          </span>
-        </button>
+          <button
+            type="button"
+            class="h-8 rounded bg-white/10 px-3 text-sm text-white transition-colors hover:bg-white/15"
+          >
+            下一回合
+            <span v-if="encounter.local.pendingIds.length > 0" class="ml-1 text-xs text-white/50">
+              (还 {{ encounter.local.pendingIds.length }} 人未行动)
+            </span>
+          </button>
+        </PopConfirm>
       </footer>
     </template>
 

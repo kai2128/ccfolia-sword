@@ -2,7 +2,7 @@
 // 角色库顶栏:新建 / 导入 JSON / 导出 JSON / 插入样例数据 / 清空。
 // 导入 / 导出走浏览器 File API;样例来自 core/__fixtures__/characters.ts。
 import { ref } from 'vue'
-import { Button } from '@/components/ui'
+import { Button, PopConfirm } from '@/components/ui'
 import { makeDragon, makeGoblin, makePc } from '@/core/__fixtures__/characters'
 import { ImportValidationError, useCharactersStore } from '@/stores/characters'
 
@@ -61,12 +61,7 @@ function onSeed() {
   emit('status', `插入样例完成(库容 ${before} → ${store.all.length})`, 'ok')
 }
 
-function onClear() {
-  if (store.all.length === 0)
-    return
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(`确认清空 ${store.all.length} 个角色?`))
-    return
+function doClear() {
   store.clear()
   emit('status', '角色库已清空', 'ok')
 }
@@ -86,9 +81,15 @@ function onClear() {
     <Button size="sm" variant="ghost" @click="onSeed">
       <div class="i-lucide-sparkles text-3" /> 样例
     </Button>
-    <Button size="sm" variant="ghost" @click="onClear">
-      <div class="i-lucide-trash text-3" /> 清空
-    </Button>
+    <PopConfirm
+      :message="`确认清空 ${store.all.length} 个角色?`"
+      confirm-text="清空"
+      @confirm="doClear"
+    >
+      <Button size="sm" variant="ghost" :disabled="store.all.length === 0">
+        <div class="i-lucide-trash text-3" /> 清空
+      </Button>
+    </PopConfirm>
     <input
       ref="fileRef"
       type="file"
