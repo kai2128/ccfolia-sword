@@ -1,3 +1,4 @@
+import type { StatusLabelMap } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { defineStore } from 'pinia'
 import { extractParts } from '@/core/character/parts'
@@ -115,7 +116,7 @@ function isAllyCharacter(character: CcfoliaCharacter): boolean {
 }
 
 // 多部位累加 HP。多部位 char 在同一帧里两个部位反向变化(罕见)按净 delta 喷一次。
-function totalHp(character: CcfoliaCharacter, labelMap: ReturnType<typeof useSettingsStore>['statusLabelMap']): number {
+function totalHp(character: CcfoliaCharacter, labelMap: StatusLabelMap): number {
   let sum = 0
   for (const part of extractParts(character, labelMap)) {
     const slot = readStatusSlot(character.status, 'hp', labelMap, part.partKey)
@@ -127,15 +128,18 @@ function totalHp(character: CcfoliaCharacter, labelMap: ReturnType<typeof useSet
 
 function reconcileHpFxDiff(list: CcfoliaCharacter[]) {
   const settings = useSettingsStore()
+  // 关闭时直接清 cache 走人,redux 高频 tick 不再做 O(N×P) 的 status 扫描。
+  // 切回开启:第一帧 prev===undefined 静默重新填 cache,语义和首次进房间一致。
+  if (!settings.combatFxEnabled) {
+    if (hpFxCache.size > 0)
+      hpFxCache.clear()
+    return
+  }
   const labelMap = settings.statusLabelMap
-  // 关掉演出仍然更新 cache,这样切回开启不会把这段时间累积的 delta 一次性补播。
-  const enabled = settings.combatFxEnabled
   for (const character of list) {
     const next = totalHp(character, labelMap)
     const prev = hpFxCache.get(character._id)
     hpFxCache.set(character._id, next)
-    if (!enabled)
-      continue
     if (prev === undefined)
       continue
     const delta = next - prev

@@ -2,8 +2,6 @@
 // 张扬·二次元爆闪:十字斩 + 浮动伤害数字。
 // 设计稿见 docs/superpowers/plans/design_handoff_fx_expressive。
 // 与原稿差异:**不渲染 CRITICAL 飘带**,数字统一白色不区分暴击,字号常态化。
-// keyframes / 类(fx-slash / fx-aura / fx-heal / fx-float)在 src/styles/tokens.css。
-// 自身不卸载,父层(FxLayer)按 ttl 用 setTimeout 移除。
 
 defineProps<{
   // x/y 是相对于 offset parent 的画布像素(立绘中心)
@@ -15,14 +13,8 @@ defineProps<{
 
 <template>
   <div
-    class="pointer-events-none absolute"
-    :style="{
-      left: `${x}px`,
-      top: `${y}px`,
-      width: '160px',
-      height: '160px',
-      transform: 'translate(-50%,-50%)',
-    }"
+    class="pointer-events-none absolute h-[160px] w-[160px] -translate-x-1/2 -translate-y-1/2"
+    :style="{ left: `${x}px`, top: `${y}px` }"
   >
     <!-- 中心爆闪(白心金晕) -->
     <div

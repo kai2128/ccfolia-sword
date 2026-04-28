@@ -1,8 +1,6 @@
-// 战斗 FX 内部事件总线。apply-damage / apply-heal 写回成功后由 UI 层喷事件,
-// scene overlay 的 FxLayer 订阅、根据 charId 查 piece 坐标渲染对应特效。
-//
-// 不走 store / 不走 watcher diff —— amount 直接由调用方给(已知是 HP 变化、
-// 已知是哪一条 kind),不需要再去对 status 做差分。
+// 战斗 FX 内部事件总线。生产者目前是 room-characters-store 的 HP diff watcher
+// (见 reconcileHpFxDiff),投递跨 tab:每个客户端的 onSnapshot 各自跑 diff 喷自己的演出。
+// 消费者:scene overlay 的 FxLayer,按 charId 查 piece 坐标渲染对应特效。
 
 export type FxKind = 'damage' | 'heal'
 

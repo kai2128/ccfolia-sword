@@ -17,14 +17,8 @@ const ringDots = Array.from({ length: 6 }, (_, i) => {
 
 <template>
   <div
-    class="pointer-events-none absolute"
-    :style="{
-      left: `${x}px`,
-      top: `${y}px`,
-      width: '120px',
-      height: '120px',
-      transform: 'translate(-50%,-50%)',
-    }"
+    class="pointer-events-none absolute h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2"
+    :style="{ left: `${x}px`, top: `${y}px` }"
   >
     <!-- 符文圈(SVG,慢转,fx-aura 6s 无限循环但只播一会儿) -->
     <svg

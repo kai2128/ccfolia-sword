@@ -4,6 +4,7 @@ import type { StatusLabelMap } from '@/core/status-slot'
 import { defineStore } from 'pinia'
 import { DEFAULT_GRID_CONFIG } from '@/core/range'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
+import { bindGmCrossTabSync } from '@/infra/gm-cross-tab'
 import { setRingSize } from '@/infra/log'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
@@ -219,41 +220,29 @@ export const useSettingsStore = defineStore('settings', {
   },
 })
 
-// 跨 tab 同步:另一 tab 改设置时,本 tab 立即跟进。
-// 注意只同步"全局/自动化"维度的字段(SHARED_FIELDS),per-tab UX 字段(panelPos / panelVisible /
-// panelCollapsed / gridOverlayVisible 等)不同步,避免另一个 tab 把面板挪到自己用户视角下。
-// remote=false 表示本 tab 自己写的,跳过以免自触发。
+// 只同步"全局/自动化"维度的字段。per-tab UX(panelPos / panelVisible / panelCollapsed /
+// gridOverlayVisible)不同步 —— 否则一个 tab 拖动面板会把另一个 tab 的视图也拽走。
 const SHARED_FIELDS = ['combatFxEnabled', 'autoRotateAllyOnDown'] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
 function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStore>): void {
-  if (typeof GM_addValueChangeListener !== 'function') {
-    console.warn('[ccs] settings: GM_addValueChangeListener 不可用,settings 跨 tab 同步关闭')
-    return
-  }
-  GM_addValueChangeListener('ccs:store:settings', (_k, _old, newValue, remote) => {
-    if (!remote)
-      return
-    try {
-      const parsed = typeof newValue === 'string' ? JSON.parse(newValue) : newValue
-      if (!parsed || typeof parsed !== 'object')
+  bindGmCrossTabSync<Record<string, unknown>>(
+    'ccs:store:settings',
+    (parsed) => {
+      if (typeof parsed !== 'object')
         return
-      const next = parsed as Record<string, unknown>
-      store.$patch((state) => {
-        for (const key of SHARED_FIELDS) {
-          const v = next[key]
-          if (typeof v === 'boolean')
-            (state as Record<SharedField, boolean>)[key] = v
-        }
-      })
-    }
-    catch (e) {
-      console.warn('[ccs] settings: apply remote change failed', e)
-    }
-  })
+      // 先收集真正发生变化的字段,再 $patch。空 patch 也会触发 persist 插件的 $subscribe,
+      // 写回 GM 后远端再回弹,可能形成事件回路。
+      const updates: Partial<Record<SharedField, boolean>> = {}
+      for (const key of SHARED_FIELDS) {
+        const v = parsed[key]
+        if (typeof v === 'boolean' && store[key] !== v)
+          updates[key] = v
+      }
+      if (Object.keys(updates).length === 0)
+        return
+      store.$patch(updates)
+    },
+    'settings',
+  )
 }
-
-declare function GM_addValueChangeListener(
-  key: string,
-  listener: (k: string, oldValue: unknown, newValue: unknown, remote: boolean) => void,
-): number
