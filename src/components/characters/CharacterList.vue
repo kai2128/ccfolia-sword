@@ -30,6 +30,7 @@ function primary(ch: RuntimeCharacter) {
 }
 
 function confirmRemove(ch: RuntimeCharacter) {
+  // eslint-disable-next-line no-alert
   if (window.confirm(`确认删除角色「${ch.name}」?`))
     emit('remove', ch.id)
 }

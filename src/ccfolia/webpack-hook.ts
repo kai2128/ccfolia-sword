@@ -145,7 +145,9 @@ function scanModules(attempt: number): boolean {
   const appCandidates: string[] = []
   for (const id in factories) {
     let src = ''
-    try { src = factories[id].toString() }
+    try {
+      src = factories[id].toString()
+    }
     catch { continue }
     if (src.includes('"setDoc"') || src.includes('initializeFirestore'))
       fsCandidates.push(id)
@@ -239,7 +241,9 @@ function matchFirestoreExports(exp: Record<string, unknown>): FirestoreModule | 
   for (const k of Object.keys(exp)) {
     const v = exp[k]
     if (typeof v === 'function') {
-      try { fns.push([k, (v as () => unknown).toString()]) }
+      try {
+        fns.push([k, (v as () => unknown).toString()])
+      }
       catch { /* ignore */ }
     }
   }
@@ -289,7 +293,9 @@ function matchAppExports(exp: Record<string, unknown>): AppModule | null {
     if (typeof v !== 'function')
       continue
     let src = ''
-    try { src = (v as () => unknown).toString() }
+    try {
+      src = (v as () => unknown).toString()
+    }
     catch { continue }
     if (!getApp && src.includes('"no-app"') && src.includes('appName'))
       getApp = v as AnyFn

@@ -63,8 +63,10 @@ function write(level: LogLevel, tag: string, msg: string, data?: unknown) {
   else if (level === 'warn')
     console.warn(head, ...tail)
   else if (level === 'debug')
+    // eslint-disable-next-line no-console -- 本文件是日志基础设施,debug 级别就是要走 console.debug
     console.debug(head, ...tail)
   else
+    // eslint-disable-next-line no-console -- 本文件是日志基础设施,info 级别就是要走 console.info
     console.info(head, ...tail)
 }
 
@@ -101,6 +103,7 @@ export function installLogPanel() {
     print: (n = 30) => {
       const items = ring.slice(-n)
       const t0 = items[0]?.t ?? 0
+      // eslint-disable-next-line no-console -- 控制台调试入口,table 输出是本意
       console.table(items.map(e => ({
         ms: e.t - t0,
         level: e.level,

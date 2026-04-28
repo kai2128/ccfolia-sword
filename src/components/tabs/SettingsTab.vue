@@ -25,15 +25,31 @@ const cellSizeDraft = ref<number | string>(settings.grid.cellSizePx)
 const originXDraft = ref<number | string>(settings.grid.originPx.x)
 const originYDraft = ref<number | string>(settings.grid.originPx.y)
 
-watch(() => settings.grid.cols, (v) => { colsDraft.value = v })
-watch(() => settings.grid.rows, (v) => { rowsDraft.value = v })
-watch(() => settings.grid.cellSizePx, (v) => { cellSizeDraft.value = v })
-watch(() => settings.grid.originPx.x, (v) => { originXDraft.value = v })
-watch(() => settings.grid.originPx.y, (v) => { originYDraft.value = v })
+watch(() => settings.grid.cols, (v) => {
+  colsDraft.value = v
+})
+watch(() => settings.grid.rows, (v) => {
+  rowsDraft.value = v
+})
+watch(() => settings.grid.cellSizePx, (v) => {
+  cellSizeDraft.value = v
+})
+watch(() => settings.grid.originPx.x, (v) => {
+  originXDraft.value = v
+})
+watch(() => settings.grid.originPx.y, (v) => {
+  originYDraft.value = v
+})
 
-function commitCols() { settings.setGrid({ cols: Number(colsDraft.value) }) }
-function commitRows() { settings.setGrid({ rows: Number(rowsDraft.value) }) }
-function commitCellSize() { settings.setGrid({ cellSizePx: Number(cellSizeDraft.value) }) }
+function commitCols() {
+  settings.setGrid({ cols: Number(colsDraft.value) })
+}
+function commitRows() {
+  settings.setGrid({ rows: Number(rowsDraft.value) })
+}
+function commitCellSize() {
+  settings.setGrid({ cellSizePx: Number(cellSizeDraft.value) })
+}
 function commitOriginX() {
   settings.setGrid({ originPx: { ...settings.grid.originPx, x: Number(originXDraft.value) } })
 }

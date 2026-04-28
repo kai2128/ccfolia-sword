@@ -64,6 +64,7 @@ function onSeed() {
 function onClear() {
   if (store.all.length === 0)
     return
+  // eslint-disable-next-line no-alert
   if (!window.confirm(`确认清空 ${store.all.length} 个角色?`))
     return
   store.clear()
