@@ -85,6 +85,15 @@ describe('applyAdjustment', () => {
     expect(applyAdjustment('+1-1/2*2', 10)).toBe(10)
   })
 
+  it('+/- 前缀对 |delta| 向上取整(让伤害/治疗按效果方向进位)', () => {
+    // delta = -3/2 = -1.5,|delta| 进位到 2,HP 应减少 2
+    expect(applyAdjustment('-3/2', 10)).toBe(8)
+    // delta = +3/2 = 1.5,|delta| 进位到 2,HP 应增加 2
+    expect(applyAdjustment('+3/2', 10)).toBe(12)
+    // delta = -1/3 ≈ -0.333,|delta| 进位到 1
+    expect(applyAdjustment('-1/3', 10)).toBe(9)
+  })
+
   it('no prefix is absolute expression', () => {
     expect(applyAdjustment('17', 5)).toBe(17)
     expect(applyAdjustment('5+3', 10)).toBe(8)

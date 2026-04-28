@@ -107,21 +107,29 @@ class Parser {
 
 // 解析 GM 在 NumberEdit 里的输入,根据前缀决定如何应用到 current:
 //   '=' 前缀          → absolute(允许负)。例:=10、=-5、=10+5
-//   + - * / 前缀      → 在 current 上做算术。例:+5 / -3 / *2 / /2 / +1*2-1
+//   + / - 前缀        → delta(增量),按 |delta| 向上取整再加回 current。例:-3/2 当作伤害 1.5 → 进位到 2
+//   * / / 前缀        → 在 current 上做算术,对最终值向上取整。例:/2 = HP 减半向上取整
 //   其它              → absolute(纯表达式)。例:17、2*5、(1+2)*3
-// 失败一律返 null,调用方退出 edit 模式即可。整数舍入由 evaluateExpression 处理。
+// 失败一律返 null,调用方退出 edit 模式即可。
 export function applyAdjustment(input: string, current: number): number | null {
   const s = input.trim()
   if (!s)
     return null
   if (s.startsWith('='))
     return evaluateExpression(s.slice(1))
-  if (s.startsWith('+') || s.startsWith('-') || s.startsWith('*') || s.startsWith('/'))
+  if (s.startsWith('+') || s.startsWith('-')) {
+    const delta = evaluateRaw(s)
+    if (delta === null)
+      return null
+    // |delta| 向上取整:伤害/治疗都按"放大效果方向"进位(正数 ceil、负数 floor)
+    return current + (delta >= 0 ? Math.ceil(delta) : Math.floor(delta))
+  }
+  if (s.startsWith('*') || s.startsWith('/'))
     return evaluateExpression(`${current}${s}`)
   return evaluateExpression(s)
 }
 
-export function evaluateExpression(input: string): number | null {
+function evaluateRaw(input: string): number | null {
   const tokens = tokenize(input)
   if (!tokens || tokens.length === 0)
     return null
@@ -132,9 +140,14 @@ export function evaluateExpression(input: string): number | null {
       return null
     if (!Number.isFinite(v))
       return null
-    return Math.ceil(v)
+    return v
   }
   catch {
     return null
   }
+}
+
+export function evaluateExpression(input: string): number | null {
+  const v = evaluateRaw(input)
+  return v === null ? null : Math.ceil(v)
 }
