@@ -133,7 +133,7 @@ function resetAllData() {
 <template>
   <div class="flex flex-col gap-3">
     <!-- 格网校准 -->
-    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75">
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm text-white font-medium">
           格网校准
@@ -223,8 +223,25 @@ function resetAllData() {
       </div>
     </section>
 
+    <!-- 战斗自动化 -->
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
+      <h4 class="text-sm text-white font-medium">
+        战斗自动化
+      </h4>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.autoRotateAllyOnDown"
+          @update:model-value="settings.setAutoRotateAllyOnDown($event ?? false)"
+        />
+        盟友倒地自动旋转
+      </label>
+      <p class="text-[11px] text-white/60 leading-relaxed">
+        带「盟友」标签的角色 HP 跌到 0 时旋转 token (90°),复活时转回正立 (0°)。
+      </p>
+    </section>
+
     <!-- 重置 -->
-    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75">
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
       <h4 class="text-sm text-white font-medium">
         重置
       </h4>
@@ -252,7 +269,7 @@ function resetAllData() {
     </section>
 
     <!-- 调试 -->
-    <section class="flex flex-col gap-2 rounded p-3 bg-surface/75">
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
       <h4 class="text-sm text-white font-medium">
         调试
       </h4>

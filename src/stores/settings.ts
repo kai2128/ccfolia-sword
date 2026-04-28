@@ -27,6 +27,7 @@ interface SettingsState {
   grid: GridConfig
   gridOverlayVisible: boolean
   statusLabelMap: StatusLabelMap
+  autoRotateAllyOnDown: boolean
 }
 
 const DEFAULT_PANEL_SIZE: PanelSize = { width: 320, height: 360 }
@@ -140,6 +141,7 @@ export const useSettingsStore = defineStore('settings', {
     grid: normalizeGridConfig(undefined),
     gridOverlayVisible: false,
     statusLabelMap: normalizeStatusLabelMap(undefined),
+    autoRotateAllyOnDown: true,
   }),
   actions: {
     setDefaultPowerTable(id: string | null) {
@@ -193,6 +195,9 @@ export const useSettingsStore = defineStore('settings', {
     },
     setGridOverlayVisible(v: boolean) {
       this.gridOverlayVisible = v
+    },
+    setAutoRotateAllyOnDown(v: boolean) {
+      this.autoRotateAllyOnDown = v
     },
   },
   persist: {
