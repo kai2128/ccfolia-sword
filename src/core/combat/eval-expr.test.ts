@@ -20,9 +20,9 @@ describe('evaluateExpression', () => {
     expect(evaluateExpression('2*3+4')).toBe(10)
   })
 
-  it('rounds float results to nearest int', () => {
+  it('ceils float results to int', () => {
     expect(evaluateExpression('1/2')).toBe(1) // 0.5 → 1
-    expect(evaluateExpression('1/3')).toBe(0) // 0.333 → 0
+    expect(evaluateExpression('1/3')).toBe(1) // 0.333 → 1
     expect(evaluateExpression('5/3')).toBe(2) // 1.666 → 2
   })
 
@@ -74,9 +74,9 @@ describe('applyAdjustment', () => {
     expect(applyAdjustment('*3', 7)).toBe(21)
   })
 
-  it('/ prefix divides current (rounded to int)', () => {
+  it('/ prefix divides current (ceiled to int)', () => {
     expect(applyAdjustment('/2', 10)).toBe(5)
-    expect(applyAdjustment('/3', 10)).toBe(3) // 3.33 → 3
+    expect(applyAdjustment('/3', 10)).toBe(4) // 3.33 → 4
     expect(applyAdjustment('/2', 7)).toBe(4) // 3.5 → 4
   })
 

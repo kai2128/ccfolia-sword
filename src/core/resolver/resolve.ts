@@ -108,6 +108,6 @@ function computeFinalDamage(
   if (rawDamage === null || hit === 'unknown')
     return null
   if (hit === false)
-    return draft.resistOutcome === 'nullify' ? 0 : Math.floor(rawDamage / 2)
+    return draft.resistOutcome === 'nullify' ? 0 : Math.ceil(rawDamage / 2)
   return rawDamage
 }

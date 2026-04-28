@@ -209,7 +209,7 @@ describe('resolve - magic', () => {
     })
   })
 
-  it('抵抗成功 + 半伤时向下取整', () => {
+  it('抵抗成功 + 半伤时向上取整', () => {
     const draft = magicDraft(
       { castingRoll: 14, resistOutcome: 'half', powerExpr: 'k40', dice1: 6, dice2: 5 },
       [mkTarget({ resistValue: 15 })],

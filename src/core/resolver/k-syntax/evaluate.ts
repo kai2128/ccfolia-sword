@@ -19,7 +19,7 @@ export function evaluatePowerCommand(
   const mainDamage = lookup(dice.main)
   const critDamages = dice.crits.map(lookup)
   const baseDamage = mainDamage + critDamages.reduce((sum, damage) => sum + damage, 0)
-  const afterHalf = parsed.half ? Math.floor(baseDamage / 2) : baseDamage
+  const afterHalf = parsed.half ? Math.ceil(baseDamage / 2) : baseDamage
   const total = afterHalf + parsed.modifier
 
   const breakdown = [

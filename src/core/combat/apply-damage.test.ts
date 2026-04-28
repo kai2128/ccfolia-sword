@@ -63,7 +63,7 @@ describe('applyDamageToTarget · resist', () => {
     const action = draft({ rawValue: 11, resistType: 'mental', damageType: 'magical' })
     const target: ActionTarget = { characterId: 'g1', resistResult: 'success', resistOutcome: 'half' }
     const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
-    expect(result.finalDamage).toBe(5)
+    expect(result.finalDamage).toBe(6)
   })
 
   it('nullifies on success + nullify', () => {
@@ -84,7 +84,7 @@ describe('applyDamageToTarget · resist', () => {
     const action = draft({ rawValue: 11, resistType: 'mental', damageType: 'magical' })
     const target: ActionTarget = { characterId: 'g1', resistResult: 'success' }
     const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
-    expect(result.finalDamage).toBe(5)
+    expect(result.finalDamage).toBe(6)
   })
 })
 

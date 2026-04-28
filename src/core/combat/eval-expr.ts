@@ -1,6 +1,6 @@
 // 整数算术表达式求值。支持 + - * / 和括号。
 // HP/MP 编辑器允许 GM 输入 "+1-1/2*2" / "10*2+5" / "(1+2)*3" 之类。
-// 内部用浮点算,最终 Math.round 到整数(HP/MP 都是整数)。
+// 内部用浮点算,最终 Math.ceil 到整数(HP/MP 都是整数,小数一律向上取整)。
 // 不允许任何字符以外的输入(没函数 / 没变量),tokenize 失败返 null。
 // 任何解析 / 求值异常一律捕获并返 null,调用方靠返回值判定即可。
 
@@ -132,7 +132,7 @@ export function evaluateExpression(input: string): number | null {
       return null
     if (!Number.isFinite(v))
       return null
-    return Math.round(v)
+    return Math.ceil(v)
   }
   catch {
     return null

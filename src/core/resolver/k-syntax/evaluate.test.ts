@@ -53,7 +53,7 @@ describe('evaluatePowerCommand', () => {
     expect(result.baseDamage).toBe(37)
   })
 
-  it('半减：先 floor(base / 2) 再加修正', () => {
+  it('半减：先 ceil(base / 2) 再加修正', () => {
     const result = evaluatePowerCommand(
       { power: 30, critThreshold: 13, modifier: 2, half: true },
       table,

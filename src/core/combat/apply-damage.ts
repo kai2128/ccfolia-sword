@@ -65,7 +65,7 @@ export function applyDamageToTarget(
 
     if (target.resistResult === 'success') {
       const outcome = target.resistOutcome ?? 'half'
-      rawAfterResist = outcome === 'nullify' ? 0 : Math.floor(draft.rawValue / 2)
+      rawAfterResist = outcome === 'nullify' ? 0 : Math.ceil(draft.rawValue / 2)
     }
   }
 
