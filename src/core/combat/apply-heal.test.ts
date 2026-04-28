@@ -37,4 +37,33 @@ describe('applyHealToTarget', () => {
     expect(result.healedAmount).toBe(15)
     expect(result.newHp).toBe(25)
   })
+
+  it('adds bonus and subtracts penalty', () => {
+    const result = applyHealToTarget(draft({ rawValue: 5 }), { characterId: 'c1', bonus: 4, penalty: 1 }, { currentHp: 10, maxHp: 25 })
+    // 5 + 4 - 1 = 8
+    expect(result.healedAmount).toBe(8)
+    expect(result.newHp).toBe(18)
+  })
+
+  it('clamps raw to 0 when penalty exceeds raw + bonus', () => {
+    const result = applyHealToTarget(draft({ rawValue: 3 }), { characterId: 'c1', penalty: 10 }, { currentHp: 10, maxHp: 25 })
+    expect(result.healedAmount).toBe(0)
+    expect(result.newHp).toBe(10)
+  })
+
+  it('still respects maxHp with bonus', () => {
+    const result = applyHealToTarget(draft({ rawValue: 5 }), { characterId: 'c1', bonus: 100 }, { currentHp: 22, maxHp: 25 })
+    expect(result.healedAmount).toBe(3)
+    expect(result.newHp).toBe(25)
+  })
+
+  it('ignores bonus/penalty when override is set', () => {
+    const result = applyHealToTarget(
+      draft({ rawValue: 5 }),
+      { characterId: 'c1', finalValueOverride: 7, bonus: 100, penalty: 50 },
+      { currentHp: 10, maxHp: 25 },
+    )
+    expect(result.healedAmount).toBe(7)
+    expect(result.newHp).toBe(17)
+  })
 })

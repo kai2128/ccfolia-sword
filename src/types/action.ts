@@ -9,6 +9,9 @@ export interface ActionTarget {
   partKey?: string
   resistResult?: ResistResult
   resistOutcome?: ResistOutcome
+  // 临时加值/减值,叠加进公式;非负整数。finalValueOverride 生效时被忽略。
+  bonus?: number
+  penalty?: number
   finalValueOverride?: number
 }
 

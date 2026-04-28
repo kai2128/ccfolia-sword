@@ -15,7 +15,10 @@ export function applyHealToTarget(
   target: ActionTarget,
   ctx: HealContext,
 ): HealResult {
-  const raw = target.finalValueOverride ?? draft.rawValue
+  // override 是 hard override,不再叠加 bonus/penalty;否则叠加并截至 0
+  const raw = target.finalValueOverride !== undefined
+    ? target.finalValueOverride
+    : Math.max(0, draft.rawValue + (target.bonus ?? 0) - (target.penalty ?? 0))
   const newHp = Math.min(ctx.currentHp + raw, ctx.maxHp)
   return {
     healedAmount: newHp - ctx.currentHp,

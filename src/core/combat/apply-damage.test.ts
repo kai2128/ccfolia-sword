@@ -96,6 +96,55 @@ describe('finalValueOverride', () => {
     expect(result.finalDamage).toBe(99)
     expect(result.newHp).toBe(-89)
   })
+
+  it('ignores bonus/penalty when override is set', () => {
+    const action = draft({ rawValue: 10 })
+    const target: ActionTarget = { characterId: 'g1', finalValueOverride: 50, bonus: 5, penalty: 3 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    expect(result.finalDamage).toBe(50)
+  })
+})
+
+describe('bonus / penalty', () => {
+  it('adds bonus after defense', () => {
+    const action = draft({ rawValue: 10 })
+    const target: ActionTarget = { characterId: 'g1', bonus: 4 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    // 10 - 3 (defense) + 4 = 11
+    expect(result.finalDamage).toBe(11)
+  })
+
+  it('subtracts penalty after defense', () => {
+    const action = draft({ rawValue: 10 })
+    const target: ActionTarget = { characterId: 'g1', penalty: 2 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    // 10 - 3 - 2 = 5
+    expect(result.finalDamage).toBe(5)
+  })
+
+  it('combines bonus and penalty', () => {
+    const action = draft({ rawValue: 10 })
+    const target: ActionTarget = { characterId: 'g1', bonus: 5, penalty: 2 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    // 10 - 3 + 5 - 2 = 10
+    expect(result.finalDamage).toBe(10)
+  })
+
+  it('clamps to 0 when penalty exceeds computed', () => {
+    const action = draft({ rawValue: 5 })
+    const target: ActionTarget = { characterId: 'g1', penalty: 10 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    // max(0, 5 - 3 - 10) = 0
+    expect(result.finalDamage).toBe(0)
+  })
+
+  it('applies on magical (no defense subtract)', () => {
+    const action = draft({ damageType: 'magical', rawValue: 10 })
+    const target: ActionTarget = { characterId: 'g1', bonus: 3, penalty: 1 }
+    const result = applyDamageToTarget(action, target, { status: goblin, mods: [], currentHp: 10 }, DEFAULT_STATUS_LABEL_MAP)
+    // 10 + 3 - 1 = 12
+    expect(result.finalDamage).toBe(12)
+  })
 })
 
 describe('validateDraft', () => {
@@ -148,5 +197,23 @@ describe('validateDraft', () => {
 
     const actionB = draft({ mpCost: 0.5, targets: [{ characterId: 'g1' }] })
     expect(() => validateDraft(actionB)).toThrow(InvalidDraftError)
+  })
+
+  it('throws on negative bonus / penalty', () => {
+    const actionA = draft({ targets: [{ characterId: 'g1', bonus: -1 }] })
+    expect(() => validateDraft(actionA)).toThrow(InvalidDraftError)
+
+    const actionB = draft({ targets: [{ characterId: 'g1', penalty: -2 }] })
+    expect(() => validateDraft(actionB)).toThrow(InvalidDraftError)
+  })
+
+  it('throws on non-integer bonus / penalty', () => {
+    const action = draft({ targets: [{ characterId: 'g1', bonus: 1.5 }] })
+    expect(() => validateDraft(action)).toThrow(InvalidDraftError)
+  })
+
+  it('allows 0 bonus and 0 penalty', () => {
+    const action = draft({ targets: [{ characterId: 'g1', bonus: 0, penalty: 0 }] })
+    expect(() => validateDraft(action)).not.toThrow()
   })
 })

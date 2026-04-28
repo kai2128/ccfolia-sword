@@ -27,8 +27,18 @@ export function validateDraft(draft: ActionDraft): void {
   if (draft.mpCost !== undefined && (!Number.isInteger(draft.mpCost) || draft.mpCost < 0))
     throw new InvalidDraftError(`mpCost must be a non-negative integer, got ${draft.mpCost}`)
 
+  for (const target of draft.targets) {
+    if (target.bonus !== undefined && (!Number.isInteger(target.bonus) || target.bonus < 0))
+      throw new InvalidDraftError(`target ${target.characterId} bonus must be a non-negative integer, got ${target.bonus}`)
+    if (target.penalty !== undefined && (!Number.isInteger(target.penalty) || target.penalty < 0))
+      throw new InvalidDraftError(`target ${target.characterId} penalty must be a non-negative integer, got ${target.penalty}`)
+  }
+
   if (draft.resistType !== 'none') {
     for (const target of draft.targets) {
+      // override 直接给最终值,不再需要抵抗判定
+      if (target.finalValueOverride !== undefined)
+        continue
       if (!target.resistResult)
         throw new InvalidDraftError(`target ${target.characterId} missing resistResult`)
     }
@@ -59,9 +69,13 @@ export function applyDamageToTarget(
     }
   }
 
-  const finalDamage = draft.damageType === 'physical'
-    ? Math.max(0, rawAfterResist - resolveDefense(ctx.status, labelMap, ctx.mods))
+  const computed = draft.damageType === 'physical'
+    ? rawAfterResist - resolveDefense(ctx.status, labelMap, ctx.mods)
     : rawAfterResist
+
+  const bonus = target.bonus ?? 0
+  const penalty = target.penalty ?? 0
+  const finalDamage = Math.max(0, computed + bonus - penalty)
 
   return {
     finalDamage,

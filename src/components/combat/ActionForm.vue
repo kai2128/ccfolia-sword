@@ -217,7 +217,8 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
 
   // 抵抗未裁决时 applyDamageToTarget 会抛 `missing resistResult`。这里短路,
   // 让 TargetRow 的 preview 直接显示"待裁决"而不是把异常文案漏给 GM。
-  if (kind.value === 'damage' && resistType.value !== 'none' && !target.resistResult) {
+  // 但若 GM 已直接手改 final(finalValueOverride 已设),override 直接绕过抵抗,可以应用。
+  if (kind.value === 'damage' && resistType.value !== 'none' && !target.resistResult && target.finalValueOverride === undefined) {
     return {
       ref,
       charId: target.characterId,
@@ -258,7 +259,9 @@ function buildPreviewVm(target: ActionTarget): TargetRowVm {
       settings.statusLabelMap,
     )
 
-    const canApply = draft.value.resistType === 'none' || !!target.resistResult
+    const canApply = draft.value.resistType === 'none'
+      || !!target.resistResult
+      || target.finalValueOverride !== undefined
     return {
       ref,
       charId: target.characterId,
@@ -660,6 +663,7 @@ async function applyAll() {
         :hit-value-text="resistType !== 'none' && hitValue !== undefined ? `${hitValueLabel} ${hitValue}` : undefined"
         :resist-type="resistType"
         :preview="vm.preview"
+        :final-value="vm.finalValue"
         :target="vm.target"
         :can-apply="vm.canApply && firestoreReady && !writing"
         @update:target="updateTarget(vm.ref, $event)"
