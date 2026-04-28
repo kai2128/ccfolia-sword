@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 浮层主壳：固定定位 + translate 控制拖动 + 折叠态只留标题栏。
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import logoUrl from '@/assets/logo.png'
 import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
 import BuffLibraryTab from '@/components/tabs/BuffLibraryTab.vue'
@@ -72,21 +73,27 @@ onBeforeUnmount(() => {
   <div
     v-show="settings.panelVisible"
     ref="containerRef"
-    class="fixed left-0 top-0 w-[32rem] flex flex-col border border-white/10 rounded-md bg-surface text-white shadow-xl"
+    class="fixed left-0 top-0 w-[32rem] flex flex-col overflow-hidden border border-white/10 rounded-md bg-surface text-white shadow-xl"
     :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
     :style="{ transform }"
   >
+    <!-- 设置 tab 的背景图:固定在面板内,不会随 TabsContent 的滚动而移动 -->
+    <div
+      v-if="!settings.panelCollapsed && ui.activeTab === 'settings'"
+      class="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat opacity-70"
+      :style="{ backgroundImage: `url(${logoUrl})`, backgroundSize: 'min(95%, 400px)' }"
+      aria-hidden="true"
+    />
     <!-- 标题栏(拖动把手 + 折叠按钮) -->
     <div
       ref="handleRef"
-      class="h-8 flex cursor-move select-none items-center gap-2 border-b border-white/10 px-3"
+      class="relative z-10 h-8 flex cursor-move select-none items-center gap-2 border-b border-white/10 bg-surface px-3"
     >
       <Logo :size="16" class="text-hp" />
       <span class="text-sm font-medium">ccfolia-sword</span>
-      <span class="ml-auto text-xs text-white/40 italic">- by rara</span>
       <button
         type="button"
-        class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+        class="ml-auto h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
         title="收起到 launcher (Alt+S)"
         @click="settings.hidePanel()"
       >
@@ -102,7 +109,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div v-if="!settings.panelCollapsed" class="min-h-0 flex flex-1 flex-col">
+    <div v-if="!settings.panelCollapsed" class="relative z-10 min-h-0 flex flex-1 flex-col">
       <Tabs v-model="ui.activeTab">
         <TabsList class="h-8 flex border-b border-white/10 px-2">
           <TabsTrigger
