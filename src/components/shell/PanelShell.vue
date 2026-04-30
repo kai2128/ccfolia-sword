@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
   <div
     v-show="settings.panelVisible"
     ref="containerRef"
-    class="fixed left-0 top-0 w-[32rem] flex flex-col overflow-hidden border border-white/10 rounded-md bg-surface text-white shadow-xl"
+    class="fixed left-0 top-0 w-[34rem] flex flex-col overflow-hidden border border-white/10 rounded-md bg-surface text-white shadow-xl"
     :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
     :style="{ transform }"
   >

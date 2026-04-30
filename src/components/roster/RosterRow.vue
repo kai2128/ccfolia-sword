@@ -7,6 +7,7 @@ import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
 import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
+import { setCharacterAngle } from '@/ccfolia/writers/set-character-angle'
 import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
 import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import BuffRow from '@/components/buffs/BuffRow.vue'
@@ -94,6 +95,9 @@ const offBoard = computed(() => {
 // hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
 const isHidden = computed(() => props.char.hideStatus === true)
 
+// angle 非 0 即视为倒地(点击切换会归位到 0;缺字段按 0 处理)
+const isDown = computed(() => (Number(props.char.angle) || 0) !== 0)
+
 async function onCellSubmit(raw: string) {
   try {
     await setCharacterCell(props.char._id, raw, settings.grid)
@@ -129,6 +133,16 @@ async function onToggleBoard() {
   catch (e) {
     // eslint-disable-next-line no-alert
     alert(`操作失败:${(e as Error).message}`)
+  }
+}
+
+async function onToggleDown() {
+  try {
+    await setCharacterAngle(props.char._id, isDown.value ? 0 : 90)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`切换倒地失败:${(e as Error).message}`)
   }
 }
 
@@ -229,6 +243,16 @@ async function onClearBuffs() {
         @click="togglePill"
       >
         <span class="i-lucide-chart-bar-big text-3.5" />
+      </button>
+
+      <button
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+        :class="isDown ? 'text-debuff' : 'text-white/30'"
+        :title="isDown ? '已倒地 · 点击站起' : '倒地'"
+        @click="onToggleDown"
+      >
+        <span :class="isDown ? 'i-mdi-human-handsdown' : 'i-mdi-human'" class="text-3.5" />
       </button>
 
       <button
