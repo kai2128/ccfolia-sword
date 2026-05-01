@@ -25,6 +25,7 @@ const anchorOptions = [
 const colsDraft = ref<number | string>(settings.grid.cols)
 const rowsDraft = ref<number | string>(settings.grid.rows)
 const cellSizeDraft = ref<number | string>(settings.grid.cellSizePx)
+const gridSizeDraft = ref<number | string>(settings.grid.gridSize)
 const originXDraft = ref<number | string>(settings.grid.originPx.x)
 const originYDraft = ref<number | string>(settings.grid.originPx.y)
 
@@ -36,6 +37,9 @@ watch(() => settings.grid.rows, (v) => {
 })
 watch(() => settings.grid.cellSizePx, (v) => {
   cellSizeDraft.value = v
+})
+watch(() => settings.grid.gridSize, (v) => {
+  gridSizeDraft.value = v
 })
 watch(() => settings.grid.originPx.x, (v) => {
   originXDraft.value = v
@@ -52,6 +56,9 @@ function commitRows() {
 }
 function commitCellSize() {
   settings.setGrid({ cellSizePx: Number(cellSizeDraft.value) })
+}
+function commitGridSize() {
+  settings.setGrid({ gridSize: Number(gridSizeDraft.value) })
 }
 function commitOriginX() {
   settings.setGrid({ originPx: { ...settings.grid.originPx, x: Number(originXDraft.value) } })
@@ -207,6 +214,15 @@ function resetAllData() {
             type="number"
             min="1"
             @change="commitCellSize"
+          />
+        </Field>
+        <Field label="Grid Size">
+          <Input
+            v-model="gridSizeDraft"
+            type="number"
+            min="1"
+            step="1"
+            @change="commitGridSize"
           />
         </Field>
         <Field label="Anchor">
