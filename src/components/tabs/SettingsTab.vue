@@ -184,15 +184,6 @@ function resetAllData() {
         显示在画布上
       </label>
 
-      <p class="flex items-start gap-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/60 leading-relaxed">
-        <span class="i-lucide-info mt-0.5 flex-shrink-0 text-3 text-accent" />
-        <span>
-          要让「从画布校准」映射到 SW2.5 标准 19×34,请在 ccfolia 房间设置里
-          <span class="text-white">Change the foreground and background &gt; Field settings — Width: 38 &amp; Height: 68</span>。
-          sword 一格 = ccfolia 两格。
-        </span>
-      </p>
-
       <div class="grid grid-cols-2 gap-2">
         <Field label="Cols">
           <Input

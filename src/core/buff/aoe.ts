@@ -4,13 +4,12 @@ import type { BuffInstance } from '@/types/buff-v3'
 import { pxToCell } from '@/core/range'
 
 // piece.x/y 是立绘左上(ccfolia Piece.tsx + grid-detect 注释),多格立绘的"中心"应取 bbox 几何中心。
-// widthCells / heightCells 的单位是 ccfolia 格,sword 一格 = 2 ccfolia 格,所以 ccfolia 一格 px = cellSizePx / 2。
+// widthCells / heightCells 的单位是 ccfolia 格,sword 一格 = ccfolia 一格,所以直接乘 cellSizePx 即 piece 像素尺寸。
 // 和 RangeCircle.vue 的绘制口径保持一致,否则 piece 的覆盖与可视圈会错位。
 function pieceCenterPx(p: PieceSnapshot, grid: GridConfig): { x: number, y: number } {
-  const ccfoliaCellPx = grid.cellSizePx / 2
   return {
-    x: p.x + (p.widthCells * ccfoliaCellPx) / 2,
-    y: p.y + (p.heightCells * ccfoliaCellPx) / 2,
+    x: p.x + (p.widthCells * grid.cellSizePx) / 2,
+    y: p.y + (p.heightCells * grid.cellSizePx) / 2,
   }
 }
 

@@ -35,9 +35,9 @@ export function detectGridFromCanvas(canvas: HTMLElement): GridConfig | null {
   const height = Number.parseFloat(field.style.height) || 0
   if (ccfoliaCellSize <= 0 || width <= 0 || height <= 0)
     return null
-  // sword 一格 = ccfolia 两格(cellSize * 2 = 48px)。这样在 SW2.5 标准 19×34 逻辑棋盘下,
-  // 用户需要把 ccfolia 房间的 fieldWidth/Height 设为 38×68,校准就能映射到 19×34。
-  const cellSizePx = ccfoliaCellSize * 2
+  // sword 一格 = ccfolia 一格(cellSize = 24px)。SW2.5 标准 19×34 逻辑棋盘下,
+  // 用户把 ccfolia 房间的 fieldWidth/Height 设为 19×34,校准就能 1:1 映射。
+  const cellSizePx = ccfoliaCellSize
   return {
     originPx: { x: left, y: top },
     cellSizePx,

@@ -81,16 +81,23 @@ const buffs = computed(() =>
 
 const settings = useSettingsStore()
 
-// 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")
+// 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")。
+// 用 piece box 几何中心而非左上角(char.x/y 是左上角),和 setCharacterCell / moveCharacterByCells 一致。
+function boxCenter() {
+  const grid = settings.grid
+  const w = typeof props.char.width === 'number' && Number.isFinite(props.char.width) ? props.char.width : 1
+  const h = typeof props.char.height === 'number' && Number.isFinite(props.char.height) ? props.char.height : 1
+  return {
+    x: (props.char.x as number) + (w * grid.cellSizePx) / 2,
+    y: (props.char.y as number) + (h * grid.cellSizePx) / 2,
+  }
+}
 const cellText = computed(() => {
-  const cell = pxToCell({ x: props.char.x as number, y: props.char.y as number }, settings.grid)
+  const cell = pxToCell(boxCenter(), settings.grid)
   return cell ? formatCellRef(cell) : ''
 })
 
-const offBoard = computed(() => {
-  const cell = pxToCell({ x: props.char.x as number, y: props.char.y as number }, settings.grid)
-  return cell === null
-})
+const offBoard = computed(() => pxToCell(boxCenter(), settings.grid) === null)
 
 // hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
 const isHidden = computed(() => props.char.hideStatus === true)

@@ -126,7 +126,7 @@ describe('computeCoverage', () => {
   })
 
   it('uses piece bounding-box center for multi-cell pieces', () => {
-    // widthCells/heightCells 单位是 ccfolia 格(= sword cellSize/2),big 居中后映射到 sword 格 {5,5}。
+    // widthCells/heightCells 单位是 ccfolia 格(= sword 格),2×2 piece 几何中心在 (6×40, 6×40)。
     const big: PieceSnapshot = {
       characterId: 'big',
       x: 5 * 40,

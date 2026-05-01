@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getCharacterFromElement } from '@/ccfolia/fiber-reader'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -19,15 +20,27 @@ const centerPiece = computed(() =>
 // 即:r=1 仅自身 1 格,r=2 是 3×3 区域 3 格宽,r=3 是 5×5 区域 5 格宽。
 const diameterPx = computed(() => (2 * props.radius - 1) * settings.grid.cellSizePx)
 
+// 每个角色立绘有自己的渲染尺寸(widthCells×heightCells 各异,且 ccfolia 可能因图片缩放与公式偏差),
+// 优先用 .movable.offsetWidth/Height 实测;读不到再回落到 widthCells × cellSizePx。
+function measurePieceSize(charId: string): { width: number, height: number } | null {
+  for (const el of document.querySelectorAll<HTMLElement>('.movable')) {
+    const c = getCharacterFromElement(el)
+    if (c?._id === charId && el.offsetWidth > 0)
+      return { width: el.offsetWidth, height: el.offsetHeight }
+  }
+  return null
+}
+
 const style = computed(() => {
   const p = centerPiece.value
   if (!p)
     return { display: 'none' as const }
-  // p.widthCells / heightCells 来自 ccfolia,单位是 ccfolia 格;sword 一格 = 2 ccfolia 格,
-  // 所以 ccfolia 一格 px = cellSize / 2。不要直接乘 settings.grid.cellSizePx(之前那样算会差一倍)。
-  const ccfoliaCellPx = settings.grid.cellSizePx / 2
-  const centerX = p.x + (p.widthCells * ccfoliaCellPx) / 2
-  const centerY = p.y + (p.heightCells * ccfoliaCellPx) / 2
+  const cellPx = settings.grid.cellSizePx
+  const measured = measurePieceSize(props.characterId)
+  const widthPx = measured?.width ?? p.widthCells * cellPx
+  const heightPx = measured?.height ?? p.heightCells * cellPx
+  const centerX = p.x + widthPx / 2
+  const centerY = p.y + heightPx / 2
   return {
     left: `${centerX - diameterPx.value / 2}px`,
     top: `${centerY - diameterPx.value / 2}px`,

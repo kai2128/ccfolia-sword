@@ -47,8 +47,8 @@ interface OverlayEntry {
   buffs: BuffInstance[]
 }
 
-// ccfolia 实际 cellSize 恒为 24(app state 硬编码);sword 一格 = ccfolia 两格,所以
-// settings.grid.cellSizePx 默认 48。房间 fieldWidth/Height=38/68 时,校准正好给出 19×34。
+// ccfolia 实际 cellSize 恒为 24(app state 硬编码);sword 一格 = ccfolia 一格,所以
+// settings.grid.cellSizePx 默认 24。房间 fieldWidth/Height=19/34 时,校准正好给出 19×34。
 // 大概率对不上。直接从 .movable.offsetWidth 读真实 px,绕开配置校准。
 function collectMovableSizes(): Map<string, number> {
   const out = new Map<string, number>()
@@ -83,8 +83,8 @@ const entries = computed<OverlayEntry[]>(() => {
       const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
       const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
       const buffs = [...self, ...aoe]
-      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × ccfolia 一格(= cellSize/2)
-      const widthPx = sizeMap.get(p.characterId) ?? (p.widthCells * settings.grid.cellSizePx) / 2
+      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × cellSizePx
+      const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
       return {
         key: p.characterId,
         centerX: p.x + widthPx / 2,

@@ -46,8 +46,8 @@ function pieceCenter(charId: string): { x: number, y: number } | null {
   if (!p)
     return null
   const measured = getMovableSizes().get(charId)
-  // 回落:校准格 px 的一半(ccfolia 一格 = sword 一格的 1/2)
-  const fallbackCell = settings.grid.cellSizePx / 2
+  // 回落:widthCells × cellSizePx(sword 一格 = ccfolia 一格)
+  const fallbackCell = settings.grid.cellSizePx
   const widthPx = measured?.width ?? p.widthCells * fallbackCell
   const heightPx = measured?.height ?? p.heightCells * fallbackCell
   return { x: p.x + widthPx / 2, y: p.y + heightPx / 2 }
