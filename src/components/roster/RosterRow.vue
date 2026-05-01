@@ -15,7 +15,7 @@ import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
-import { formatCellRef, pieceBoxCenter, pxToCell } from '@/core/range'
+import { formatCellRef, pieceBottomCenter, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
@@ -83,15 +83,17 @@ const buffs = computed(() =>
 const settings = useSettingsStore()
 
 // 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")。
-// 用 piece box 几何中心而非左上角(char.x/y 是左上角),和 setCharacterCell / moveCharacterByCells 一致。
+// 用 piece 底边中点(脚下),和 setCharacterCell / moveCharacterByCells / useOnCanvasIds 锚点一致。
+// 底边中点正好落在 cell 底边时,floor 会推到下一格,所以减去一个 epsilon。
 const currentCell = computed(() => {
   const grid = settings.grid
-  return pxToCell(pieceBoxCenter({
+  const bottomCenter = pieceBottomCenter({
     x: props.char.x as number,
     y: props.char.y as number,
     widthCells: num(props.char.width, 1),
     heightCells: num(props.char.height, 1),
-  }, grid), grid)
+  }, grid)
+  return pxToCell({ x: bottomCenter.x, y: bottomCenter.y - 0.001 }, grid)
 })
 const cellText = computed(() => currentCell.value ? formatCellRef(currentCell.value) : '')
 const offBoard = computed(() => currentCell.value === null)

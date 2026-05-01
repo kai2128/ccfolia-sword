@@ -12,6 +12,8 @@ export interface CellRef {
 export interface GridConfig {
   cols: number
   rows: number
+  // ccfolia 的视觉格缩放。gridSize=2 时棋盘一格是 48px,但 character width/height 仍是 24px 原生单位。
+  gridSize: number
   cellSizePx: number
   originPx: { x: number, y: number }
   pieceAnchor: 'center' | 'top-left'
@@ -22,6 +24,7 @@ export interface GridConfig {
 export const DEFAULT_GRID_CONFIG: GridConfig = {
   cols: 19,
   rows: 34,
+  gridSize: 1,
   cellSizePx: 24,
   originPx: { x: 0, y: 0 },
   pieceAnchor: 'center',

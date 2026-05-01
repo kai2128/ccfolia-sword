@@ -57,6 +57,7 @@ function normalizeGridConfig(raw: unknown): GridConfig {
   return {
     cols: normalizeLength(Number(v.cols ?? Number.NaN), DEFAULT_GRID_CONFIG.cols),
     rows: normalizeLength(Number(v.rows ?? Number.NaN), DEFAULT_GRID_CONFIG.rows),
+    gridSize: normalizeLength(Number(v.gridSize ?? Number.NaN), DEFAULT_GRID_CONFIG.gridSize),
     cellSizePx: normalizeLength(Number(v.cellSizePx ?? Number.NaN), DEFAULT_GRID_CONFIG.cellSizePx),
     originPx: {
       x: normalizeCoord(typeof origin.x === 'number' ? origin.x : undefined, DEFAULT_GRID_CONFIG.originPx.x),

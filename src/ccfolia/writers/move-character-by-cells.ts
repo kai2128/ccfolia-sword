@@ -4,12 +4,15 @@ import { num } from '@/ccfolia/pieces-store'
 import { optimisticUpdateCharacter } from '@/ccfolia/redux-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { getFirestoreApi } from '@/ccfolia/webpack-hook'
-import { boxTopLeftForCellCenter, cellToPx, pieceBoxCenter, pxToCell } from '@/core/range'
+import { boxTopLeftForCellBottomCenter, cellToPx, pieceBottomCenter, pxToCell } from '@/core/range'
 
 type CharLike = { _id: string } & Record<string, unknown>
 
-// 按格做相对位移。语义和 setCharacterCell 一致:piece box 中心对齐 cell 中心。
-// 当前在板外直接抛错(UI 把方向键禁掉,所以正常路径不会走到)。越界自动 clamp 到板内边缘,避免一不小心一脚迈出板外。
+// 脚下锚点落在 cell 底边时,取回当前格需要略微回到格内侧。
+const CELL_BOUNDARY_EPS = 0.001
+
+// 按格做相对位移。语义和 setCharacterCell 一致:typed cell 的底边中点 = piece box 底边中点(脚下)。
+// 当前在板外直接抛错(UI 把方向键禁掉,所以正常路径不会走到)。越界只限制锚点格位,允许 box 溢出棋盘边缘。
 export async function moveCharacterByCells(
   characterId: string,
   dx: number,
@@ -21,7 +24,8 @@ export async function moveCharacterByCells(
     throw new Error(`未找到角色:${characterId}`)
 
   const size = { widthCells: num(char.width, 1), heightCells: num(char.height, 1) }
-  const cur = pxToCell(pieceBoxCenter({ x: char.x as number, y: char.y as number, ...size }, grid), grid)
+  const bottomCenter = pieceBottomCenter({ x: char.x as number, y: char.y as number, ...size }, grid)
+  const cur = pxToCell({ x: bottomCenter.x, y: bottomCenter.y - CELL_BOUNDARY_EPS }, grid)
   if (!cur)
     throw new Error('角色在板外,无法按格相对移动')
 
@@ -30,7 +34,8 @@ export async function moveCharacterByCells(
   if (nextCol === cur.col && nextRow === cur.row)
     return
 
-  const { x, y } = boxTopLeftForCellCenter(cellToPx({ col: nextCol, row: nextRow }, grid), size, grid)
+  const targetTopLeft = boxTopLeftForCellBottomCenter(cellToPx({ col: nextCol, row: nextRow }, grid), size, grid)
+  const { x, y } = targetTopLeft
 
   const roomId = getCurrentRoomId()
   if (!roomId)

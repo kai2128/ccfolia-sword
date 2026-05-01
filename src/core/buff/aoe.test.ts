@@ -7,17 +7,19 @@ import { computeCoverage } from './aoe'
 const GRID: GridConfig = {
   cols: 19,
   rows: 34,
+  gridSize: 1,
   cellSizePx: 40,
   originPx: { x: 0, y: 0 },
   pieceAnchor: 'center',
 }
 
 function piece(id: string, col: number, row: number): PieceSnapshot {
-  // center-anchor: (col + 0.5) * 40, (row + 0.5) * 40
+  // 让 1×1 piece 的 box 底边中点落在 cell (col, row) 中心。
+  // bottom-center = (x + 20, y + 40) = ((col+0.5)*40, (row+0.5)*40),所以 x=col*40, y=(row-0.5)*40。
   return {
     characterId: id,
-    x: (col + 0.5) * 40,
-    y: (row + 0.5) * 40,
+    x: col * 40,
+    y: (row - 0.5) * 40,
     widthCells: 1,
     heightCells: 1,
     z: 0,
@@ -125,12 +127,13 @@ describe('computeCoverage', () => {
     expect(cov.has('near')).toBe(true)
   })
 
-  it('uses piece bounding-box center for multi-cell pieces', () => {
-    // widthCells/heightCells 单位是 ccfolia 格(= sword 格),2×2 piece 几何中心在 (6×40, 6×40)。
+  it('uses piece bottom-center for multi-cell pieces', () => {
+    // 2×2 piece (widthPx=heightPx=80),想让 box 底边中点落在 cell (5,5) 中心 (220,220):
+    // x = 220 - 40 = 180,y = 220 - 80 = 140。
     const big: PieceSnapshot = {
       characterId: 'big',
-      x: 5 * 40,
-      y: 5 * 40,
+      x: 180,
+      y: 140,
       widthCells: 2,
       heightCells: 2,
       z: 0,

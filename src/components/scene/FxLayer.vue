@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { FxEvent } from '@/infra/fx-bus'
 import { onMounted, onUnmounted, ref } from 'vue'
-import { getMovableSizes } from '@/ccfolia/movable-size'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
+import { pieceStandingCellCenter } from '@/core/range'
 import { onFx } from '@/infra/fx-bus'
 import { useSettingsStore } from '@/stores/settings'
 import FxHeal from './FxHeal.vue'
@@ -25,11 +25,8 @@ function pieceCenter(charId: string): { x: number, y: number } | null {
   const p = pieces.byCharacterId(charId)
   if (!p)
     return null
-  const measured = getMovableSizes().get(charId)
-  const cellPx = settings.grid.cellSizePx
-  const widthPx = measured?.width ?? p.widthCells * cellPx
-  const heightPx = measured?.height ?? p.heightCells * cellPx
-  return { x: p.x + widthPx / 2, y: p.y + heightPx / 2 }
+  // 浮字从站立格中心升起,与 range / AoE 一致。
+  return pieceStandingCellCenter(p, settings.grid)
 }
 
 // slash ~1100ms(浮字),heal 去掉粒子后 ~1300ms,多给一点尾防 forwards 末态被剪。

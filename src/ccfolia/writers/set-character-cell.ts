@@ -4,12 +4,12 @@ import { num } from '@/ccfolia/pieces-store'
 import { optimisticUpdateCharacter } from '@/ccfolia/redux-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { getFirestoreApi } from '@/ccfolia/webpack-hook'
-import { boxTopLeftForCellCenter, cellToPx, parseCellRef } from '@/core/range'
+import { boxTopLeftForCellBottomCenter, cellToPx, parseCellRef } from '@/core/range'
 
 type CharLike = { _id: string } & Record<string, unknown>
 
-// 把 character piece 移到指定格位:语义是 piece 的 box 中心对齐 cell 中心(boxTopLeftForCellCenter 反推 .movable 左上角)。
-// 走 setDoc(rooms/{roomId}/characters/{charId}, {x,y}),与 commitParams / patchStatus 同款 doc 路径。Redux 乐观先动,失败回滚。
+// 把 character piece 移到指定格位:typed cell 的底边中点 = piece box 底边中点(脚下)。
+// 走 setDoc(rooms/{roomId}/characters/{charId}, {x,y}),Redux 乐观先动,失败回滚。
 export async function setCharacterCell(
   characterId: string,
   cellRef: string,
@@ -34,7 +34,8 @@ export async function setCharacterCell(
     throw new Error(`角色不存在:${characterId}`)
 
   const size = { widthCells: num(char.width, 1), heightCells: num(char.height, 1) }
-  const { x, y } = boxTopLeftForCellCenter(cellToPx(cell, grid), size, grid)
+  const targetTopLeft = boxTopLeftForCellBottomCenter(cellToPx(cell, grid), size, grid)
+  const { x, y } = targetTopLeft
 
   const charLike = char as unknown as CharLike
   const dispatched = optimisticUpdateCharacter({ ...charLike, x, y })

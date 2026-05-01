@@ -1,7 +1,7 @@
 import type { PieceSnapshot } from '@/ccfolia/pieces-store'
 import type { GridConfig } from '@/core/range/types'
 import type { BuffInstance } from '@/types/buff-v3'
-import { pieceBoxCenter, pxToCell } from '@/core/range'
+import { pieceStandingCellCenter, pxToCell } from '@/core/range'
 
 // 输入:AoE buff + 当前所有 pieces + grid 配置
 // 输出:被覆盖的 characterId 集合(含中心自身)
@@ -18,7 +18,7 @@ export function computeCoverage(
   const center = pieces.find(p => p.characterId === attach.centerCharacterId)
   if (!center)
     return new Set()
-  const centerPx = pieceBoxCenter(center, grid)
+  const centerPx = pieceStandingCellCenter(center, grid)
   if (!pxToCell(centerPx, grid))
     return new Set() // 中心 piece 不在格网内,覆盖无意义
 
@@ -28,7 +28,7 @@ export function computeCoverage(
   const pxRadiusSq = pxRadius * pxRadius
   const auto = new Set<string>()
   for (const p of pieces) {
-    const pxTarget = pieceBoxCenter(p, grid)
+    const pxTarget = pieceStandingCellCenter(p, grid)
     if (!pxToCell(pxTarget, grid))
       continue // 脱离格网的 piece 不算(保留之前 off-grid 行为)
     const dx = pxTarget.x - centerPx.x

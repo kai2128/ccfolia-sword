@@ -6,6 +6,7 @@ import { cellToPx, pxToCell } from './grid'
 const cfgCenter: GridConfig = {
   cols: 19,
   rows: 34,
+  gridSize: 1,
   cellSizePx: 50,
   originPx: { x: 0, y: 0 },
   pieceAnchor: 'center',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getMovableSizes } from '@/ccfolia/movable-size'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
+import { pieceStandingCellCenter } from '@/core/range'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
@@ -24,13 +24,11 @@ const style = computed(() => {
   const p = centerPiece.value
   if (!p)
     return { display: 'none' as const }
-  const cellPx = settings.grid.cellSizePx
-  const measured = getMovableSizes().get(props.characterId)
-  const widthPx = measured?.width ?? p.widthCells * cellPx
-  const heightPx = measured?.height ?? p.heightCells * cellPx
+  // 圆心锚在站立格中心,与 Fx / AoE 距离判定一致。
+  const center = pieceStandingCellCenter(p, settings.grid)
   return {
-    left: `${p.x + widthPx / 2 - diameterPx.value / 2}px`,
-    top: `${p.y + heightPx / 2 - diameterPx.value / 2}px`,
+    left: `${center.x - diameterPx.value / 2}px`,
+    top: `${center.y - diameterPx.value / 2}px`,
     width: `${diameterPx.value}px`,
     height: `${diameterPx.value}px`,
   }
