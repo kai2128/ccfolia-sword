@@ -16,7 +16,7 @@ export interface PieceSnapshot {
   hideStatus: boolean
 }
 
-function num(v: unknown, fallback: number): number {
+export function num(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback
 }
 

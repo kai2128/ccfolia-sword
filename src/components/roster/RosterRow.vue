@@ -3,6 +3,7 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { num } from '@/ccfolia/pieces-store'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
@@ -14,7 +15,7 @@ import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
-import { formatCellRef, pxToCell } from '@/core/range'
+import { formatCellRef, pieceBoxCenter, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
@@ -83,21 +84,17 @@ const settings = useSettingsStore()
 
 // 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")。
 // 用 piece box 几何中心而非左上角(char.x/y 是左上角),和 setCharacterCell / moveCharacterByCells 一致。
-function boxCenter() {
+const currentCell = computed(() => {
   const grid = settings.grid
-  const w = typeof props.char.width === 'number' && Number.isFinite(props.char.width) ? props.char.width : 1
-  const h = typeof props.char.height === 'number' && Number.isFinite(props.char.height) ? props.char.height : 1
-  return {
-    x: (props.char.x as number) + (w * grid.cellSizePx) / 2,
-    y: (props.char.y as number) + (h * grid.cellSizePx) / 2,
-  }
-}
-const cellText = computed(() => {
-  const cell = pxToCell(boxCenter(), settings.grid)
-  return cell ? formatCellRef(cell) : ''
+  return pxToCell(pieceBoxCenter({
+    x: props.char.x as number,
+    y: props.char.y as number,
+    widthCells: num(props.char.width, 1),
+    heightCells: num(props.char.height, 1),
+  }, grid), grid)
 })
-
-const offBoard = computed(() => pxToCell(boxCenter(), settings.grid) === null)
+const cellText = computed(() => currentCell.value ? formatCellRef(currentCell.value) : '')
+const offBoard = computed(() => currentCell.value === null)
 
 // hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
 const isHidden = computed(() => props.char.hideStatus === true)

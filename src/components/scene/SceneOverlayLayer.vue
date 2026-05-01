@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BuffInstance } from '@/types/buff-v3'
 import { computed } from 'vue'
-import { getCharacterFromElement } from '@/ccfolia/fiber-reader'
+import { getMovableSizes } from '@/ccfolia/movable-size'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
@@ -47,21 +47,8 @@ interface OverlayEntry {
   buffs: BuffInstance[]
 }
 
-// ccfolia 实际 cellSize 恒为 24(app state 硬编码);sword 一格 = ccfolia 一格,所以
-// settings.grid.cellSizePx 默认 24。房间 fieldWidth/Height=19/34 时,校准正好给出 19×34。
-// 大概率对不上。直接从 .movable.offsetWidth 读真实 px,绕开配置校准。
-function collectMovableSizes(): Map<string, number> {
-  const out = new Map<string, number>()
-  for (const el of document.querySelectorAll<HTMLElement>('.movable')) {
-    const char = getCharacterFromElement(el)
-    if (char?._id && el.offsetWidth > 0)
-      out.set(char._id, el.offsetWidth)
-  }
-  return out
-}
-
 const entries = computed<OverlayEntry[]>(() => {
-  const sizeMap = collectMovableSizes()
+  const sizeMap = getMovableSizes()
   return pieces.list
     // ccfolia 的 invisible(立绘不显示)直接不渲染;
     // hideStatus(盤上のキャラクター一覧に表示しない)不参与,本指示器走自己的 toggle。
@@ -84,7 +71,7 @@ const entries = computed<OverlayEntry[]>(() => {
       const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
       const buffs = [...self, ...aoe]
       // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × cellSizePx
-      const widthPx = sizeMap.get(p.characterId) ?? p.widthCells * settings.grid.cellSizePx
+      const widthPx = sizeMap.get(p.characterId)?.width ?? p.widthCells * settings.grid.cellSizePx
       return {
         key: p.characterId,
         centerX: p.x + widthPx / 2,
