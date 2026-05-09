@@ -8,6 +8,8 @@ export const BUILTIN_TAGS: TagDefinition[] = [
     icon: 'i-lucide-shield',
     order: 0,
     builtin: true,
+    autoKnockdownOnHpZero: true,
+    autoRestoreOnMoveOutside: false,
   },
   {
     id: 'builtin.enemy',
@@ -16,6 +18,8 @@ export const BUILTIN_TAGS: TagDefinition[] = [
     icon: 'i-lucide-swords',
     order: 1,
     builtin: true,
+    autoKnockdownOnHpZero: true,
+    autoRestoreOnMoveOutside: true,
   },
   {
     id: 'builtin.neutral',

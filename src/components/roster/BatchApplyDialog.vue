@@ -239,6 +239,46 @@ function resolveBatchInput(read: { value: number, max: number }, raw: string): n
   return resolveNewValue(read.value, { mode: 'absolute', input: evaluated, max: read.max, clampMax: hpMp.clampMax })
 }
 
+// 「HP 回满」/「MP 回满」快捷:忽略 input 框,把选中 part 的目标 slot 置 max。
+// 已经在 max(或 max 缺失/非有限数)的 part 跳过,避免无意义写。
+async function applyRestoreToMax(slot: SlotKind) {
+  if (selectedCount.value === 0 || hpMpBusy.value)
+    return
+
+  const labelMap = settings.statusLabelMap
+  const changes: StatusChange[] = []
+
+  for (const actor of selectedActors.value) {
+    if (!actor.part)
+      continue
+    if (slot === 'mp' && !actor.part.mpLabel)
+      continue
+    const read = readStatusSlot(actor.char.status, slot, labelMap, actor.part.partKey)
+    if (!read)
+      continue
+    if (!Number.isFinite(read.max))
+      continue
+    if (read.value === read.max)
+      continue
+    changes.push({ char: actor.char, slot, newValue: read.max, partPrefix: actor.part.partKey })
+  }
+
+  if (changes.length === 0)
+    return
+
+  hpMpBusy.value = true
+  try {
+    await applyStatusChangesBatch(changes, labelMap)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`回满失败:${(e as Error).message}`)
+  }
+  finally {
+    hpMpBusy.value = false
+  }
+}
+
 async function applyHpMp() {
   if (selectedCount.value === 0 || hpMpBusy.value)
     return
@@ -632,8 +672,27 @@ async function writeRow(
           </div>
           <label class="flex items-center gap-2 text-xs text-white/70">
             <Checkbox v-model="hpMp.clampMax" />
-            不超过上限(开启以阻止过量治疗,默认关闭与单角色编辑一致)
+            不超过上限(开启以阻止过量治疗/伤害)
           </label>
+          <div class="flex items-center gap-2 pt-1">
+            <span class="text-[11px] text-white/40">快捷:</span>
+            <Button
+              size="xs"
+              :disabled="selectedCount === 0 || hpMpBusy"
+              title="把选中 part 的 HP 一次性置为 max(忽略数值输入框)"
+              @click="applyRestoreToMax('hp')"
+            >
+              HP 回满 ({{ selectedCount }})
+            </Button>
+            <Button
+              size="xs"
+              :disabled="selectedCount === 0 || hpMpBusy"
+              title="把选中 part 的 MP 一次性置为 max(忽略数值输入框);无 MP slot 的 part 跳过"
+              @click="applyRestoreToMax('mp')"
+            >
+              MP 回满 ({{ selectedCount }})
+            </Button>
+          </div>
           <p class="text-[11px] text-white/40">
             多部位角色按勾选的 part 各自写入;MP 仅写有 MP slot 的 part。
           </p>

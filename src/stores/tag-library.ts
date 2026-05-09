@@ -4,7 +4,10 @@ import { BUILTIN_TAGS } from '@/core/tag'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 import { isBuiltinTagId } from '@/types/tag'
 
-type BuiltinOverrides = Record<string, Partial<Pick<TagDefinition, 'label' | 'color' | 'icon' | 'order'>>>
+type BuiltinOverrides = Record<
+  string,
+  Partial<Pick<TagDefinition, 'label' | 'color' | 'icon' | 'order' | 'autoKnockdownOnHpZero' | 'autoRestoreOnMoveOutside'>>
+>
 
 interface TagLibraryState {
   custom: Record<string, TagDefinition>
@@ -40,6 +43,8 @@ function normalizeCustomDef(raw: unknown): TagDefinition | null {
     icon: typeof value.icon === 'string' ? value.icon : undefined,
     order: normalizeOrder(value.order),
     builtin: false,
+    autoKnockdownOnHpZero: value.autoKnockdownOnHpZero === true,
+    autoRestoreOnMoveOutside: value.autoRestoreOnMoveOutside === true,
   }
 }
 
@@ -58,6 +63,10 @@ function normalizeOverride(raw: unknown): BuiltinOverrides[string] {
     out.color = value.color
   if (typeof value.icon === 'string')
     out.icon = value.icon
+  if (typeof value.autoKnockdownOnHpZero === 'boolean')
+    out.autoKnockdownOnHpZero = value.autoKnockdownOnHpZero
+  if (typeof value.autoRestoreOnMoveOutside === 'boolean')
+    out.autoRestoreOnMoveOutside = value.autoRestoreOnMoveOutside
 
   return out
 }
@@ -72,6 +81,8 @@ function applyOverride(base: TagDefinition, override?: BuiltinOverrides[string])
     color: override.color ?? base.color,
     icon: override.icon ?? base.icon,
     order: override.order ?? base.order,
+    autoKnockdownOnHpZero: override.autoKnockdownOnHpZero ?? base.autoKnockdownOnHpZero,
+    autoRestoreOnMoveOutside: override.autoRestoreOnMoveOutside ?? base.autoRestoreOnMoveOutside,
   }
 }
 

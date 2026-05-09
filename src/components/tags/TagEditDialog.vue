@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TagDefinition } from '@/types/tag'
 import { ref, watch } from 'vue'
-import { Button, Dialog, Field, Input, Label } from '@/components/ui'
+import { Button, Dialog, Field, Input, Label, Switch } from '@/components/ui'
 import { useTagLibraryStore } from '@/stores/tag-library'
 import { isBuiltinTagId } from '@/types/tag'
 
@@ -16,7 +16,14 @@ const emit = defineEmits<{
 }>()
 
 const lib = useTagLibraryStore()
-const form = ref({ label: '', color: '#4b6ef7', icon: '', order: 10 })
+const form = ref({
+  label: '',
+  color: '#4b6ef7',
+  icon: '',
+  order: 10,
+  autoKnockdownOnHpZero: false,
+  autoRestoreOnMoveOutside: false,
+})
 
 function resetFormFromProps() {
   if (props.tag) {
@@ -25,6 +32,8 @@ function resetFormFromProps() {
       color: props.tag.color,
       icon: props.tag.icon ?? '',
       order: props.tag.order,
+      autoKnockdownOnHpZero: props.tag.autoKnockdownOnHpZero === true,
+      autoRestoreOnMoveOutside: props.tag.autoRestoreOnMoveOutside === true,
     }
     return
   }
@@ -34,6 +43,8 @@ function resetFormFromProps() {
     color: '#4b6ef7',
     icon: '',
     order: 10,
+    autoKnockdownOnHpZero: false,
+    autoRestoreOnMoveOutside: false,
   }
 }
 
@@ -57,6 +68,8 @@ function save() {
     color: form.value.color,
     icon: form.value.icon.trim() || undefined,
     order: Number.isFinite(Number(form.value.order)) ? Number(form.value.order) : 10,
+    autoKnockdownOnHpZero: form.value.autoKnockdownOnHpZero,
+    autoRestoreOnMoveOutside: form.value.autoRestoreOnMoveOutside,
   }
 
   if (props.tag) {
@@ -113,6 +126,30 @@ function resetBuiltin() {
         <Label>Order（越小越优先作为主色）</Label>
         <Input v-model.number="form.order" type="number" />
       </Field>
+
+      <div class="flex flex-col gap-2 border border-white/10 rounded bg-black/20 p-2">
+        <label class="flex items-center gap-2 text-xs text-white/80">
+          <Switch
+            :model-value="form.autoKnockdownOnHpZero"
+            @update:model-value="form.autoKnockdownOnHpZero = $event ?? false"
+          />
+          HP 归零自动倒地（旋转 90°）
+        </label>
+        <p class="text-[11px] text-white/60 leading-relaxed">
+          带本 tag 的角色 HP 跌到 0 时旋转 token (90°)，复活时转回正立 (0°)。
+        </p>
+
+        <label class="flex items-center gap-2 text-xs text-white/80">
+          <Switch
+            :model-value="form.autoRestoreOnMoveOutside"
+            @update:model-value="form.autoRestoreOnMoveOutside = $event ?? false"
+          />
+          移出场外自动回满 HP / MP
+        </label>
+        <p class="text-[11px] text-white/60 leading-relaxed">
+          带本 tag 的角色脚下离开主板格网时，所有部位的 HP / MP 回满至 max。
+        </p>
+      </div>
 
       <div class="flex items-center justify-between gap-2 pt-2">
         <Button

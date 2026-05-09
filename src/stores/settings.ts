@@ -28,7 +28,6 @@ interface SettingsState {
   grid: GridConfig
   gridOverlayVisible: boolean
   statusLabelMap: StatusLabelMap
-  autoRotateAllyOnDown: boolean
   combatFxEnabled: boolean
 }
 
@@ -144,7 +143,6 @@ export const useSettingsStore = defineStore('settings', {
     grid: normalizeGridConfig(undefined),
     gridOverlayVisible: false,
     statusLabelMap: normalizeStatusLabelMap(undefined),
-    autoRotateAllyOnDown: true,
     combatFxEnabled: true,
   }),
   actions: {
@@ -200,9 +198,6 @@ export const useSettingsStore = defineStore('settings', {
     setGridOverlayVisible(v: boolean) {
       this.gridOverlayVisible = v
     },
-    setAutoRotateAllyOnDown(v: boolean) {
-      this.autoRotateAllyOnDown = v
-    },
     setCombatFxEnabled(v: boolean) {
       this.combatFxEnabled = v
     },
@@ -223,7 +218,7 @@ export const useSettingsStore = defineStore('settings', {
 
 // 只同步"全局/自动化"维度的字段。per-tab UX(panelPos / panelVisible / panelCollapsed /
 // gridOverlayVisible)不同步 —— 否则一个 tab 拖动面板会把另一个 tab 的视图也拽走。
-const SHARED_FIELDS = ['combatFxEnabled', 'autoRotateAllyOnDown'] as const
+const SHARED_FIELDS = ['combatFxEnabled'] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
 function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStore>): void {

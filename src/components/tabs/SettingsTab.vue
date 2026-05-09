@@ -256,17 +256,6 @@ function resetAllData() {
       </h4>
       <label class="flex items-center gap-2 text-xs text-white/80">
         <Switch
-          :model-value="settings.autoRotateAllyOnDown"
-          @update:model-value="settings.setAutoRotateAllyOnDown($event ?? false)"
-        />
-        盟友倒地自动旋转
-      </label>
-      <p class="text-[11px] text-white/60 leading-relaxed">
-        带「盟友」标签的角色 HP 跌到 0 时旋转 token (90°),复活时转回正立 (0°)。
-      </p>
-
-      <label class="flex items-center gap-2 text-xs text-white/80">
-        <Switch
           :model-value="settings.combatFxEnabled"
           @update:model-value="settings.setCombatFxEnabled($event ?? false)"
         />
