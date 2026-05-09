@@ -122,6 +122,17 @@
   animation: slash 520ms var(--ease-out) forwards;
 }
 
+/* SessionTimer 朱红状态点脉冲 — critical(≤5min) 时启用 */
+@keyframes session-timer-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 106, 85, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 106, 85, 0);
+  }
+}
+
 /* 慢转 — heal 符文圈用;6s 一圈,组件实际只活 ~1.4s,只播 ~25% 一圈 */
 @keyframes auraSpin {
   0% {

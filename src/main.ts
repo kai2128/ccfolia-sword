@@ -13,6 +13,7 @@ import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
 import { bindSharedCrossTabSync, persistLocal, persistShared, useEncounterStore } from './stores/encounter'
 import { useSettingsStore } from './stores/settings'
+import { bindTimerCrossTabSync, persistTimer, useTimerStore } from './stores/timer'
 // 先 reset(p/h1-h6/blockquote/ul/ol/figure/pre 等 UA 边距清零,button/input 字体 / 颜色继承),
 // 再 UnoCSS utilities。两者都经 cssSideEffects 收进 __CCS_CSS__,shadow-mount 注入 Shadow DOM。
 // 顺序重要:同特异度时后来者胜,reset 在前可让 .m-4 等 utility 覆盖通用边距。
@@ -47,6 +48,10 @@ function mount() {
     persistLocal(state.local)
   })
   bindSharedCrossTabSync(encounter)
+
+  const timer = useTimerStore()
+  timer.$subscribe((_mutation, state) => persistTimer(state))
+  bindTimerCrossTabSync(timer)
 
   // pinia 挂完,把持久化的 logMaxLines 推到日志环
   const settings = useSettingsStore()

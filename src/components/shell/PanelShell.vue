@@ -9,6 +9,7 @@ import ResolverTab from '@/components/tabs/ResolverTab.vue'
 import RosterTab from '@/components/tabs/RosterTab.vue'
 import SettingsTab from '@/components/tabs/SettingsTab.vue'
 import TagLibraryTab from '@/components/tabs/TagLibraryTab.vue'
+import TimerTab from '@/components/tabs/TimerTab.vue'
 import { Logo, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useDraggable } from '@/composables/useDraggable'
 import { useSettingsStore } from '@/stores/settings'
@@ -125,6 +126,12 @@ onBeforeUnmount(() => {
             战斗
           </TabsTrigger>
           <TabsTrigger
+            value="timer"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            计时
+          </TabsTrigger>
+          <TabsTrigger
             value="buff-lib"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
@@ -149,6 +156,9 @@ onBeforeUnmount(() => {
         </TabsContent>
         <TabsContent value="battle" class="flex-1 overflow-auto p-3">
           <BattleTab />
+        </TabsContent>
+        <TabsContent value="timer" class="flex-1 overflow-auto p-3">
+          <TimerTab />
         </TabsContent>
         <TabsContent value="buff-lib" class="flex-1 overflow-auto p-3">
           <BuffLibraryTab />
