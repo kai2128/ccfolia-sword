@@ -1,4 +1,5 @@
 import type { CcfoliaCharacter } from '@/types/ccfolia'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
 
@@ -25,6 +26,7 @@ function char(id: string): CcfoliaCharacter {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   patchStatusSpy.mockClear()
 })
 

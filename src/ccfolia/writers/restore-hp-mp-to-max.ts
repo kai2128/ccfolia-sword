@@ -3,6 +3,7 @@ import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
 import { extractParts } from '@/core/character/parts'
 import { useSettingsStore } from '@/stores/settings'
 import { getCurrentRoomId, patchStatus } from '../firestore-writer'
+import { recordStatusUndo } from './_undo-helper'
 
 export interface RestoreResult {
   nextStatus: CcfoliaStatus[]
@@ -45,5 +46,12 @@ export async function restoreHpMpToMax(char: CcfoliaCharacter): Promise<void> {
   const { nextStatus, changed } = computeRestoredStatus(char, labelMap)
   if (!changed)
     return
+
+  const beforeStatus = char.status
   await patchStatus({ roomId, charId: char._id, newStatus: nextStatus })
+
+  recordStatusUndo({
+    label: `${char.name} 恢复 HP/MP`,
+    changes: [{ charId: char._id, beforeStatus, afterStatus: nextStatus }],
+  })
 }

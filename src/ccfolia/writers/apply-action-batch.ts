@@ -1,6 +1,8 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
+import type { StatusUndoChange } from '@/stores/undo-history'
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
 import { getCurrentRoomId, patchStatus } from '../firestore-writer'
+import { recordStatusUndo } from './_undo-helper'
 
 export interface StatusChange {
   char: CcfoliaCharacter
@@ -70,12 +72,25 @@ export async function applyStatusChangesBatch(
     })
   }
 
-  await Promise.all(
-    [...byChar.values()].map(({ char, edits }) => {
-      let nextStatus = char.status
-      for (const edit of edits)
-        nextStatus = applyStatusEdit(nextStatus, edit.slot, edit.newValue, labelMap, edit.partPrefix, char.name)
-      return patchStatus({ roomId, charId: char._id, newStatus: nextStatus })
-    }),
-  )
+  // 先把每个角色的 before / after 算好,再统一 patchStatus。
+  // Promise.all 全部 resolve 后才记录 undo,任一失败就不记 —— 与"乐观并行写"现状对齐
+  // (本来就没有部分失败回滚机制,这里只确保 undo 不会指向半成品)。
+  const plan = [...byChar.values()].map(({ char, edits }) => {
+    let nextStatus = char.status
+    for (const edit of edits)
+      nextStatus = applyStatusEdit(nextStatus, edit.slot, edit.newValue, labelMap, edit.partPrefix, char.name)
+    return { char, beforeStatus: char.status, nextStatus }
+  })
+
+  await Promise.all(plan.map(p => patchStatus({ roomId, charId: p.char._id, newStatus: p.nextStatus })))
+
+  const undoChanges: StatusUndoChange[] = plan.map(p => ({
+    charId: p.char._id,
+    beforeStatus: p.beforeStatus,
+    afterStatus: p.nextStatus,
+  }))
+  const label = plan.length === 1
+    ? `调整 ${plan[0].char.name}`
+    : `批量调整 ${plan.length} 名角色`
+  recordStatusUndo({ label, changes: undoChanges })
 }

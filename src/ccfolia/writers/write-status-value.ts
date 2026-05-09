@@ -1,6 +1,7 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
 import { getCurrentRoomId, patchStatus } from '../firestore-writer'
+import { recordStatusUndo } from './_undo-helper'
 
 export async function writeStatusValue(args: {
   char: CcfoliaCharacter
@@ -19,9 +20,15 @@ export async function writeStatusValue(args: {
   if (idx < 0)
     throw new Error(`角色 ${char.name} 缺少 status "${label}"`)
 
+  const beforeStatus = char.status
   const nextStatus: CcfoliaStatus[] = char.status.map((s, i) =>
     i === idx ? { ...s, value: newValue } : s,
   )
 
   await patchStatus({ roomId, charId: char._id, newStatus: nextStatus })
+
+  recordStatusUndo({
+    label: `${char.name} ${label}`,
+    changes: [{ charId: char._id, beforeStatus, afterStatus: nextStatus }],
+  })
 }
