@@ -15,6 +15,7 @@ import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
+import { extractStatusChips } from '@/core/overlay/status-chip'
 import { formatCellRef, pieceBottomCenter, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
@@ -24,6 +25,7 @@ import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
 import RosterRowMoreMenu from './RosterRowMoreMenu.vue'
+import StatusBuffMenu from './StatusBuffMenu.vue'
 
 const props = defineProps<{
   char: CcfoliaCharacter
@@ -104,6 +106,9 @@ const buffs = computed(() =>
 )
 
 const settings = useSettingsStore()
+
+// 仅当角色身上有命中 高昂 / 镇静 / 魅惑 前缀的 status 时才出 music 按钮 —— 没有就什么也不渲染。
+const hasStatusChips = computed(() => extractStatusChips(props.char.status).length > 0)
 
 // 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")。
 // 用 piece 底边中点(脚下),和 setCharacterCell / moveCharacterByCells / useOnCanvasIds 锚点一致。
@@ -366,6 +371,7 @@ async function onClearBuffs() {
             清空 buff
           </button>
         </PopConfirm>
+        <StatusBuffMenu v-if="hasStatusChips" :char="char" />
       </div>
       <BuffRow
         v-for="buff in buffs"

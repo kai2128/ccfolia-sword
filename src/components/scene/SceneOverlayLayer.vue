@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { BuffInstance } from '@/types/buff-v3'
+import type { CcfoliaStatus } from '@/types/ccfolia'
 import { computed } from 'vue'
 import { getMovableSizes } from '@/ccfolia/movable-size'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
 import OverlayCharacterIndicator from '@/components/overlay/OverlayCharacterIndicator.vue'
+import StatusChipRow from '@/components/overlay/StatusChipRow.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { extractParts } from '@/core/character/parts'
 import { computeCrowded } from '@/core/overlay/crowd-detect'
@@ -77,6 +79,8 @@ interface OverlayEntry {
   widthPx: number
   parts: OverlayPart[]
   buffs: BuffInstance[]
+  // 给 StatusChipRow 用,直接传角色原始 status 数组,过滤逻辑在子组件里完成
+  status: CcfoliaStatus[]
   isMultipart: boolean
 }
 
@@ -113,6 +117,7 @@ const entries = computed<OverlayEntry[]>(() => {
         widthPx,
         parts,
         buffs,
+        status: char?.status ?? [],
         isMultipart: partsList.length > 1,
       }
     })
@@ -171,6 +176,11 @@ function modeFor(entry: OverlayEntry): 'C' | 'E' {
           <OverlayCharacterIndicator
             :parts="entry.parts"
             :display-mode="modeFor(entry)"
+          />
+          <!-- StatusChip:贴 HP/MP 之下,共享同一 --mini-scale。compact 与 HP/MP 的 E 模式同步 -->
+          <StatusChipRow
+            :status="entry.status"
+            :compact="modeFor(entry) === 'E'"
           />
         </div>
       </div>
