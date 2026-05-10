@@ -132,16 +132,16 @@ onBeforeUnmount(() => {
             计时
           </TabsTrigger>
           <TabsTrigger
-            value="buff-lib"
-            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
-          >
-            Buff 库
-          </TabsTrigger>
-          <TabsTrigger
             value="tags"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
             Tag
+          </TabsTrigger>
+          <TabsTrigger
+            value="buff-lib"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            Buff 库
           </TabsTrigger>
           <TabsTrigger
             value="settings"

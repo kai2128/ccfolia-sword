@@ -760,18 +760,6 @@ async function writeRow(
             HP / MP
           </TabsTrigger>
           <TabsTrigger
-            value="buff"
-            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
-          >
-            Buff
-          </TabsTrigger>
-          <TabsTrigger
-            value="tag"
-            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
-          >
-            Tag
-          </TabsTrigger>
-          <TabsTrigger
             value="overlay"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
@@ -782,6 +770,18 @@ async function writeRow(
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
             移动
+          </TabsTrigger>
+          <TabsTrigger
+            value="tag"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            Tag
+          </TabsTrigger>
+          <TabsTrigger
+            value="buff"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            Buff
           </TabsTrigger>
         </TabsList>
 
