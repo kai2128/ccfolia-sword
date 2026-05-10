@@ -19,12 +19,26 @@ const draftMin = ref(timer.totalSec > 0 ? Math.floor((timer.totalSec % 3600) / 6
 const draftSec = ref(timer.totalSec > 0 ? timer.totalSec % 60 : 0)
 
 function applyTotal() {
-  const h = Math.max(0, Math.floor(Number(draftHour.value) || 0))
-  const m = Math.max(0, Math.floor(Number(draftMin.value) || 0))
-  const s = Math.max(0, Math.floor(Number(draftSec.value) || 0))
-  const total = h * 3600 + m * 60 + s
+  const total = readDraft(draftHour.value, draftMin.value, draftSec.value)
   if (total > 0)
     timer.setTotal(total)
+}
+
+// 直接设当前剩余 draft —— 同样三个 input,提交后立即覆盖 remainingSec(running 也支持)。
+const setHour = ref(0)
+const setMin = ref(0)
+const setSec = ref(0)
+
+function applySetCurrent() {
+  const sec = readDraft(setHour.value, setMin.value, setSec.value)
+  timer.setRemaining(sec)
+}
+
+function readDraft(h: unknown, m: unknown, s: unknown): number {
+  const hh = Math.max(0, Math.floor(Number(h) || 0))
+  const mm = Math.max(0, Math.floor(Number(m) || 0))
+  const ss = Math.max(0, Math.floor(Number(s) || 0))
+  return hh * 3600 + mm * 60 + ss
 }
 
 // RAF tick 自驱:跟 chip 同样套路,显示实时剩余。
@@ -74,58 +88,65 @@ const inkColor = computed(() => PALETTE_INK[state.value])
     </div>
 
     <!-- 控制按钮 -->
-    <div class="flex gap-2">
-      <Button
-        v-if="!timer.isRunning"
-        size="sm"
-        :disabled="timer.totalSec <= 0"
-        @click="timer.start()"
-      >
-        <span class="i-lucide-play h-3 w-3" />
-        开始
-      </Button>
-      <Button
-        v-else
-        size="sm"
-        variant="ghost"
-        @click="timer.pause()"
-      >
-        <span class="i-lucide-pause h-3 w-3" />
-        暂停
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        :disabled="timer.totalSec <= 0"
-        @click="timer.reset()"
-      >
-        <span class="i-lucide-rotate-ccw h-3 w-3" />
-        重置
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        :disabled="timer.totalSec <= 0"
-        :title="timer.hidden ? '在画面上显示 chip' : '从画面临时隐藏 chip(计时继续)'"
-        @click="timer.toggleHidden()"
-      >
-        <span :class="timer.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="h-3 w-3" />
-        {{ timer.hidden ? '显示' : '隐藏' }}
-      </Button>
-      <PopConfirm
-        message="确认清空计时器?所设的时间会丢失,chip 也会从画面移除。"
-        confirm-text="清空"
-        @confirm="timer.clear()"
-      >
+    <div class="flex items-center justify-between gap-2">
+      <!-- 左:运行控制 + 显隐 -->
+      <div class="flex gap-2">
+        <Button
+          v-if="!timer.isRunning"
+          size="sm"
+          :disabled="timer.totalSec <= 0"
+          @click="timer.start()"
+        >
+          <span class="i-lucide-play h-3 w-3" />
+          开始
+        </Button>
+        <Button
+          v-else
+          size="sm"
+          variant="ghost"
+          @click="timer.pause()"
+        >
+          <span class="i-lucide-pause h-3 w-3" />
+          暂停
+        </Button>
         <Button
           size="sm"
-          variant="danger"
+          variant="ghost"
           :disabled="timer.totalSec <= 0"
+          :title="timer.hidden ? '在画面上显示 chip' : '从画面临时隐藏 chip(计时继续)'"
+          @click="timer.toggleHidden()"
         >
-          <span class="i-lucide-x h-3 w-3" />
-          取消
+          <span :class="timer.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="h-3 w-3" />
+          {{ timer.hidden ? '显示' : '隐藏' }}
         </Button>
-      </PopConfirm>
+      </div>
+
+      <!-- 右:重置 + 删除 -->
+      <div class="flex gap-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          :disabled="timer.totalSec <= 0"
+          @click="timer.reset()"
+        >
+          <span class="i-lucide-rotate-ccw h-3 w-3" />
+          重置
+        </Button>
+        <PopConfirm
+          message="确认清空计时器?"
+          confirm-text="清空"
+          @confirm="timer.clear()"
+        >
+          <Button
+            size="sm"
+            variant="danger"
+            :disabled="timer.totalSec <= 0"
+          >
+            <span class="i-lucide-trash-2 h-3 w-3" />
+            删除
+          </Button>
+        </PopConfirm>
+      </div>
     </div>
 
     <!-- 设置总时长 -->
@@ -150,10 +171,35 @@ const inkColor = computed(() => PALETTE_INK[state.value])
       </div>
     </div>
 
+    <!-- 直接设当前剩余 -->
+    <div class="flex flex-col gap-2">
+      <span class="text-xs text-white/50">设当前剩余</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="w-14">
+          <Input v-model="setHour" type="number" min="0" />
+        </div>
+        <span class="text-xs text-white/60">时</span>
+        <div class="w-14">
+          <Input v-model="setMin" type="number" min="0" max="59" />
+        </div>
+        <span class="text-xs text-white/60">分</span>
+        <div class="w-14">
+          <Input v-model="setSec" type="number" min="0" max="59" />
+        </div>
+        <span class="text-xs text-white/60">秒</span>
+        <Button size="sm" :disabled="timer.totalSec <= 0" @click="applySetCurrent">
+          应用
+        </Button>
+      </div>
+    </div>
+
     <!-- 微调 -->
     <div class="flex flex-col gap-2">
       <span class="text-xs text-white/50">微调</span>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-300)">
+          -5m
+        </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-60)">
           -1m
         </Button>
@@ -165,6 +211,9 @@ const inkColor = computed(() => PALETTE_INK[state.value])
         </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(60)">
           +1m
+        </Button>
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(300)">
+          +5m
         </Button>
       </div>
     </div>

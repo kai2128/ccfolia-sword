@@ -108,6 +108,15 @@ export const useTimerStore = defineStore('timer', {
     toggleHidden() {
       this.hidden = !this.hidden
     },
+    // 直接设当前剩余 —— 跟 adjust 区别:这是绝对值覆盖,且严格 clamp 在 [0, totalSec]
+    // (用户要求"current time 不能超 total time")。
+    // running 中调用要把 startedAt 重置成"现在",否则 wall-clock elapsed 会立刻把这个值扣掉。
+    setRemaining(sec: number) {
+      const safe = Math.max(0, Math.min(this.totalSec, Math.floor(sec)))
+      this.remainingSec = safe
+      if (this.startedAt != null)
+        this.startedAt = Date.now()
+    },
     // running 时,把已 elapsed 的部分先折算回 remainingSec,加减 delta 后重置 startedAt,
     // 这样视觉上像"瞬间多/少了 N 秒",不丢正在走的那段。
     adjust(deltaSec: number) {
