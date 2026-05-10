@@ -19,9 +19,11 @@ import { formatCellRef, pieceBottomCenter, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
+import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
+import RosterRowMoreMenu from './RosterRowMoreMenu.vue'
 
 const props = defineProps<{
   char: CcfoliaCharacter
@@ -55,6 +57,27 @@ const pillVisible = computed(() => overlayVis.isVisible(props.char._id))
 
 function togglePill() {
   overlayVis.toggle(props.char._id)
+}
+
+const variantOverride = useHpmpVariantOverrideStore()
+const variantMode = computed(() => variantOverride.get(props.char._id))
+const variantIcon = computed(() => {
+  if (variantMode.value === 'C')
+    return 'i-lucide-rectangle-horizontal'
+  if (variantMode.value === 'E')
+    return 'i-lucide-pill'
+  return 'i-lucide-circle-dashed'
+})
+const variantTitle = computed(() => {
+  if (variantMode.value === 'C')
+    return 'HP/MP 显示:强制 C(条状)· 点击切到 E'
+  if (variantMode.value === 'E')
+    return 'HP/MP 显示:强制 E(药丸)· 点击切到自动'
+  return 'HP/MP 显示:自动 · 点击切到强制 C'
+})
+
+function cycleVariant() {
+  variantOverride.cycle(props.char._id)
 }
 
 const encounter = useEncounterStore()
@@ -254,21 +277,21 @@ async function onClearBuffs() {
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="isDown ? 'text-debuff' : 'text-white/30'"
-        :title="isDown ? '已倒地 · 点击站起' : '倒地'"
-        @click="onToggleDown"
+        :class="variantMode === 'auto' ? 'text-white/30' : 'text-white'"
+        :title="variantTitle"
+        @click="cycleVariant"
       >
-        <span :class="isDown ? 'i-mdi-human-handsdown' : 'i-mdi-human'" class="text-3.5" />
+        <span :class="variantIcon" class="text-3.5" />
       </button>
 
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="isHidden ? 'text-white/30' : 'text-white'"
-        :title="isHidden ? 'ccfolia 板上角色一览已隐藏 · 点击恢复' : '从 ccfolia 板上角色一览隐藏'"
-        @click="onToggleHideStatus"
+        :class="isDown ? 'text-debuff' : 'text-white/30'"
+        :title="isDown ? '已倒地 · 点击站起' : '倒地'"
+        @click="onToggleDown"
       >
-        <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-3.5" />
+        <span :class="isDown ? 'i-mdi-human-handsdown' : 'i-mdi-human'" class="text-3.5" />
       </button>
 
       <PopConfirm
@@ -285,19 +308,29 @@ async function onClearBuffs() {
         </button>
       </PopConfirm>
 
-      <PopConfirm
-        :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
-        confirm-text="确认"
-        @confirm="onSetInactive"
-      >
+      <RosterRowMoreMenu>
         <button
           type="button"
-          class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-debuff/20 hover:text-debuff"
-          title="移出 board(可在 ccfolia 重新添加)"
+          class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-white/85 transition-colors hover:bg-white/10"
+          @click="onToggleHideStatus"
         >
-          <span class="i-lucide-trash-2 text-3.5" />
+          <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="shrink-0 text-3.5" />
+          <span>{{ isHidden ? '在 ccfolia 一览中显示' : '从 ccfolia 一览隐藏' }}</span>
         </button>
-      </PopConfirm>
+        <PopConfirm
+          :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
+          confirm-text="移除"
+          @confirm="onSetInactive"
+        >
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-white/70 transition-colors hover:bg-debuff/20 hover:text-debuff"
+          >
+            <span class="i-lucide-trash-2 shrink-0 text-3.5" />
+            <span>移除角色</span>
+          </button>
+        </PopConfirm>
+      </RosterRowMoreMenu>
 
       <button
         type="button"

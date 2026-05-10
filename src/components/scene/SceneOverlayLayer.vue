@@ -8,29 +8,57 @@ import BuffBadgeRow from '@/components/overlay/BuffBadgeRow.vue'
 import OverlayCharacterIndicator from '@/components/overlay/OverlayCharacterIndicator.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { extractParts } from '@/core/character/parts'
+import { computeCrowded } from '@/core/overlay/crowd-detect'
+import { resolveDisplayMode } from '@/core/overlay/resolve-display-mode'
 import { readStatusSlot } from '@/core/status-slot'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
 import { useEncounterStore } from '@/stores/encounter'
+import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 import GridOverlay from './GridOverlay.vue'
 import RangeCircle from './RangeCircle.vue'
 
+// HP/MP 指示器贴在棋子底边下方,留出与 ccfolia 原生角色名的视觉缓冲。
+// C 变体含菱形 + 数值列、整体更高且基础 scale 更大,需要稍多 gap 避免与名字挤在一起。
+function nameOffsetFor(mode: 'C' | 'E'): number {
+  return mode === 'C' ? 7 : 6
+}
+// 拥挤判定的网格半径 —— 任意其它棋子中心距 ≤ 3 cells 即算「被挤」。
+const CROWD_THRESHOLD_CELLS = 3
+
+// 指示器整体缩放:E 已经够小,C 含菱形 + 数值列信息密度高,可以放大。
+// transform-origin: top center,缩放后顶边仍贴锚点,只往下"少占"。
+const SCALE_REF_WIDTH = 60
+const SCALE_MIN = 0.4
+// E (pill) — 比 C 轻量,再瘦一档
+const E_SCALE_BASE = 0.52
+const E_SCALE_MAX = 0.78
+// C (diamond bar) — 比 E 大一档,base 提到 0.85,cap 1.1
+const C_SCALE_BASE = 0.85
+const C_SCALE_MAX = 1.1
+function calcIndicatorScale(widthPx: number, mode: 'C' | 'E'): number {
+  const ratio = widthPx / SCALE_REF_WIDTH
+  const base = mode === 'C' ? C_SCALE_BASE : E_SCALE_BASE
+  const max = mode === 'C' ? C_SCALE_MAX : E_SCALE_MAX
+  return Math.max(SCALE_MIN, Math.min(max, base * ratio))
+}
+
 const pieces = usePiecesStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
 const overlayVis = useOverlayVisibilityStore()
+const variantOverride = useHpmpVariantOverrideStore()
 const buffsDerived = useBuffsDerivedStore()
 const encounter = useEncounterStore()
 
-// Record<characterId, radius> → 数组,供 v-for 使用;shared 意味着跨 tab 同步
 const rangeCircleEntries = computed(() =>
   Object.entries(encounter.shared.rangeCircles).map(([characterId, radius]) => ({ characterId, radius })),
 )
 
 interface OverlayPart {
   key: string
-  label: string // 多部位时是 partKey,单部位为空
+  label: string
   isMain: boolean
   hp: { value: number, max: number } | null
   mp: { value: number, max: number } | null
@@ -38,20 +66,23 @@ interface OverlayPart {
 
 interface OverlayEntry {
   key: string
-  // piece.x 实测是 .movable 的 canvas-local 左边(不是中心),所以 centerX 要 + offsetWidth/2。
-  // piece.y 实测已经是立绘可见顶边的 canvas-local y,直接当 pill 锚点。
+  characterId: string
   centerX: number
+  // BuffBadgeRow 仍在棋子上方,锚 topY。
   topY: number
+  // 棋子底边 y(不含 NAME_OFFSET);最终 HP/MP 锚点 = pieceBottomY + nameOffsetFor(mode),
+  // 在 template 里按当前显示变体加 offset。
+  pieceBottomY: number
+  centerY: number
   widthPx: number
   parts: OverlayPart[]
   buffs: BuffInstance[]
+  isMultipart: boolean
 }
 
 const entries = computed<OverlayEntry[]>(() => {
   const sizeMap = getMovableSizes()
   return pieces.list
-    // ccfolia 的 invisible(立绘不显示)直接不渲染;
-    // hideStatus(盤上のキャラクター一覧に表示しない)不参与,本指示器走自己的 toggle。
     .filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
     .map((p) => {
       const char = chars.byId(p.characterId)
@@ -66,56 +97,84 @@ const entries = computed<OverlayEntry[]>(() => {
             mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
           }))
         : []
-      // 本角色的单体 buff + 覆盖本角色的 AoE buff(AoE buff 本身挂在中心角色,不在 collectBuffs(char) 里)
       const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
       const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
       const buffs = [...self, ...aoe]
-      // DOM 里量到的直接用;没量到(时机问题)回落到 widthCells × cellSizePx
-      const widthPx = sizeMap.get(p.characterId)?.width ?? p.widthCells * settings.grid.cellSizePx
+      const sized = sizeMap.get(p.characterId)
+      const widthPx = sized?.width ?? p.widthCells * settings.grid.cellSizePx
+      const heightPx = sized?.height ?? widthPx
       return {
         key: p.characterId,
+        characterId: p.characterId,
         centerX: p.x + widthPx / 2,
         topY: p.y,
+        pieceBottomY: p.y + heightPx,
+        centerY: p.y + heightPx / 2,
         widthPx,
         parts,
         buffs,
+        isMultipart: partsList.length > 1,
       }
     })
 })
+
+// 拥挤集合:邻距判定基于全部可见棋子,而非筛过的 entries(后者有 buffs 等冗余)。
+const crowdedSet = computed(() => computeCrowded(
+  entries.value.map(e => ({ id: e.characterId, centerX: e.centerX, centerY: e.centerY })),
+  settings.grid.cellSizePx,
+  CROWD_THRESHOLD_CELLS,
+))
+
+function modeFor(entry: OverlayEntry): 'C' | 'E' {
+  return resolveDisplayMode({
+    isMultipart: entry.isMultipart,
+    override: variantOverride.get(entry.characterId),
+    isCrowded: crowdedSet.value.has(entry.characterId),
+    autoSwitchOnCrowded: settings.autoSwitchOnCrowded,
+  })
+}
 </script>
 
 <template>
   <div class="scene-overlay-layer">
-    <!-- 格网校准叠加,仅 settings.gridOverlayVisible=true 时渲染 -->
     <GridOverlay />
-    <!-- AoE 圆已从画布移除:AoE 作用范围只在 BuffRow 的 "AoE Nm" 角标 + 覆盖徽章反映。 -->
-    <!-- 射程圈:青虚线,纯视觉、不参与结算 -->
-    <!-- TODO: piece 气泡入口。overlay 宿主 pointer-events: none,需要另装 click 监听(scene-mount 上未暴露) -->
     <RangeCircle
       v-for="rc in rangeCircleEntries"
       :key="`range-${rc.characterId}`"
       :character-id="rc.characterId"
       :radius="rc.radius"
     />
-    <div
-      v-for="entry in entries"
-      :key="entry.key"
-      class="anchor"
-      :style="{ transform: `translate3d(${entry.centerX}px, ${entry.topY}px, 0)` }"
-    >
-      <div class="indicator-stack">
-        <BuffBadgeRow
-          v-if="entry.buffs.length > 0"
-          :buffs="entry.buffs"
-          :piece-width="entry.widthPx"
-        />
-        <OverlayCharacterIndicator
-          v-if="entry.parts.some(p => p.hp)"
-          :parts="entry.parts"
-          :width-px="entry.widthPx"
-        />
+    <template v-for="entry in entries" :key="entry.key">
+      <!-- Buff badges:沿用棋子上方位置 -->
+      <div
+        class="anchor"
+        :style="{ transform: `translate3d(${entry.centerX}px, ${entry.topY}px, 0)` }"
+      >
+        <div class="buff-stack">
+          <BuffBadgeRow
+            v-if="entry.buffs.length > 0"
+            :buffs="entry.buffs"
+            :piece-width="entry.widthPx"
+          />
+        </div>
       </div>
-    </div>
+      <!-- HP/MP 紧凑指示器:棋子下方,ccfolia 原生角色名之下,按棋子宽度自适应缩放 -->
+      <div
+        v-if="entry.parts.some(p => p.hp)"
+        class="anchor"
+        :style="{ transform: `translate3d(${entry.centerX}px, ${entry.pieceBottomY + nameOffsetFor(modeFor(entry))}px, 0)` }"
+      >
+        <div
+          class="hpmp-stack"
+          :style="{ '--mini-scale': calcIndicatorScale(entry.widthPx, modeFor(entry)) }"
+        >
+          <OverlayCharacterIndicator
+            :parts="entry.parts"
+            :display-mode="modeFor(entry)"
+          />
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -131,15 +190,29 @@ const entries = computed<OverlayEntry[]>(() => {
   left: 0;
   will-change: transform;
 }
-.indicator-stack {
+/* Buff 行:贴棋子顶边上方,与原行为一致。 */
+.buff-stack {
   position: absolute;
   left: 50%;
   top: 0;
-  transform: translate(-50%, calc(-100% - 16px));
+  transform: translate(-50%, calc(-100% - 4px));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  white-space: nowrap;
+}
+/* HP/MP:从锚点向下定位,锚点本身已经在 ccfolia 名字之下(bottomY 计算时加了 NAME_OFFSET_PX)。
+   --mini-scale 由 SceneOverlayLayer 按棋子宽度算出来(0.4-0.85);
+   transform-origin top center 确保缩放后顶边仍贴锚点,垂直方向只往下"少占"。 */
+.hpmp-stack {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, 0) scale(var(--mini-scale, 1));
+  transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   white-space: nowrap;
 }
 </style>

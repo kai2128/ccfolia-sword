@@ -266,6 +266,23 @@ function resetAllData() {
       </p>
     </section>
 
+    <!-- HP/MP 显示 -->
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
+      <h4 class="text-sm text-white font-medium">
+        HP/MP 显示
+      </h4>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.autoSwitchOnCrowded"
+          @update:model-value="settings.setAutoSwitchOnCrowded($event ?? false)"
+        />
+        角色密集时自动切紧凑版
+      </label>
+      <p class="text-[11px] text-white/60 leading-relaxed">
+        单部位角色默认用条状(C);当周围 3 格内有其它棋子时,临时切到药丸版(E)避免遮挡。在 roster 用变体按钮可对单个角色锁死特定版本。
+      </p>
+    </section>
+
     <!-- 重置 -->
     <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
       <h4 class="text-sm text-white font-medium">

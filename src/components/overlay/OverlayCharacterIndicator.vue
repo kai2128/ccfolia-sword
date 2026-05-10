@@ -1,12 +1,18 @@
 <script setup lang="ts">
-// 单个角色 (棋子上方) 的 HP/MP 指示器装配器:
-//   • parts.length <= 1 → 两条 CapsuleBar (HP + 可选 MP)
-//   • parts.length > 1  → HPMultiPart,每个 part 自带可选 MP
+// 单个角色 (棋子下方) 的 HP/MP 紧凑指示器装配器。
+//   单部位 + 决策 = C → MiniDiamondBar
+//   单部位 + 决策 = E → MiniInlinePill
+//   多部位 + 决策 = E → CharacterParts(variant='E',PartInlinePill 堆叠)
+//   多部位 + 决策 = C → CharacterParts(variant='C',MiniDiamondBar 堆叠)
+//
 // 受击 shake:本组件统一维护 partKey → 是否抖动 的 map,watch 到某 part HP 下降即打 280ms。
-// 这层包装的好处:hit 状态按角色 instance 持久,避免 SceneOverlayLayer 全表 watch 误伤。
+// shake class 套在最外层 wrapper(.fx-shake),CSS 关键帧在 src/styles/tokens.css。
+// 单部位时整个 wrapper 抖;多部位时也整体抖(目前 CharacterParts 不支持 per-row,
+// 后续若需要 per-part 抖,再让 CharacterParts 接受 hit map 透传)。
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import CapsuleBar from './CapsuleBar.vue'
-import HPMultiPart from './HPMultiPart.vue'
+import CharacterParts from './mini/CharacterParts.vue'
+import MiniDiamondBar from './mini/MiniDiamondBar.vue'
+import MiniInlinePill from './mini/MiniInlinePill.vue'
 
 interface PartInput {
   key: string
@@ -18,94 +24,81 @@ interface PartInput {
 
 const props = defineProps<{
   parts: PartInput[]
-  widthPx: number
+  displayMode: 'C' | 'E'
 }>()
 
-const hitMap = ref<Record<string, boolean>>({})
-const timers = new Map<string, ReturnType<typeof setTimeout>>()
+const hitAny = ref(false)
+let hitTimer: ReturnType<typeof setTimeout> | null = null
+const lastHpByKey = new Map<string, number>()
 
 watch(
   () => props.parts.map(p => ({ key: p.key, cur: p.hp?.value ?? 0 })),
-  (next, prev) => {
-    if (!prev)
-      return
-    const prevByKey = new Map(prev.map(p => [p.key, p.cur]))
+  (next) => {
+    let dropped = false
     for (const { key, cur } of next) {
-      const before = prevByKey.get(key)
-      if (before == null || cur >= before)
-        continue
-      const existing = timers.get(key)
-      if (existing)
-        clearTimeout(existing)
-      // 先 false 再 true 以重启 CSS 动画
-      hitMap.value = { ...hitMap.value, [key]: false }
-      void Promise.resolve().then(() => {
-        hitMap.value = { ...hitMap.value, [key]: true }
-        timers.set(key, setTimeout(() => {
-          hitMap.value = { ...hitMap.value, [key]: false }
-        }, 280))
-      })
+      const prev = lastHpByKey.get(key)
+      if (prev != null && cur < prev) {
+        dropped = true
+        break
+      }
     }
+    for (const { key, cur } of next)
+      lastHpByKey.set(key, cur)
+    if (!dropped)
+      return
+    if (hitTimer)
+      clearTimeout(hitTimer)
+    hitAny.value = false
+    void Promise.resolve().then(() => {
+      hitAny.value = true
+      hitTimer = setTimeout(() => {
+        hitAny.value = false
+      }, 280)
+    })
   },
-  { deep: true },
+  { deep: true, immediate: true },
 )
 
 onBeforeUnmount(() => {
-  for (const t of timers.values())
-    clearTimeout(t)
-  timers.clear()
+  if (hitTimer)
+    clearTimeout(hitTimer)
 })
 
 const isMulti = computed(() => props.parts.length > 1)
 
-// 单部位:第一条 part 即主 part
 const single = computed(() => props.parts[0] ?? null)
-const singleHit = computed(() => hitMap.value[single.value?.key ?? ''] ?? false)
-const singleWidth = computed(() => Math.max(90, Math.min(150, Math.round(props.widthPx))))
-// 多部位左侧多 24px label 列,需要比单部位略宽,但不过分膨胀。
-const multiWidth = computed(() => Math.max(130, Math.min(180, Math.round(props.widthPx) + 30)))
+const singleHp = computed(() => single.value?.hp ? { cur: single.value.hp.value, max: single.value.hp.max } : null)
+const singleMp = computed(() => single.value?.mp ? { cur: single.value.mp.value, max: single.value.mp.max } : null)
 
-// 多部位:把每个 part 的 hp/mp 都透传,让 HPMultiPart 渲染 HP+MP 紧贴对
+// 多部位:转换成 mini 组件需要的 { key, label, hp:{cur,max}, mp?:{cur,max} } 形态
 const multiParts = computed(() => props.parts
   .filter(p => p.hp)
   .map(p => ({
+    key: p.key,
     label: p.label || p.key,
-    cur: p.hp!.value,
-    max: p.hp!.max,
+    hp: { cur: p.hp!.value, max: p.hp!.max },
     mp: p.mp ? { cur: p.mp.value, max: p.mp.max } : null,
-    main: p.isMain,
-    hit: hitMap.value[p.key] ?? false,
   })))
 </script>
 
 <template>
-  <HPMultiPart
-    v-if="isMulti"
-    :parts="multiParts"
-    :width="multiWidth"
-  />
-  <div v-else-if="single?.hp" class="flex flex-col items-stretch">
-    <CapsuleBar
-      kind="hp"
-      :cur="single.hp.value"
-      :max="single.hp.max"
-      :width="singleWidth"
-      :height="12"
-      :hit="singleHit"
-      :value-font-px="10"
-      label=""
+  <div :class="hitAny && 'fx-shake'">
+    <CharacterParts
+      v-if="isMulti"
+      :parts="multiParts"
+      :variant="displayMode"
     />
-    <CapsuleBar
-      v-if="single.mp"
-      kind="mp"
-      :cur="single.mp.value"
-      :max="single.mp.max"
-      :width="singleWidth"
-      :height="6"
-      value-anchor="bottom"
-      :value-font-px="7"
-      label=""
-      :style="{ marginTop: '-3px' }"
-    />
+    <template v-else-if="singleHp">
+      <MiniDiamondBar
+        v-if="displayMode === 'C'"
+        :hp="singleHp"
+        :mp="singleMp"
+      />
+      <MiniInlinePill
+        v-else
+        :hp="singleHp"
+        :mp="singleMp"
+      />
+    </template>
   </div>
 </template>

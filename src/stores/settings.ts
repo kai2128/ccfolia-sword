@@ -29,6 +29,8 @@ interface SettingsState {
   gridOverlayVisible: boolean
   statusLabelMap: StatusLabelMap
   combatFxEnabled: boolean
+  // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
+  autoSwitchOnCrowded: boolean
 }
 
 const DEFAULT_PANEL_SIZE: PanelSize = { width: 320, height: 360 }
@@ -144,6 +146,7 @@ export const useSettingsStore = defineStore('settings', {
     gridOverlayVisible: false,
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
+    autoSwitchOnCrowded: true,
   }),
   actions: {
     setDefaultPowerTable(id: string | null) {
@@ -201,6 +204,9 @@ export const useSettingsStore = defineStore('settings', {
     setCombatFxEnabled(v: boolean) {
       this.combatFxEnabled = v
     },
+    setAutoSwitchOnCrowded(v: boolean) {
+      this.autoSwitchOnCrowded = v
+    },
   },
   persist: {
     storage: gmStorage,
@@ -218,7 +224,7 @@ export const useSettingsStore = defineStore('settings', {
 
 // 只同步"全局/自动化"维度的字段。per-tab UX(panelPos / panelVisible / panelCollapsed /
 // gridOverlayVisible)不同步 —— 否则一个 tab 拖动面板会把另一个 tab 的视图也拽走。
-const SHARED_FIELDS = ['combatFxEnabled'] as const
+const SHARED_FIELDS = ['combatFxEnabled', 'autoSwitchOnCrowded'] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
 function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStore>): void {
