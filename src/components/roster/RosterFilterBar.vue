@@ -3,7 +3,7 @@ import type { TickPrompt } from '@/ccfolia/writers/tick-buff-turns'
 import { nextTick, ref } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
-import BatchApplyDialog from '@/components/roster/BatchApplyDialog.vue'
+import BatchApplySheet from '@/components/roster/BatchApplySheet.vue'
 import { PopConfirm } from '@/components/ui'
 import { extractParts } from '@/core/character/parts'
 import { formatActorRef } from '@/core/encounter/actor-ref'
@@ -174,6 +174,6 @@ function onTurnKey(ev: KeyboardEvent) {
     </div>
 
     <TickPromptDialog v-model:open="promptsOpen" :prompts="lastPrompts" />
-    <BatchApplyDialog v-model:open="batchOpsOpen" />
+    <BatchApplySheet v-model:open="batchOpsOpen" />
   </div>
 </template>

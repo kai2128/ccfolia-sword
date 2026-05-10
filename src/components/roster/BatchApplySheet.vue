@@ -13,7 +13,7 @@ import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
-import { Button, Checkbox, Dialog, Field, Input, NumberEdit, PopConfirm, Select, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
+import { Button, Checkbox, Field, Input, NumberEdit, PopConfirm, Select, Sheet, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
@@ -698,13 +698,14 @@ async function writeRow(
 </script>
 
 <template>
-  <Dialog v-model:open="open" wide title="批量操作">
-    <!-- Dialog 已固定 w-[min(95vw,34rem)],这里 w-full 填满 padding 内的内容区。
-         个别子节点超宽(如长 buff 名)时由 overflow-x-auto 兜底横滚;
-         同时把操作面板与目标列表各自独立纵向滚动,避免叠加超出屏幕 -->
+  <Sheet v-model:open="open" title="批量操作">
+    <!-- Sheet 是右侧全高抽屉(w-[min(95vw,34rem)] · h-full),内容区直接占满剩余高度。
+         长 buff 名等横向溢出由 overflow-x-auto 兜底;
+         操作面板与目标列表分别独立纵向滚动,但都不再设额外封顶 -->
     <div class="min-h-0 w-full flex flex-1 flex-col gap-3 overflow-x-auto overflow-y-hidden">
-      <!-- 操作面板:封顶 + 自滚,内容多(BuffPicker 现场新建)也不会撑爆 dialog -->
-      <Tabs v-model="opTab" class="max-h-[45vh] shrink-0 overflow-auto">
+      <!-- 操作面板:hug content(用 !flex-none 压掉 Tabs 内置的 flex-1,
+           否则会把空高度撑满 sheet 一半);Buff tab 的 BuffPicker 较高时由 max-h + overflow 兜底 -->
+      <Tabs v-model="opTab" class="max-h-[45vh] overflow-auto !flex-none">
         <TabsList class="h-8 flex border-b border-white/10">
           <TabsTrigger
             value="hpmp"
@@ -1216,5 +1217,5 @@ async function writeRow(
         </div>
       </div>
     </div>
-  </Dialog>
+  </Sheet>
 </template>
