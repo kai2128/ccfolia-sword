@@ -2,6 +2,7 @@
 import type { StatusChange } from '@/ccfolia/writers/apply-action-batch'
 import type { BuffBatchTarget } from '@/ccfolia/writers/apply-buff-batch'
 import type { CharacterPartView } from '@/core/character/parts'
+import type { VariantOverride } from '@/core/overlay/resolve-display-mode'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
 import { computed, reactive, ref, watch } from 'vue'
@@ -9,6 +10,7 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { applyBatchMoveOffBoard, applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
+import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
@@ -25,6 +27,7 @@ import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
 import { readTagInstances } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
+import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
@@ -38,6 +41,7 @@ const view = useRosterViewStore()
 const lib = useTagLibraryStore()
 const encounter = useEncounterStore()
 const overlayVis = useOverlayVisibilityStore()
+const variantOverride = useHpmpVariantOverrideStore()
 
 const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
@@ -451,6 +455,17 @@ const overlayCharIds = computed(() => {
   return [...ids]
 })
 
+// 选中角色去重后的完整对象,用于读取 hideStatus 等字段
+const overlayChars = computed<CcfoliaCharacter[]>(() => {
+  const out: CcfoliaCharacter[] = []
+  for (const id of overlayCharIds.value) {
+    const c = chars.byId(id)
+    if (c)
+      out.push(c)
+  }
+  return out
+})
+
 function applyOverlay(visible: boolean) {
   for (const id of overlayCharIds.value) {
     if (visible)
@@ -458,6 +473,37 @@ function applyOverlay(visible: boolean) {
     else
       overlayVis.hide(id)
   }
+}
+
+// 在 ccfolia「盤上のキャラクター一覧」里显示/隐藏 —— 写 firestore.hideStatus
+const hideStatusBusy = ref(false)
+async function applyHideStatus(hide: boolean) {
+  if (overlayCharIds.value.length === 0 || hideStatusBusy.value)
+    return
+  // 已是目标状态的跳过,减少无意义写
+  const targets = overlayChars.value.filter(c => (c.hideStatus === true) !== hide)
+  if (targets.length === 0)
+    return
+  hideStatusBusy.value = true
+  try {
+    const results = await Promise.allSettled(
+      targets.map(c => setCharacterHideStatus(c._id, hide)),
+    )
+    const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+    if (failures.length > 0) {
+      // eslint-disable-next-line no-alert
+      alert(`部分写入失败 (${failures.length}/${targets.length}):\n${failures.map(f => (f.reason as Error).message).join('\n')}`)
+    }
+  }
+  finally {
+    hideStatusBusy.value = false
+  }
+}
+
+// 指示器类型(HP/MP variant override)—— 本地 store,同步即可
+function applyVariantOverride(mode: VariantOverride) {
+  for (const id of overlayCharIds.value)
+    variantOverride.set(id, mode)
 }
 
 // --- Tag tab ---
@@ -899,18 +945,88 @@ async function writeRow(
         </TabsContent>
 
         <!-- 场景指示 -->
-        <TabsContent value="overlay" class="flex flex-col gap-2 pt-3">
-          <p class="text-xs text-white/60">
-            控制角色在场景上的 HP/MP pill 是否显示。pill 是角色级(非 part 级),
-            选中多部位的任一 part 即作用于该角色。
+        <TabsContent value="overlay" class="flex flex-col gap-3 pt-3">
+          <p class="text-[11px] text-white/40">
+            场景指示均为角色级(非 part 级);多部位角色选中任一 part 即作用于该角色。已选 {{ overlayCharIds.length }} 名角色。
           </p>
-          <div class="flex gap-2">
-            <Button :disabled="overlayCharIds.length === 0" @click="applyOverlay(true)">
-              全部显示 ({{ overlayCharIds.length }})
-            </Button>
-            <Button variant="ghost" :disabled="overlayCharIds.length === 0" @click="applyOverlay(false)">
-              全部隐藏 ({{ overlayCharIds.length }})
-            </Button>
+
+          <!-- HP/MP pill 显示(本地) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="text-xs text-white/70">
+              场景上的 HP/MP pill
+            </div>
+            <div class="flex gap-2">
+              <Button size="xs" :disabled="overlayCharIds.length === 0" @click="applyOverlay(true)">
+                全部显示 ({{ overlayCharIds.length }})
+              </Button>
+              <Button size="xs" variant="ghost" :disabled="overlayCharIds.length === 0" @click="applyOverlay(false)">
+                全部隐藏 ({{ overlayCharIds.length }})
+              </Button>
+            </div>
+          </div>
+
+          <!-- ccfolia 一览 -->
+          <div class="flex flex-col gap-1.5">
+            <div class="text-xs text-white/70">
+              在 ccfolia 一览中显示
+            </div>
+            <div class="flex gap-2">
+              <Button
+                size="xs"
+                :disabled="overlayCharIds.length === 0 || hideStatusBusy"
+                @click="applyHideStatus(false)"
+              >
+                全部显示 ({{ overlayCharIds.length }})
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                :disabled="overlayCharIds.length === 0 || hideStatusBusy"
+                @click="applyHideStatus(true)"
+              >
+                全部隐藏 ({{ overlayCharIds.length }})
+              </Button>
+            </div>
+            <p class="text-[11px] text-white/40">
+              对应「盤上のキャラクター一覧に表示しない」。
+            </p>
+          </div>
+
+          <!-- HP/MP 指示器类型(本地 override) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="text-xs text-white/70">
+              HP/MP 指示器类型
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <Button
+                size="xs"
+                variant="ghost"
+                :disabled="overlayCharIds.length === 0"
+                title="跟随全局自动判定(清除覆盖)"
+                @click="applyVariantOverride('auto')"
+              >
+                <span class="i-lucide-circle-dashed mr-1 text-3.5" />
+                自动 ({{ overlayCharIds.length }})
+              </Button>
+              <Button
+                size="xs"
+                :disabled="overlayCharIds.length === 0"
+                title="强制使用条状指示器"
+                @click="applyVariantOverride('C')"
+              >
+                <span class="i-lucide-rectangle-horizontal mr-1 text-3.5" />
+                条状 ({{ overlayCharIds.length }})
+              </Button>
+              <Button
+                size="xs"
+                :disabled="overlayCharIds.length === 0"
+                title="强制使用药丸指示器"
+                @click="applyVariantOverride('E')"
+              >
+                <span class="i-lucide-pill mr-1 text-3.5" />
+                药丸 ({{ overlayCharIds.length }})
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
