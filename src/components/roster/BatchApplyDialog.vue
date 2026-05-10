@@ -8,6 +8,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
+import { applyBatchMoveOffBoard, applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import BuffPicker from '@/components/buffs/BuffPicker.vue'
@@ -19,6 +20,7 @@ import { collectBuffsForPart } from '@/core/buff/collect'
 import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
 import { evaluateExpression } from '@/core/combat/eval-expr'
 import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
+import { formatCellRef, parseCellRef } from '@/core/range'
 import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
 import { readTagInstances } from '@/core/tag'
@@ -49,6 +51,7 @@ const groups = computed(() => groupRoster({
   isOnCanvas: id => onCanvasIds.value.has(id),
   byTagId: lib.byId,
   onCanvasOnly: view.onCanvasOnly,
+  offCanvasOnly: view.offCanvasOnly,
 }))
 
 // 当前过滤下可见的角色
@@ -519,7 +522,83 @@ async function batchDetachTag(tagId: string) {
   }
 }
 
-const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay'>('hpmp')
+// --- Move tab ---
+// 位置是角色级,选中集是 part 级 → 用 uniqueSelectedChars dedupe 到 charId。
+// 板内/板外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
+type MoveMode = 'enter' | 'exit' | 'shift' | 'set'
+const moveMode = ref<MoveMode>('enter')
+const enterPlacement = ref<'center' | 'cell'>('center')
+const enterCellInput = ref('')
+const setCellInput = ref('')
+const shift = reactive({ dx: 0, dy: 0 })
+const moveBusy = ref(false)
+
+const offBoardCharIds = computed(() =>
+  uniqueSelectedChars.value.filter(c => !onCanvasIds.value.has(c._id)).map(c => c._id),
+)
+const onBoardCharIds = computed(() =>
+  uniqueSelectedChars.value.filter(c => onCanvasIds.value.has(c._id)).map(c => c._id),
+)
+const allSelectedCharIds = computed(() => uniqueSelectedChars.value.map(c => c._id))
+
+async function applyMove() {
+  if (moveBusy.value)
+    return
+  const grid = settings.grid
+
+  let resultPromise: Promise<{ ok: number, failures: Array<{ charId: string, error: Error }> }> | null = null
+
+  if (moveMode.value === 'enter') {
+    const cell = enterPlacement.value === 'center'
+      ? formatCellRef({ col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) })
+      : enterCellInput.value.trim()
+    if (!parseCellRef(cell, grid)) {
+      // eslint-disable-next-line no-alert
+      alert(`无效格位:${cell || '(空)'}`)
+      return
+    }
+    if (offBoardCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchMoveToCell({ charIds: offBoardCharIds.value, cellRef: cell, grid })
+  }
+  else if (moveMode.value === 'exit') {
+    if (onBoardCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchMoveOffBoard(onBoardCharIds.value, grid)
+  }
+  else if (moveMode.value === 'shift') {
+    if (shift.dx === 0 && shift.dy === 0)
+      return
+    if (onBoardCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchShift({ charIds: onBoardCharIds.value, dx: shift.dx, dy: shift.dy, grid })
+  }
+  else {
+    const cell = setCellInput.value.trim()
+    if (!parseCellRef(cell, grid)) {
+      // eslint-disable-next-line no-alert
+      alert(`无效格位:${cell || '(空)'}`)
+      return
+    }
+    if (allSelectedCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchMoveToCell({ charIds: allSelectedCharIds.value, cellRef: cell, grid })
+  }
+
+  moveBusy.value = true
+  try {
+    const result = await resultPromise
+    if (result.failures.length > 0) {
+      // eslint-disable-next-line no-alert
+      alert(`成功 ${result.ok} 个,失败 ${result.failures.length} 个:\n${result.failures.map(f => f.error.message).join('\n')}`)
+    }
+  }
+  finally {
+    moveBusy.value = false
+  }
+}
+
+const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay' | 'move'>('hpmp')
 
 // 关对话框时清状态
 watch(open, (v) => {
@@ -527,6 +606,10 @@ watch(open, (v) => {
     selected.clear()
     hpMp.input = ''
     detachDefId.value = ''
+    enterCellInput.value = ''
+    setCellInput.value = ''
+    shift.dx = 0
+    shift.dy = 0
   }
 })
 
@@ -646,6 +729,12 @@ async function writeRow(
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
             场景指示
+          </TabsTrigger>
+          <TabsTrigger
+            value="move"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            移动
           </TabsTrigger>
         </TabsList>
 
@@ -823,6 +912,145 @@ async function writeRow(
             </Button>
           </div>
         </TabsContent>
+
+        <!-- 移动 -->
+        <TabsContent value="move" class="flex flex-col gap-3 pt-3">
+          <!-- mode 切换:抄 buff tab 那三个按钮的样式 -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="h-7 border rounded px-2 text-xs transition-colors"
+              :class="moveMode === 'enter' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+              @click="moveMode = 'enter'"
+            >
+              入板
+            </button>
+            <button
+              type="button"
+              class="h-7 border rounded px-2 text-xs transition-colors"
+              :class="moveMode === 'exit' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+              @click="moveMode = 'exit'"
+            >
+              出板
+            </button>
+            <button
+              type="button"
+              class="h-7 border rounded px-2 text-xs transition-colors"
+              :class="moveMode === 'shift' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+              @click="moveMode = 'shift'"
+            >
+              位移
+            </button>
+            <button
+              type="button"
+              class="h-7 border rounded px-2 text-xs transition-colors"
+              :class="moveMode === 'set' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+              @click="moveMode = 'set'"
+            >
+              定位
+            </button>
+            <span class="ml-auto text-xs text-white/50">已选 {{ uniqueSelectedChars.length }} 名角色</span>
+          </div>
+
+          <!-- 入板 -->
+          <template v-if="moveMode === 'enter'">
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="h-7 border rounded px-2 text-xs transition-colors"
+                :class="enterPlacement === 'center' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+                @click="enterPlacement = 'center'"
+              >
+                棋盘中心
+              </button>
+              <button
+                type="button"
+                class="h-7 border rounded px-2 text-xs transition-colors"
+                :class="enterPlacement === 'cell' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+                @click="enterPlacement = 'cell'"
+              >
+                指定格
+              </button>
+            </div>
+            <Field v-if="enterPlacement === 'cell'" label="目标格位" hint="如 5J / 12C;全部角色叠到该格,后续 GM 在 ccfolia 里手动拖开">
+              <Input v-model="enterCellInput" placeholder="5J" />
+            </Field>
+            <p v-else class="text-xs text-white/50">
+              全部放到棋盘中心格(可重叠)。
+            </p>
+            <div class="flex justify-end pt-1">
+              <Button
+                size="md"
+                :disabled="moveBusy || offBoardCharIds.length === 0 || (enterPlacement === 'cell' && !enterCellInput.trim())"
+                @click="applyMove"
+              >
+                应用 ({{ offBoardCharIds.length }} 在板外)
+              </Button>
+            </div>
+            <p v-if="uniqueSelectedChars.length > 0 && offBoardCharIds.length === 0" class="text-[11px] text-white/40">
+              选中角色全部已在板上,跳过。
+            </p>
+          </template>
+
+          <!-- 出板 -->
+          <template v-else-if="moveMode === 'exit'">
+            <p class="text-xs text-white/60">
+              把选中且在板上的角色一次性收纳到板外位。带「移出场外自动回满 HP / MP」tag 的角色会自动回满 HP/MP。
+            </p>
+            <div class="flex justify-end pt-1">
+              <Button
+                size="md"
+                :disabled="moveBusy || onBoardCharIds.length === 0"
+                @click="applyMove"
+              >
+                应用 ({{ onBoardCharIds.length }} 在板上)
+              </Button>
+            </div>
+          </template>
+
+          <!-- 位移 -->
+          <template v-else-if="moveMode === 'shift'">
+            <p class="text-xs text-white/60">
+              对在板上的角色整体按格平移,板外的角色跳过。dx 正方向 = 右,dy 正方向 = 下。
+            </p>
+            <div class="flex items-center gap-3">
+              <Field label="dx (列)">
+                <NumberEdit :value="shift.dx" @change="(v: number) => shift.dx = v" />
+              </Field>
+              <Field label="dy (行)">
+                <NumberEdit :value="shift.dy" @change="(v: number) => shift.dy = v" />
+              </Field>
+            </div>
+            <div class="flex justify-end pt-1">
+              <Button
+                size="md"
+                :disabled="moveBusy || onBoardCharIds.length === 0 || (shift.dx === 0 && shift.dy === 0)"
+                @click="applyMove"
+              >
+                应用 ({{ onBoardCharIds.length }} 在板上)
+              </Button>
+            </div>
+          </template>
+
+          <!-- 定位 -->
+          <template v-else>
+            <p class="text-xs text-white/60">
+              覆盖式写入位置:全部选中角色(包括已在板上的)都移到目标格。
+            </p>
+            <Field label="目标格位">
+              <Input v-model="setCellInput" placeholder="5J" />
+            </Field>
+            <div class="flex justify-end pt-1">
+              <Button
+                size="md"
+                :disabled="moveBusy || allSelectedCharIds.length === 0 || !setCellInput.trim()"
+                @click="applyMove"
+              >
+                应用 ({{ allSelectedCharIds.length }})
+              </Button>
+            </div>
+          </template>
+        </TabsContent>
       </Tabs>
 
       <!-- 目标列表:占满剩余空间,内部独立滚动 -->
@@ -846,6 +1074,16 @@ async function writeRow(
           >
             <span class="i-lucide-map-pin text-3" />
             仅画布上
+          </button>
+          <button
+            type="button"
+            class="h-5 flex items-center gap-1 border rounded px-1.5 text-xs transition-colors"
+            :class="view.offCanvasOnly ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+            :title="view.offCanvasOnly ? '当前仅显示板外角色,点击关闭' : '仅显示板外角色'"
+            @click="view.toggleOffCanvasOnly()"
+          >
+            <span class="i-lucide-map-pin-off text-3" />
+            仅板外
           </button>
           <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} / {{ totalCount }}</span>
         </div>
@@ -941,8 +1179,8 @@ async function writeRow(
                       :title="overlayVis.isVisible(char._id) ? 'pill 显示中' : 'pill 已隐藏'"
                     />
                   </li>
-                  <!-- 子行:仅多部位才出 -->
-                  <template v-if="isMultiPart(char._id)">
+                  <!-- 子行:仅多部位才出;移动 tab 是角色级,部位行只是噪音,直接折掉 -->
+                  <template v-if="isMultiPart(char._id) && opTab !== 'move'">
                     <li
                       v-for="part in partsOf(char._id)"
                       :key="formatActorRef(char._id, part.partKey)"

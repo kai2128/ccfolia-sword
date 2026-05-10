@@ -44,7 +44,7 @@ const brokenParts = computed(() => props.parts.filter(p => p.hp.cur <= 0))
     </template>
     <div
       v-if="brokenParts.length > 0"
-      class="font-serif inline-flex flex-wrap items-center"
+      class="inline-flex flex-wrap items-center font-serif"
       :style="{
         gap: '5px',
         padding: '0 2px',

@@ -14,6 +14,8 @@ export interface GroupArgs {
   isOnCanvas: (charId: string) => boolean
   byTagId: (id: string) => TagDefinition | undefined
   onCanvasOnly: boolean
+  // 仅显示板外。和 onCanvasOnly 互斥(调用方负责),两个都为 true 时本函数会返回空。
+  offCanvasOnly?: boolean
 }
 
 interface Bucket extends RosterGroup {
@@ -21,12 +23,14 @@ interface Bucket extends RosterGroup {
 }
 
 export function groupRoster(args: GroupArgs): RosterGroup[] {
-  const { chars, isOnCanvas, byTagId, onCanvasOnly } = args
+  const { chars, isOnCanvas, byTagId, onCanvasOnly, offCanvasOnly = false } = args
   const bucketMap = new Map<string, Bucket>()
 
   for (const char of chars) {
     const onCanvas = isOnCanvas(char._id)
     if (onCanvasOnly && !onCanvas)
+      continue
+    if (offCanvasOnly && onCanvas)
       continue
 
     const location: RosterGroup['location'] = onCanvas ? 'on-canvas' : 'off-canvas'
