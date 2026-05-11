@@ -10,6 +10,7 @@ import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { applyBatchMoveOffBoard, applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
+import { applyBatchSavePark, applyBatchSendToPark } from '@/ccfolia/writers/apply-parked-batch'
 import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
@@ -22,6 +23,7 @@ import { collectBuffsForPart } from '@/core/buff/collect'
 import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
 import { evaluateExpression } from '@/core/combat/eval-expr'
 import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
+import { readParkedLocation } from '@/core/parked-location'
 import { formatCellRef, parseCellRef } from '@/core/range'
 import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
@@ -571,7 +573,7 @@ async function batchDetachTag(tagId: string) {
 // --- Move tab ---
 // 位置是角色级,选中集是 part 级 → 用 uniqueSelectedChars dedupe 到 charId。
 // 板内/板外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
-type MoveMode = 'enter' | 'exit' | 'shift' | 'set'
+type MoveMode = 'enter' | 'exit' | 'parked' | 'shift' | 'set'
 const moveMode = ref<MoveMode>('enter')
 const enterPlacement = ref<'center' | 'cell'>('center')
 const enterCellInput = ref('')
@@ -586,6 +588,13 @@ const onBoardCharIds = computed(() =>
   uniqueSelectedChars.value.filter(c => onCanvasIds.value.has(c._id)).map(c => c._id),
 )
 const allSelectedCharIds = computed(() => uniqueSelectedChars.value.map(c => c._id))
+
+// 「场外停放位」候选集:
+//   - save:角色必须当前在板外 → 直接复用 offBoardCharIds
+//   - send / send+restore:角色必须已有保存的 cs_park 条目
+const parkedCharIds = computed(() =>
+  uniqueSelectedChars.value.filter(c => readParkedLocation(c) !== null).map(c => c._id),
+)
 
 async function applyMove() {
   if (moveBusy.value)
@@ -637,6 +646,37 @@ async function applyMove() {
     if (result.failures.length > 0) {
       // eslint-disable-next-line no-alert
       alert(`成功 ${result.ok} 个,失败 ${result.failures.length} 个:\n${result.failures.map(f => f.error.message).join('\n')}`)
+    }
+  }
+  finally {
+    moveBusy.value = false
+  }
+}
+
+// 「场外停放位」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
+async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
+  if (moveBusy.value)
+    return
+  const grid = settings.grid
+
+  let resultPromise: Promise<{ ok: number, skipped: number, failures: Array<{ charId: string, error: Error }> }>
+  if (kind === 'save') {
+    if (offBoardCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchSavePark(offBoardCharIds.value, grid)
+  }
+  else {
+    if (parkedCharIds.value.length === 0)
+      return
+    resultPromise = applyBatchSendToPark(parkedCharIds.value, { restoreHpMp: kind === 'sendRestore' })
+  }
+
+  moveBusy.value = true
+  try {
+    const result = await resultPromise
+    if (result.failures.length > 0) {
+      // eslint-disable-next-line no-alert
+      alert(`成功 ${result.ok} 个,跳过 ${result.skipped} 个,失败 ${result.failures.length} 个:\n${result.failures.map(f => f.error.message).join('\n')}`)
     }
   }
   finally {
@@ -1053,6 +1093,14 @@ async function writeRow(
             <button
               type="button"
               class="h-7 border rounded px-2 text-xs transition-colors"
+              :class="moveMode === 'parked' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+              @click="moveMode = 'parked'"
+            >
+              停放位
+            </button>
+            <button
+              type="button"
+              class="h-7 border rounded px-2 text-xs transition-colors"
               :class="moveMode === 'shift' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
               @click="moveMode = 'shift'"
             >
@@ -1112,7 +1160,7 @@ async function writeRow(
           <!-- 出板 -->
           <template v-else-if="moveMode === 'exit'">
             <p class="text-xs text-white/60">
-              把选中且在板上的角色一次性收纳到板外位。带「移出场外自动回满 HP / MP」tag 的角色会自动回满 HP/MP。
+              把选中且在板上的角色一次性收纳到板外位(默认收纳位,不读已保存的停放位)。
             </p>
             <div class="flex justify-end pt-1">
               <Button
@@ -1150,7 +1198,7 @@ async function writeRow(
           </template>
 
           <!-- 定位 -->
-          <template v-else>
+          <template v-else-if="moveMode === 'set'">
             <p class="text-xs text-white/60">
               覆盖式写入位置:全部选中角色(包括已在板上的)都移到目标格。
             </p>
@@ -1164,6 +1212,44 @@ async function writeRow(
                 @click="applyMove"
               >
                 应用 ({{ allSelectedCharIds.length }})
+              </Button>
+            </div>
+          </template>
+
+          <!-- 场外停放位 -->
+          <template v-else>
+            <p class="text-xs text-white/60">
+              每个角色独立保存一个场外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
+              保存仅对当前位于场外的角色生效；送回仅对已有停放位的角色生效。
+            </p>
+            <div class="grid grid-cols-2 gap-1.5 pt-1">
+              <Button
+                size="sm"
+                :disabled="moveBusy || parkedCharIds.length === 0"
+                title="把角色精确送回保存的停放位"
+                @click="applyParkedAction('send')"
+              >
+                <span class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
+                送回 ({{ parkedCharIds.length }})
+              </Button>
+              <Button
+                size="sm"
+                :disabled="moveBusy || offBoardCharIds.length === 0"
+                title="把当前位置保存为停放位(覆盖已有);仅在场外的角色生效"
+                class="text-black !bg-buff/70 hover:!bg-buff"
+                @click="applyParkedAction('save')"
+              >
+                <span class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
+                保存停放位 ({{ offBoardCharIds.length }})
+              </Button>
+              <Button
+                size="sm"
+                :disabled="moveBusy || parkedCharIds.length === 0"
+                title="送回停放位 + 全部部位 HP / MP 回满"
+                @click="applyParkedAction('sendRestore')"
+              >
+                <span class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />
+                送回 + 回满 HP ({{ parkedCharIds.length }})
               </Button>
             </div>
           </template>

@@ -9,8 +9,6 @@ export interface TagDefinition {
   builtin: boolean
   // HP 跌到 0 时旋转 token 90° 表示倒地;复活回正立。同一角色多个 tag 取「任一开启」并集语义。
   autoKnockdownOnHpZero?: boolean
-  // 角色脚下锚点离开主板格网时,HP / MP 重置到各自 max。多部位同样一次回满。
-  autoRestoreOnMoveOutside?: boolean
 }
 
 // params value 里存的运行时 payload。

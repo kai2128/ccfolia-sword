@@ -9,7 +9,6 @@ export const BUILTIN_TAGS: TagDefinition[] = [
     order: 0,
     builtin: true,
     autoKnockdownOnHpZero: true,
-    autoRestoreOnMoveOutside: false,
   },
   {
     id: 'builtin.enemy',
@@ -19,7 +18,6 @@ export const BUILTIN_TAGS: TagDefinition[] = [
     order: 1,
     builtin: true,
     autoKnockdownOnHpZero: true,
-    autoRestoreOnMoveOutside: true,
   },
   {
     id: 'builtin.neutral',

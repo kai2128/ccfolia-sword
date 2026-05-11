@@ -1,4 +1,5 @@
 import type { GridConfig } from './types'
+import { pxToCell } from './grid'
 
 export interface PieceBoxLike {
   x: number
@@ -6,6 +7,10 @@ export interface PieceBoxLike {
   widthCells: number
   heightCells: number
 }
+
+// 与 useOnCanvasIds / RosterRow / move-character-by-cells 共用的"脚下落在 cell 底边"补偿:
+// 底边中点正好落在 cell 底边时 pxToCell 的 floor 会推到下一格,所以回缩 eps 拉回当前格内侧。
+export const CELL_BOUNDARY_EPS = 0.001
 
 function pieceCellSizePx(grid: GridConfig): number {
   const gridSize = Number.isFinite(grid.gridSize) && grid.gridSize > 0 ? grid.gridSize : 1
@@ -41,6 +46,20 @@ export function pieceStandingCellCenter(p: PieceBoxLike, grid: GridConfig): { x:
     x: bottomCenter.x,
     y: bottomCenter.y - grid.cellSizePx / 2,
   }
+}
+
+// 角色"脚下"是否落在主板格网内。x/y 缺失或非有限数 → 视为场外。
+// invisible / hideStatus 不在这里判断 —— 调用方需要时自己叠。
+export function isPieceOffBoard(
+  p: { x?: unknown, y?: unknown, widthCells: number, heightCells: number },
+  grid: GridConfig,
+): boolean {
+  if (typeof p.x !== 'number' || typeof p.y !== 'number')
+    return true
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.y))
+    return true
+  const bc = pieceBottomCenter({ x: p.x, y: p.y, widthCells: p.widthCells, heightCells: p.heightCells }, grid)
+  return pxToCell({ x: bc.x, y: bc.y - CELL_BOUNDARY_EPS }, grid) === null
 }
 
 // 反向:让 box 底边中点落在 cell 底边中点,反推 .movable 左上角。

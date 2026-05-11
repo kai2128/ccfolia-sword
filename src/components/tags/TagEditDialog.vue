@@ -22,7 +22,6 @@ const form = ref({
   icon: '',
   order: 10,
   autoKnockdownOnHpZero: false,
-  autoRestoreOnMoveOutside: false,
 })
 
 function resetFormFromProps() {
@@ -33,7 +32,6 @@ function resetFormFromProps() {
       icon: props.tag.icon ?? '',
       order: props.tag.order,
       autoKnockdownOnHpZero: props.tag.autoKnockdownOnHpZero === true,
-      autoRestoreOnMoveOutside: props.tag.autoRestoreOnMoveOutside === true,
     }
     return
   }
@@ -44,7 +42,6 @@ function resetFormFromProps() {
     icon: '',
     order: 10,
     autoKnockdownOnHpZero: false,
-    autoRestoreOnMoveOutside: false,
   }
 }
 
@@ -69,7 +66,6 @@ function save() {
     icon: form.value.icon.trim() || undefined,
     order: Number.isFinite(Number(form.value.order)) ? Number(form.value.order) : 10,
     autoKnockdownOnHpZero: form.value.autoKnockdownOnHpZero,
-    autoRestoreOnMoveOutside: form.value.autoRestoreOnMoveOutside,
   }
 
   if (props.tag) {
@@ -137,17 +133,6 @@ function resetBuiltin() {
         </label>
         <p class="text-[11px] text-white/60 leading-relaxed">
           带本 tag 的角色 HP 跌到 0 时旋转 token (90°)，复活时转回正立 (0°)。
-        </p>
-
-        <label class="flex items-center gap-2 text-xs text-white/80">
-          <Switch
-            :model-value="form.autoRestoreOnMoveOutside"
-            @update:model-value="form.autoRestoreOnMoveOutside = $event ?? false"
-          />
-          移出场外自动回满 HP / MP
-        </label>
-        <p class="text-[11px] text-white/60 leading-relaxed">
-          带本 tag 的角色脚下离开主板格网时，所有部位的 HP / MP 回满至 max。
         </p>
       </div>
 

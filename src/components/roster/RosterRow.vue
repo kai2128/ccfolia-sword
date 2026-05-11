@@ -7,6 +7,8 @@ import { num } from '@/ccfolia/pieces-store'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
 import { moveCharacterOffBoard } from '@/ccfolia/writers/move-character-off-board'
+import { saveCharacterParked } from '@/ccfolia/writers/save-character-parked'
+import { sendCharacterToParked } from '@/ccfolia/writers/send-character-to-parked'
 import { setCharacterActive } from '@/ccfolia/writers/set-character-active'
 import { setCharacterAngle } from '@/ccfolia/writers/set-character-angle'
 import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
@@ -16,7 +18,8 @@ import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
 import { extractStatusChips } from '@/core/overlay/status-chip'
-import { formatCellRef, pieceBottomCenter, pxToCell } from '@/core/range'
+import { readParkedLocation } from '@/core/parked-location'
+import { formatCellRef, isPieceOffBoard, pieceBottomCenter, pxToCell } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/core/tag'
 import { useEncounterStore } from '@/stores/encounter'
@@ -24,7 +27,7 @@ import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
-import RosterRowMoreMenu from './RosterRowMoreMenu.vue'
+import RosterRowBoardMenu from './RosterRowBoardMenu.vue'
 import StatusBuffMenu from './StatusBuffMenu.vue'
 
 const props = defineProps<{
@@ -124,7 +127,16 @@ const currentCell = computed(() => {
   return pxToCell({ x: bottomCenter.x, y: bottomCenter.y - 0.001 }, grid)
 })
 const cellText = computed(() => currentCell.value ? formatCellRef(currentCell.value) : '')
-const offBoard = computed(() => currentCell.value === null)
+const offBoard = computed(() => isPieceOffBoard({
+  x: props.char.x,
+  y: props.char.y,
+  widthCells: num(props.char.width, 1),
+  heightCells: num(props.char.height, 1),
+}, settings.grid))
+
+// 已保存的场外停放位:从 char.params 的 cs_park 条目读出。
+const parked = computed(() => readParkedLocation(props.char))
+const hasParked = computed(() => parked.value !== null)
 
 // hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
 const isHidden = computed(() => props.char.hideStatus === true)
@@ -197,6 +209,26 @@ async function onSetInactive() {
   catch (e) {
     // eslint-disable-next-line no-alert
     alert(`设非激活失败:${(e as Error).message}`)
+  }
+}
+
+async function onSaveParked() {
+  try {
+    await saveCharacterParked(props.char._id, props.char.x as number, props.char.y as number)
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`保存停放位失败:${(e as Error).message}`)
+  }
+}
+
+async function onSendToParked(restoreHpMp: boolean) {
+  try {
+    await sendCharacterToParked(props.char._id, { restoreHpMp })
+  }
+  catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(`送回停放位失败:${(e as Error).message}`)
   }
 }
 
@@ -299,43 +331,38 @@ async function onClearBuffs() {
         <span :class="isDown ? 'i-mdi-human-handsdown' : 'i-mdi-human'" class="text-3.5" />
       </button>
 
+      <RosterRowBoardMenu
+        :off-board="offBoard"
+        :has-parked="hasParked"
+        @toggle-board="onToggleBoard"
+        @send-to-parked="onSendToParked(false)"
+        @send-to-parked-restore="onSendToParked(true)"
+        @save-parked="onSaveParked"
+      />
+
       <PopConfirm
-        :message="offBoard ? `把 ${char.name} 放回画布中央?` : `把 ${char.name} 移动到 board 外?`"
-        confirm-text="确认"
-        @confirm="onToggleBoard"
+        v-if="hasParked"
+        :message="`送回 ${char.name} 到停放位,并把全部部位 HP / MP 回满?`"
+        confirm-text="送回 + 回满"
+        @confirm="onSendToParked(true)"
       >
         <button
           type="button"
-          class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
-          :title="offBoard ? '放回画布中央' : '移动到 board 外'"
+          class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-emerald-400/70 hover:bg-emerald-400/15 hover:text-emerald-300"
+          title="送回停放位 + 全部部位 HP / MP 回满"
         >
-          <span class="i-lucide-archive text-3.5" />
+          <span class="i-lucide-heart-pulse text-3.5" />
         </button>
       </PopConfirm>
-
-      <RosterRowMoreMenu>
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-white/85 transition-colors hover:bg-white/10"
-          @click="onToggleHideStatus"
-        >
-          <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="shrink-0 text-3.5" />
-          <span>{{ isHidden ? '在 ccfolia 一览中显示' : '从 ccfolia 一览隐藏' }}</span>
-        </button>
-        <PopConfirm
-          :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
-          confirm-text="移除"
-          @confirm="onSetInactive"
-        >
-          <button
-            type="button"
-            class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-white/70 transition-colors hover:bg-debuff/20 hover:text-debuff"
-          >
-            <span class="i-lucide-trash-2 shrink-0 text-3.5" />
-            <span>移除角色</span>
-          </button>
-        </PopConfirm>
-      </RosterRowMoreMenu>
+      <button
+        v-else
+        type="button"
+        class="h-5 w-5 flex shrink-0 cursor-not-allowed items-center justify-center rounded text-white/15"
+        title="还没保存过场外停放位"
+        disabled
+      >
+        <span class="i-lucide-heart-pulse text-3.5" />
+      </button>
 
       <button
         type="button"
@@ -372,6 +399,29 @@ async function onClearBuffs() {
           </button>
         </PopConfirm>
         <StatusBuffMenu v-if="hasStatusChips" :char="char" />
+        <button
+          type="button"
+          class="h-6 inline-flex items-center gap-1 border border-white/15 rounded bg-black/20 px-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+          :title="isHidden ? '在 ccfolia 一览中显示' : '从 ccfolia 一览隐藏'"
+          @click="onToggleHideStatus"
+        >
+          <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="shrink-0 text-3.5" />
+          <span>{{ isHidden ? '一览中显示' : '一览隐藏' }}</span>
+        </button>
+        <PopConfirm
+          :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
+          confirm-text="移除"
+          @confirm="onSetInactive"
+        >
+          <button
+            type="button"
+            class="h-6 inline-flex items-center gap-1 border border-white/15 rounded bg-black/20 px-1.5 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
+            title="移除角色 (set inactive)"
+          >
+            <span class="i-lucide-trash-2 shrink-0 text-3.5" />
+            <span>移除角色</span>
+          </button>
+        </PopConfirm>
       </div>
       <BuffRow
         v-for="buff in buffs"

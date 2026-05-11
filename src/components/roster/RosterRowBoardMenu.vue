@@ -1,0 +1,119 @@
+<script setup lang="ts">
+// 「archive」按钮的多选 popover:替代单 PopConfirm。
+// 触发器仍是熟悉的 i-lucide-archive 图标;点开后按当前状态(板内/板外)与是否有停放位列出可选动作。
+//   - 板内:移动到 board 外(默认收纳位) / 送到停放位 / 送到停放位 + 回满 HP/MP
+//   - 板外:放回画布中央 / 送到停放位 / 送到停放位 + 回满 HP/MP
+// 没有停放位时,后两项 disabled 且 hint「先在「更多 -> 保存为场外停放位」存一下」。
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { ref } from 'vue'
+import { usePortalTarget } from '@/components/ui'
+
+defineProps<{
+  offBoard: boolean
+  hasParked: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggleBoard'): void
+  (e: 'sendToParked'): void
+  (e: 'sendToParkedRestore'): void
+  (e: 'saveParked'): void
+}>()
+
+const open = ref(false)
+const target = usePortalTarget()
+
+function pick(action: 'toggle' | 'park' | 'parkRestore' | 'save') {
+  open.value = false
+  if (action === 'toggle')
+    emit('toggleBoard')
+  else if (action === 'park')
+    emit('sendToParked')
+  else if (action === 'parkRestore')
+    emit('sendToParkedRestore')
+  else
+    emit('saveParked')
+}
+
+function cancel() {
+  open.value = false
+}
+</script>
+
+<template>
+  <PopoverRoot v-model:open="open">
+    <PopoverTrigger as-child>
+      <button
+        type="button"
+        class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
+        :title="offBoard ? '位置操作 · 当前在板外' : '位置操作 · 当前在板内'"
+      >
+        <span class="i-lucide-archive text-3.5" />
+      </button>
+    </PopoverTrigger>
+    <PopoverPortal :to="target ?? undefined">
+      <PopoverContent
+        :side-offset="4"
+        :collision-padding="8"
+        align="end"
+        class="z-30 flex flex-col border border-white/15 rounded bg-surface p-1 text-white shadow-lg focus:outline-none"
+      >
+        <button
+          type="button"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] text-white/85 transition-colors hover:bg-white/10"
+          @click="pick('toggle')"
+        >
+          <span class="i-lucide-archive shrink-0 text-3" />
+          <span>{{ offBoard ? '放回画布中央' : '移动到 board 外' }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] transition-colors disabled:cursor-not-allowed"
+          :class="hasParked ? 'text-white/85 hover:bg-white/10' : 'text-white/30'"
+          :disabled="!hasParked"
+          :title="hasParked ? '送回保存的场外停放位' : '先在「更多」→「保存为场外停放位」存一下'"
+          @click="pick('park')"
+        >
+          <span class="i-lucide-home shrink-0 text-3" />
+          <span>送到停放位</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] transition-colors disabled:cursor-not-allowed"
+          :class="hasParked ? 'text-emerald-300 hover:bg-emerald-400/15' : 'text-emerald-400/30'"
+          :disabled="!hasParked"
+          :title="hasParked ? '送到停放位 + 全部部位 HP / MP 回满' : '先点下方「保存为场外停放位」存一下'"
+          @click="pick('parkRestore')"
+        >
+          <span class="i-lucide-heart-pulse shrink-0 text-3" />
+          <span>送到停放位 + 回满 HP/MP</span>
+        </button>
+
+        <div class="my-0.5 h-px bg-white/10" />
+
+        <button
+          type="button"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] transition-colors disabled:cursor-not-allowed"
+          :class="offBoard ? 'text-buff hover:bg-buff/15' : 'text-buff/30'"
+          :disabled="!offBoard"
+          :title="offBoard ? '把当前位置保存为场外停放位(可覆盖)' : '需先把角色挪到场外再点保存'"
+          @click="pick('save')"
+        >
+          <span class="i-lucide-bookmark-plus shrink-0 text-3" />
+          <span>{{ hasParked ? '更新场外停放位' : '保存为场外停放位' }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+          @click="cancel"
+        >
+          <span class="i-lucide-x shrink-0 text-3" />
+          <span>取消</span>
+        </button>
+      </PopoverContent>
+    </PopoverPortal>
+  </PopoverRoot>
+</template>

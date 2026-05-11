@@ -6,7 +6,7 @@ import { isBuiltinTagId } from '@/types/tag'
 
 type BuiltinOverrides = Record<
   string,
-  Partial<Pick<TagDefinition, 'label' | 'color' | 'icon' | 'order' | 'autoKnockdownOnHpZero' | 'autoRestoreOnMoveOutside'>>
+  Partial<Pick<TagDefinition, 'label' | 'color' | 'icon' | 'order' | 'autoKnockdownOnHpZero'>>
 >
 
 interface TagLibraryState {
@@ -44,7 +44,6 @@ function normalizeCustomDef(raw: unknown): TagDefinition | null {
     order: normalizeOrder(value.order),
     builtin: false,
     autoKnockdownOnHpZero: value.autoKnockdownOnHpZero === true,
-    autoRestoreOnMoveOutside: value.autoRestoreOnMoveOutside === true,
   }
 }
 
@@ -65,8 +64,6 @@ function normalizeOverride(raw: unknown): BuiltinOverrides[string] {
     out.icon = value.icon
   if (typeof value.autoKnockdownOnHpZero === 'boolean')
     out.autoKnockdownOnHpZero = value.autoKnockdownOnHpZero
-  if (typeof value.autoRestoreOnMoveOutside === 'boolean')
-    out.autoRestoreOnMoveOutside = value.autoRestoreOnMoveOutside
 
   return out
 }
@@ -82,7 +79,6 @@ function applyOverride(base: TagDefinition, override?: BuiltinOverrides[string])
     icon: override.icon ?? base.icon,
     order: override.order ?? base.order,
     autoKnockdownOnHpZero: override.autoKnockdownOnHpZero ?? base.autoKnockdownOnHpZero,
-    autoRestoreOnMoveOutside: override.autoRestoreOnMoveOutside ?? base.autoRestoreOnMoveOutside,
   }
 }
 
