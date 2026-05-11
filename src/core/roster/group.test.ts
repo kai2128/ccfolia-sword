@@ -52,6 +52,46 @@ describe('groupRoster', () => {
     expect(groups.flatMap(g => g.chars.map(c => c._id)).sort()).toEqual(['a', 'b'])
   })
 
+  it('sortMode=position orders chars top-to-bottom then left-to-right within a group', () => {
+    const chars = [
+      ch('a', 'A', ally.id),
+      ch('b', 'B', ally.id),
+      ch('c', 'C', ally.id),
+      ch('d', 'D', ally.id),
+    ]
+    const positions: Record<string, { x: number, y: number }> = {
+      a: { x: 200, y: 100 }, // top-right
+      b: { x: 50, y: 100 }, // top-left
+      c: { x: 50, y: 300 }, // bottom-left
+      d: { x: 200, y: 300 }, // bottom-right
+    }
+    const groups = groupRoster({
+      chars,
+      isOnCanvas: () => true,
+      byTagId,
+      onCanvasOnly: false,
+      sortMode: 'position',
+      positionOf: id => positions[id] ?? null,
+    })
+    expect(groups[0].chars.map(c => c._id)).toEqual(['b', 'a', 'c', 'd'])
+  })
+
+  it('sortMode=position pushes chars without position to end (fallback by name)', () => {
+    const chars = [ch('a', 'Zed', ally.id), ch('b', 'Anna', ally.id), ch('c', 'Bob', ally.id)]
+    const positions: Record<string, { x: number, y: number }> = {
+      a: { x: 0, y: 0 },
+    }
+    const groups = groupRoster({
+      chars,
+      isOnCanvas: () => true,
+      byTagId,
+      onCanvasOnly: false,
+      sortMode: 'position',
+      positionOf: id => positions[id] ?? null,
+    })
+    expect(groups[0].chars.map(c => c.name)).toEqual(['Zed', 'Anna', 'Bob'])
+  })
+
   it('drops tag instance whose definition was removed', () => {
     const chars = [ch('a', 'Ghost', 'custom.removed')]
     const groups = groupRoster({ chars, isOnCanvas: () => true, byTagId, onCanvasOnly: false })

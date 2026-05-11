@@ -6,6 +6,7 @@ import type { VariantOverride } from '@/core/overlay/resolve-display-mode'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
 import { computed, reactive, ref, watch } from 'vue'
+import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
@@ -47,6 +48,20 @@ const variantOverride = useHpmpVariantOverrideStore()
 
 const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
+const pieces = usePiecesStore()
+
+// 同 RosterList:用 pxToCell 的 anchor + origin 公式量化 y,
+// 避免 Math.round 边界把同一行内的 piece 翻进上/下一行。
+function positionOf(charId: string) {
+  const p = pieces.byCharacterId(charId)
+  if (!p)
+    return null
+  const grid = settings.grid
+  const cell = grid.cellSizePx || 1
+  const anchorY = grid.pieceAnchor === 'center' ? p.y - cell / 2 : p.y
+  const row = Math.floor((anchorY - grid.originPx.y) / cell)
+  return { x: p.x, y: row }
+}
 
 // --- 选中集合(actorRef = `${charId}::${partKey}`,与 RosterPartRow 一致) ---
 const selected = reactive(new Set<string>())
@@ -60,6 +75,8 @@ const groups = computed(() => groupRoster({
   onCanvasOnly: view.onCanvasOnly,
   offCanvasOnly: view.offCanvasOnly,
   nameQuery: view.batchNameQuery,
+  sortMode: view.sortMode,
+  positionOf,
 }))
 
 // 当前过滤下可见的角色
@@ -1289,6 +1306,18 @@ async function writeRow(
           >
             <span class="i-lucide-map-pin-off text-3" />
             仅板外
+          </button>
+          <button
+            type="button"
+            class="h-5 flex items-center gap-1 border rounded px-1.5 text-xs transition-colors"
+            :class="view.sortMode === 'position' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+            :title="view.sortMode === 'position'
+              ? '当前按画布位置排序(上→下、左→右),点击切回按名称'
+              : '按画布位置排序(上→下、左→右),仍保留 tag 分组'"
+            @click="view.toggleSortMode()"
+          >
+            <span :class="view.sortMode === 'position' ? 'i-lucide-layout-grid' : 'i-lucide-arrow-down-a-z'" class="text-3" />
+            {{ view.sortMode === 'position' ? '位置' : '名称' }}
           </button>
           <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} / {{ totalCount }}</span>
         </div>

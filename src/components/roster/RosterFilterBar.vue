@@ -93,6 +93,21 @@ function onTurnKey(ev: KeyboardEvent) {
 
       <button
         type="button"
+        class="h-6 flex items-center gap-1 border rounded px-2 text-xs transition-colors"
+        :class="view.sortMode === 'position'
+          ? 'border-accent bg-accent/20 text-white'
+          : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+        :title="view.sortMode === 'position'
+          ? '当前按画布位置排序(上→下、左→右),点击切回按名称'
+          : '按画布位置排序(上→下、左→右),仍保留 tag 分组'"
+        @click="view.toggleSortMode()"
+      >
+        <span :class="view.sortMode === 'position' ? 'i-lucide-layout-grid' : 'i-lucide-arrow-down-a-z'" class="text-3" />
+        {{ view.sortMode === 'position' ? '位置' : '名称' }}
+      </button>
+
+      <button
+        type="button"
         class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-2 text-xs text-white/70 transition-colors hover:bg-white/10"
         title="批量操作:HP/MP · Buff · Tag · 场景指示"
         @click="batchOpsOpen = true"

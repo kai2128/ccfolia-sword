@@ -1,3 +1,4 @@
+import type { RosterSortMode } from '@/core/roster/group'
 import { defineStore } from 'pinia'
 import { gmStorage } from '@/infra/pinia-persist-adapter'
 
@@ -6,6 +7,7 @@ interface RosterViewState {
   offCanvasOnly: boolean
   nameQuery: string
   batchNameQuery: string
+  sortMode: RosterSortMode
 }
 
 export const useRosterViewStore = defineStore('rosterView', {
@@ -14,6 +16,7 @@ export const useRosterViewStore = defineStore('rosterView', {
     offCanvasOnly: false,
     nameQuery: '',
     batchNameQuery: '',
+    sortMode: 'name',
   }),
   actions: {
     setNameQuery(value: string) {
@@ -27,6 +30,12 @@ export const useRosterViewStore = defineStore('rosterView', {
     },
     clearBatchNameQuery() {
       this.batchNameQuery = ''
+    },
+    toggleSortMode() {
+      this.sortMode = this.sortMode === 'position' ? 'name' : 'position'
+    },
+    setSortMode(mode: RosterSortMode) {
+      this.sortMode = mode
     },
     // 两个过滤互斥:打开一个就关掉另一个,避免并存出"全空"
     toggleOnCanvasOnly() {

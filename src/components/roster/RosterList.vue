@@ -2,6 +2,7 @@
 import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusSlot } from '@/core/status-slot'
 import { computed, reactive, ref } from 'vue'
+import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import AttachBuffDialog from '@/components/buffs/AttachBuffDialog.vue'
@@ -21,6 +22,21 @@ const chars = useRoomCharactersStore()
 const lib = useTagLibraryStore()
 const view = useRosterViewStore()
 const settings = useSettingsStore()
+const pieces = usePiecesStore()
+
+// 把 piece 的 y 量化到"它所在的那一格",再按 (rowBucket, x) 排序。
+// 用与 pxToCell 一致的 anchor + origin 公式,避免 Math.round 在格中心(0.5 倍格)边界
+// 把同一视觉行的一个 piece 翻进上一行(常见症状:1红眼/6红眼 漂移到行尾)。
+function positionOf(charId: string) {
+  const p = pieces.byCharacterId(charId)
+  if (!p)
+    return null
+  const grid = settings.grid
+  const cell = grid.cellSizePx || 1
+  const anchorY = grid.pieceAnchor === 'center' ? p.y - cell / 2 : p.y
+  const row = Math.floor((anchorY - grid.originPx.y) / cell)
+  return { x: p.x, y: row }
+}
 // expandedRefs / attachingRef 都用 actorRef(charId::partKey)做键 —— 多部位每个 part 独立展开/挂 buff
 const expandedRefs = reactive(new Set<string>())
 const attachingRef = ref<string | null>(null)
@@ -36,6 +52,8 @@ const groups = computed(() =>
     byTagId: lib.byId,
     onCanvasOnly: view.onCanvasOnly,
     nameQuery: view.nameQuery,
+    sortMode: view.sortMode,
+    positionOf,
   }),
 )
 

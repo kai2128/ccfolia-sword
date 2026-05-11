@@ -9,6 +9,8 @@ export interface RosterGroup {
   chars: CcfoliaCharacter[]
 }
 
+export type RosterSortMode = 'name' | 'position'
+
 export interface GroupArgs {
   chars: CcfoliaCharacter[]
   isOnCanvas: (charId: string) => boolean
@@ -18,6 +20,11 @@ export interface GroupArgs {
   offCanvasOnly?: boolean
   // 按名称子串过滤(大小写不敏感,去首尾空白)。空串/undefined = 不过滤。
   nameQuery?: string
+  // 组内排序方式。默认 'name'(按角色名字典序)。'position' = 按 piece 坐标:
+  // 先 y 升(画布上→下),再 x 升(画布左→右);无坐标的角色排到末尾,以名字 fallback。
+  sortMode?: RosterSortMode
+  // 'position' 排序需要的查询函数:返回该角色的 piece 中心坐标(px),无坐标返回 null。
+  positionOf?: (charId: string) => { x: number, y: number } | null
 }
 
 interface Bucket extends RosterGroup {
@@ -25,7 +32,7 @@ interface Bucket extends RosterGroup {
 }
 
 export function groupRoster(args: GroupArgs): RosterGroup[] {
-  const { chars, isOnCanvas, byTagId, onCanvasOnly, offCanvasOnly = false, nameQuery } = args
+  const { chars, isOnCanvas, byTagId, onCanvasOnly, offCanvasOnly = false, nameQuery, sortMode = 'name', positionOf } = args
   const needle = (nameQuery ?? '').trim().toLowerCase()
   const bucketMap = new Map<string, Bucket>()
 
@@ -68,8 +75,32 @@ export function groupRoster(args: GroupArgs): RosterGroup[] {
     return (a.primaryTagId ?? '').localeCompare(b.primaryTagId ?? '')
   })
 
-  for (const group of groups)
-    group.chars.sort((a, b) => a.name.localeCompare(b.name))
+  // sortMode='position':先 y 升、再 x 升;无坐标(positionOf 返回 null 或未提供)的角色
+  // 排到该组末尾,组内 fallback 用名字字典序,避免顺序抖动。
+  const byName = (a: CcfoliaCharacter, b: CcfoliaCharacter) => a.name.localeCompare(b.name)
+  for (const group of groups) {
+    if (sortMode === 'position' && positionOf) {
+      group.chars.sort((a, b) => {
+        const pa = positionOf(a._id)
+        const pb = positionOf(b._id)
+        if (pa && pb) {
+          if (pa.y !== pb.y)
+            return pa.y - pb.y
+          if (pa.x !== pb.x)
+            return pa.x - pb.x
+          return byName(a, b)
+        }
+        if (pa)
+          return -1
+        if (pb)
+          return 1
+        return byName(a, b)
+      })
+    }
+    else {
+      group.chars.sort(byName)
+    }
+  }
 
   return groups.map(({ primaryOrder: _primaryOrder, ...group }) => group)
 }
