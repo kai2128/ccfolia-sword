@@ -16,6 +16,8 @@ export interface GroupArgs {
   onCanvasOnly: boolean
   // 仅显示板外。和 onCanvasOnly 互斥(调用方负责),两个都为 true 时本函数会返回空。
   offCanvasOnly?: boolean
+  // 按名称子串过滤(大小写不敏感,去首尾空白)。空串/undefined = 不过滤。
+  nameQuery?: string
 }
 
 interface Bucket extends RosterGroup {
@@ -23,7 +25,8 @@ interface Bucket extends RosterGroup {
 }
 
 export function groupRoster(args: GroupArgs): RosterGroup[] {
-  const { chars, isOnCanvas, byTagId, onCanvasOnly, offCanvasOnly = false } = args
+  const { chars, isOnCanvas, byTagId, onCanvasOnly, offCanvasOnly = false, nameQuery } = args
+  const needle = (nameQuery ?? '').trim().toLowerCase()
   const bucketMap = new Map<string, Bucket>()
 
   for (const char of chars) {
@@ -31,6 +34,8 @@ export function groupRoster(args: GroupArgs): RosterGroup[] {
     if (onCanvasOnly && !onCanvas)
       continue
     if (offCanvasOnly && onCanvas)
+      continue
+    if (needle && !(char.name ?? '').toLowerCase().includes(needle))
       continue
 
     const location: RosterGroup['location'] = onCanvas ? 'on-canvas' : 'off-canvas'

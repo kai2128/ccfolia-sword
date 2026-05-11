@@ -76,104 +76,127 @@ function onTurnKey(ev: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex items-center gap-1.5 pb-1">
-    <button
-      type="button"
-      class="h-6 flex items-center gap-1 border rounded px-2 text-xs transition-colors"
-      :class="view.onCanvasOnly
-        ? 'border-accent bg-accent/20 text-white'
-        : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-      :title="view.onCanvasOnly ? '当前仅显示画布上的角色,点击关闭' : '仅显示画布上的角色'"
-      @click="view.toggleOnCanvasOnly()"
-    >
-      <span class="i-lucide-map-pin text-3" />
-      只看画布上
-    </button>
+  <div class="flex flex-col gap-1 pb-1">
+    <div class="flex items-center gap-1.5">
+      <button
+        type="button"
+        class="h-6 flex items-center gap-1 border rounded px-2 text-xs transition-colors"
+        :class="view.onCanvasOnly
+          ? 'border-accent bg-accent/20 text-white'
+          : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+        :title="view.onCanvasOnly ? '当前仅显示画布上的角色,点击关闭' : '仅显示画布上的角色'"
+        @click="view.toggleOnCanvasOnly()"
+      >
+        <span class="i-lucide-map-pin text-3" />
+        只看画布上
+      </button>
 
-    <button
-      type="button"
-      class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-2 text-xs text-white/70 transition-colors hover:bg-white/10"
-      title="批量操作:HP/MP · Buff · Tag · 场景指示"
-      @click="batchOpsOpen = true"
-    >
-      <span class="i-lucide-layers text-3" />
-      批量操作
-    </button>
+      <button
+        type="button"
+        class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-2 text-xs text-white/70 transition-colors hover:bg-white/10"
+        title="批量操作:HP/MP · Buff · Tag · 场景指示"
+        @click="batchOpsOpen = true"
+      >
+        <span class="i-lucide-layers text-3" />
+        批量操作
+      </button>
 
-    <div class="ml-auto flex items-center gap-1">
-      <template v-if="!encounter.shared.inCombat">
-        <button
-          type="button"
-          class="h-6 flex items-center gap-1 border border-accent/60 rounded bg-accent/15 px-2 text-xs text-white transition-colors hover:bg-accent/30"
-          title="开始战斗(把房间内 active 角色全部加入)"
-          @click="startCombat"
-        >
-          <span class="i-lucide-swords text-3" />
-          开始战斗
-        </button>
-      </template>
-      <template v-else>
-        <span
-          class="h-6 flex items-center gap-1 border border-white/15 rounded bg-black/30 px-2 text-xs text-white"
-          :title="encounter.local.pendingIds.length > 0
-            ? `回合 ${encounter.shared.turn} · 还 ${encounter.local.pendingIds.length} 人未行动 · 点击数字可手动改`
-            : `回合 ${encounter.shared.turn} · 全员已行动 · 点击数字可手动改`"
-        >
-          回合
-          <!-- 手动改回合,不走 nextTurn(不 tick buff、不重置 pending) -->
-          <input
-            v-if="turnEditing"
-            ref="turnInputEl"
-            v-model="turnDraft"
-            type="text"
-            inputmode="numeric"
-            class="h-4 w-8 border border-accent rounded bg-black/40 px-0.5 text-center text-xs text-white tabular-nums focus:outline-none focus:ring-1 focus:ring-accent"
-            @keydown="onTurnKey"
-            @blur="commitTurnEdit"
-          >
+      <div class="ml-auto flex items-center gap-1">
+        <template v-if="!encounter.shared.inCombat">
           <button
-            v-else
             type="button"
-            class="text-xs text-white tabular-nums hover:underline"
-            @click="startTurnEdit"
+            class="h-6 flex items-center gap-1 border border-accent/60 rounded bg-accent/15 px-2 text-xs text-white transition-colors hover:bg-accent/30"
+            title="开始战斗(把房间内 active 角色全部加入)"
+            @click="startCombat"
           >
-            {{ encounter.shared.turn }}
+            <span class="i-lucide-swords text-3" />
+            开始战斗
           </button>
-        </span>
-        <!-- 还有人未行动才弹气泡确认;全员已行动直接 bypass 推进 -->
-        <PopConfirm
-          :message="`还有 ${encounter.local.pendingIds.length} 人未行动,确认推进回合?`"
-          :bypass="encounter.local.pendingIds.length === 0"
-          confirm-text="推进"
-          @confirm="nextTurn"
-        >
-          <button
-            type="button"
-            class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+        </template>
+        <template v-else>
+          <span
+            class="h-6 flex items-center gap-1 border border-white/15 rounded bg-black/30 px-2 text-xs text-white"
             :title="encounter.local.pendingIds.length > 0
-              ? `下一回合(还 ${encounter.local.pendingIds.length} 人未行动)`
-              : '下一回合'"
+              ? `回合 ${encounter.shared.turn} · 还 ${encounter.local.pendingIds.length} 人未行动 · 点击数字可手动改`
+              : `回合 ${encounter.shared.turn} · 全员已行动 · 点击数字可手动改`"
           >
-            <span class="i-lucide-skip-forward text-3.5" />
-          </button>
-        </PopConfirm>
-        <PopConfirm
-          message="确认结束战斗?"
-          confirm-text="结束"
-          @confirm="endCombat"
-        >
-          <button
-            type="button"
-            class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/60 transition-colors hover:bg-debuff/20 hover:text-debuff"
-            title="结束战斗"
+            回合
+            <!-- 手动改回合,不走 nextTurn(不 tick buff、不重置 pending) -->
+            <input
+              v-if="turnEditing"
+              ref="turnInputEl"
+              v-model="turnDraft"
+              type="text"
+              inputmode="numeric"
+              class="h-4 w-8 border border-accent rounded bg-black/40 px-0.5 text-center text-xs text-white tabular-nums focus:outline-none focus:ring-1 focus:ring-accent"
+              @keydown="onTurnKey"
+              @blur="commitTurnEdit"
+            >
+            <button
+              v-else
+              type="button"
+              class="text-xs text-white tabular-nums hover:underline"
+              @click="startTurnEdit"
+            >
+              {{ encounter.shared.turn }}
+            </button>
+          </span>
+          <!-- 还有人未行动才弹气泡确认;全员已行动直接 bypass 推进 -->
+          <PopConfirm
+            :message="`还有 ${encounter.local.pendingIds.length} 人未行动,确认推进回合?`"
+            :bypass="encounter.local.pendingIds.length === 0"
+            confirm-text="推进"
+            @confirm="nextTurn"
           >
-            <span class="i-lucide-square text-3.5" />
-          </button>
-        </PopConfirm>
-      </template>
+            <button
+              type="button"
+              class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              :title="encounter.local.pendingIds.length > 0
+                ? `下一回合(还 ${encounter.local.pendingIds.length} 人未行动)`
+                : '下一回合'"
+            >
+              <span class="i-lucide-skip-forward text-3.5" />
+            </button>
+          </PopConfirm>
+          <PopConfirm
+            message="确认结束战斗?"
+            confirm-text="结束"
+            @confirm="endCombat"
+          >
+            <button
+              type="button"
+              class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/60 transition-colors hover:bg-debuff/20 hover:text-debuff"
+              title="结束战斗"
+            >
+              <span class="i-lucide-square text-3.5" />
+            </button>
+          </PopConfirm>
+        </template>
+      </div>
+
+      <TickPromptDialog v-model:open="promptsOpen" :prompts="lastPrompts" />
+      <BatchApplySheet v-model:open="batchOpsOpen" />
     </div>
 
-    <TickPromptDialog v-model:open="promptsOpen" :prompts="lastPrompts" />
-    <BatchApplySheet v-model:open="batchOpsOpen" />
+    <!-- 按名搜索:大小写不敏感子串匹配 -->
+    <div class="relative">
+      <span class="i-lucide-search pointer-events-none absolute left-2 top-1/2 text-3 text-white/40 -translate-y-1/2" />
+      <input
+        :value="view.nameQuery"
+        type="text"
+        placeholder="按名称搜索"
+        class="h-6 w-full border border-white/20 rounded bg-black/30 pl-7 pr-7 text-xs text-white focus:border-accent placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
+        @input="view.setNameQuery(($event.target as HTMLInputElement).value)"
+      >
+      <button
+        v-if="view.nameQuery"
+        type="button"
+        class="absolute right-1 top-1/2 h-4 w-4 flex items-center justify-center rounded text-white/40 -translate-y-1/2 hover:bg-white/10 hover:text-white"
+        title="清除搜索"
+        @click="view.clearNameQuery()"
+      >
+        <span class="i-lucide-x text-3" />
+      </button>
+    </div>
   </div>
 </template>

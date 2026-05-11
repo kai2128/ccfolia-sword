@@ -35,6 +35,7 @@ const groups = computed(() =>
     isOnCanvas: charId => onCanvasIds.value.has(charId),
     byTagId: lib.byId,
     onCanvasOnly: view.onCanvasOnly,
+    nameQuery: view.nameQuery,
   }),
 )
 

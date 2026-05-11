@@ -40,6 +40,18 @@ describe('groupRoster', () => {
     expect(groups[0].chars.map(char => char.name)).toEqual(['Anna', 'Zed'])
   })
 
+  it('filters chars by nameQuery (case-insensitive substring)', () => {
+    const chars = [ch('a', 'Glen', ally.id), ch('b', 'Orc', enemy.id), ch('c', 'Goblin', enemy.id)]
+    const groups = groupRoster({ chars, isOnCanvas: () => true, byTagId, onCanvasOnly: false, nameQuery: 'g' })
+    expect(groups.flatMap(g => g.chars.map(c => c.name)).sort()).toEqual(['Glen', 'Goblin'])
+  })
+
+  it('treats blank/whitespace nameQuery as no filter', () => {
+    const chars = [ch('a', 'Glen', ally.id), ch('b', 'Orc', enemy.id)]
+    const groups = groupRoster({ chars, isOnCanvas: () => true, byTagId, onCanvasOnly: false, nameQuery: '   ' })
+    expect(groups.flatMap(g => g.chars.map(c => c._id)).sort()).toEqual(['a', 'b'])
+  })
+
   it('drops tag instance whose definition was removed', () => {
     const chars = [ch('a', 'Ghost', 'custom.removed')]
     const groups = groupRoster({ chars, isOnCanvas: () => true, byTagId, onCanvasOnly: false })

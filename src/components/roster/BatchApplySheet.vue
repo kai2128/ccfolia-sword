@@ -52,12 +52,14 @@ const partsByCharId = usePartsByCharId()
 const selected = reactive(new Set<string>())
 
 // --- 分组(同 BatchAssignTagsDialog) ---
+// batchNameQuery 独立持久化(与 roster 面板的 nameQuery 不共享),关 sheet 也保留
 const groups = computed(() => groupRoster({
   chars: chars.all,
   isOnCanvas: id => onCanvasIds.value.has(id),
   byTagId: lib.byId,
   onCanvasOnly: view.onCanvasOnly,
   offCanvasOnly: view.offCanvasOnly,
+  nameQuery: view.batchNameQuery,
 }))
 
 // 当前过滤下可见的角色
@@ -686,7 +688,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
 
 const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay' | 'move'>('hpmp')
 
-// 关对话框时清状态
+// 关对话框时清状态(nameQuery 走持久化存储,不在这里清)
 watch(open, (v) => {
   if (!v) {
     selected.clear()
@@ -1289,6 +1291,29 @@ async function writeRow(
             仅板外
           </button>
           <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} / {{ totalCount }}</span>
+        </div>
+
+        <!-- 按名搜索:持久化在 roster-view store(与 roster 面板独立) -->
+        <div class="pb-1.5">
+          <div class="relative">
+            <span class="i-lucide-search pointer-events-none absolute left-2 top-1/2 text-3 text-white/40 -translate-y-1/2" />
+            <input
+              :value="view.batchNameQuery"
+              type="text"
+              placeholder="按名称搜索"
+              class="h-6 w-full border border-white/20 rounded bg-black/30 pl-7 pr-7 text-xs text-white focus:border-accent placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
+              @input="view.setBatchNameQuery(($event.target as HTMLInputElement).value)"
+            >
+            <button
+              v-if="view.batchNameQuery"
+              type="button"
+              class="absolute right-1 top-1/2 h-4 w-4 flex items-center justify-center rounded text-white/40 -translate-y-1/2 hover:bg-white/10 hover:text-white"
+              title="清除搜索"
+              @click="view.clearBatchNameQuery()"
+            >
+              <span class="i-lucide-x text-3" />
+            </button>
+          </div>
         </div>
 
         <!-- tag 快速选择 chip 行 -->
