@@ -13,13 +13,23 @@ export interface MoveBatchResult {
   failures: Array<{ charId: string, error: Error }>
 }
 
+export type ProgressCallback = (done: number, total: number) => void
+
 async function runBatch(
   charIds: string[],
   worker: (id: string) => Promise<void>,
+  onProgress?: ProgressCallback,
 ): Promise<MoveBatchResult> {
-  if (charIds.length === 0)
+  if (charIds.length === 0) {
+    onProgress?.(0, 0)
     return { ok: 0, failures: [] }
-  const settled = await Promise.allSettled(charIds.map(worker))
+  }
+  const total = charIds.length
+  let done = 0
+  onProgress?.(0, total)
+  const settled = await Promise.allSettled(charIds.map(id =>
+    worker(id).finally(() => onProgress?.(++done, total)),
+  ))
   const failures: MoveBatchResult['failures'] = []
   for (let i = 0; i < settled.length; i++) {
     const r = settled[i]
@@ -33,15 +43,17 @@ export function applyBatchMoveToCell(opts: {
   charIds: string[]
   cellRef: string
   grid: GridConfig
+  onProgress?: ProgressCallback
 }): Promise<MoveBatchResult> {
-  return runBatch(opts.charIds, id => setCharacterCell(id, opts.cellRef, opts.grid))
+  return runBatch(opts.charIds, id => setCharacterCell(id, opts.cellRef, opts.grid), opts.onProgress)
 }
 
 export function applyBatchMoveOffBoard(
   charIds: string[],
   grid: GridConfig,
+  onProgress?: ProgressCallback,
 ): Promise<MoveBatchResult> {
-  return runBatch(charIds, id => moveCharacterOffBoard(id, grid))
+  return runBatch(charIds, id => moveCharacterOffBoard(id, grid), onProgress)
 }
 
 export function applyBatchShift(opts: {
@@ -49,6 +61,7 @@ export function applyBatchShift(opts: {
   dx: number
   dy: number
   grid: GridConfig
+  onProgress?: ProgressCallback
 }): Promise<MoveBatchResult> {
-  return runBatch(opts.charIds, id => moveCharacterByCells(id, opts.dx, opts.dy, opts.grid))
+  return runBatch(opts.charIds, id => moveCharacterByCells(id, opts.dx, opts.dy, opts.grid), opts.onProgress)
 }

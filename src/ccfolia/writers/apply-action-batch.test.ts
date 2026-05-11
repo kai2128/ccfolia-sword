@@ -59,4 +59,21 @@ describe('applyStatusChangesBatch', () => {
 
     expect(patchStatusSpy).toHaveBeenCalledTimes(2)
   })
+
+  it('onProgress 先报 (0,total),每个角色写完后自增到 (total,total)', async () => {
+    const onProgress = vi.fn()
+    await applyStatusChangesBatch(
+      [
+        { char: char('g1'), slot: 'hp', newValue: 5 },
+        { char: char('g2'), slot: 'hp', newValue: 8 },
+        { char: char('g3'), slot: 'hp', newValue: 1 },
+      ],
+      DEFAULT_STATUS_LABEL_MAP,
+      onProgress,
+    )
+
+    expect(onProgress).toHaveBeenCalledTimes(4)
+    expect(onProgress.mock.calls[0]).toEqual([0, 3])
+    expect(onProgress.mock.calls[3]).toEqual([3, 3])
+  })
 })

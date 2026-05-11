@@ -104,4 +104,19 @@ describe('applyBatchSendToPark', () => {
     expect(result.ok).toBe(0)
     expect(result.failures[0].error.message).toBe('nope')
   })
+
+  it('onProgress 先报 (0,total),每个角色 settle 后自增到 (total,total);skipped 不计入 total', async () => {
+    const store = useRoomCharactersStore()
+    store.replace([
+      char('has1', 100, 100, { x: 0, y: 0 }),
+      char('has2', 100, 100, { x: 0, y: 0 }),
+      char('none', 200, 200), // skipped
+    ])
+    const onProgress = vi.fn()
+    await applyBatchSendToPark(['has1', 'has2', 'none'], { restoreHpMp: false }, onProgress)
+
+    expect(onProgress).toHaveBeenCalledTimes(3)
+    expect(onProgress.mock.calls[0]).toEqual([0, 2])
+    expect(onProgress.mock.calls[2]).toEqual([2, 2])
+  })
 })

@@ -7,10 +7,12 @@ const props = withDefaults(defineProps<{
   variant?: 'solid' | 'ghost' | 'danger'
   size?: 'xs' | 'sm' | 'md'
   disabled?: boolean
+  loading?: boolean
 }>(), {
   variant: 'solid',
   size: 'md',
   disabled: false,
+  loading: false,
 })
 
 const attrs = useAttrs()
@@ -45,10 +47,11 @@ const variantCls = computed(() => {
 <template>
   <button
     type="button"
-    :disabled="disabled"
+    :disabled="disabled || loading"
     :class="[base, sizeCls, variantCls]"
     v-bind="attrs"
   >
+    <span v-if="loading" class="i-lucide-loader-2 animate-spin" aria-hidden="true" />
     <slot />
   </button>
 </template>

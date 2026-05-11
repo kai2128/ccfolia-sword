@@ -243,7 +243,16 @@ const slotOptions: Array<{ value: SlotKind, label: string }> = [
   { value: 'mp', label: 'MP' },
 ]
 
-const hpMpBusy = ref(false)
+// busy 用 progress 表达:null = idle, { done, total } = 正在跑(写 0/total 意味着 writer 还没回报);
+// 按钮模板靠这个判断 :loading + 文案。
+interface BatchProgress { done: number, total: number }
+const hpMpProgress = ref<BatchProgress | null>(null)
+
+function btnLabel(base: string, count: number, progress: BatchProgress | null): string {
+  if (!progress)
+    return `${base} (${count})`
+  return `${base}中 ${progress.done}/${progress.total}`
+}
 
 // 解析批量输入,语义与单角色 NumberEdit / applyAdjustment 完全一致:
 //   '='          → absolute(允许负)。例:=10 / =-5 / =10+5
@@ -270,7 +279,7 @@ function resolveBatchInput(read: { value: number, max: number }, raw: string): n
 // 「HP 回满」/「MP 回满」快捷:忽略 input 框,把选中 part 的目标 slot 置 max。
 // 已经在 max(或 max 缺失/非有限数)的 part 跳过,避免无意义写。
 async function applyRestoreToMax(slot: SlotKind) {
-  if (selectedCount.value === 0 || hpMpBusy.value)
+  if (selectedCount.value === 0 || hpMpProgress.value !== null)
     return
 
   const labelMap = settings.statusLabelMap
@@ -294,21 +303,23 @@ async function applyRestoreToMax(slot: SlotKind) {
   if (changes.length === 0)
     return
 
-  hpMpBusy.value = true
+  hpMpProgress.value = { done: 0, total: 0 }
   try {
-    await applyStatusChangesBatch(changes, labelMap)
+    await applyStatusChangesBatch(changes, labelMap, (done, total) => {
+      hpMpProgress.value = { done, total }
+    })
   }
   catch (e) {
     // eslint-disable-next-line no-alert
     alert(`回满失败:${(e as Error).message}`)
   }
   finally {
-    hpMpBusy.value = false
+    hpMpProgress.value = null
   }
 }
 
 async function applyHpMp() {
-  if (selectedCount.value === 0 || hpMpBusy.value)
+  if (selectedCount.value === 0 || hpMpProgress.value !== null)
     return
   if (!hpMp.input.trim()) {
     // eslint-disable-next-line no-alert
@@ -348,16 +359,18 @@ async function applyHpMp() {
     return
   }
 
-  hpMpBusy.value = true
+  hpMpProgress.value = { done: 0, total: 0 }
   try {
-    await applyStatusChangesBatch(changes, labelMap)
+    await applyStatusChangesBatch(changes, labelMap, (done, total) => {
+      hpMpProgress.value = { done, total }
+    })
   }
   catch (e) {
     // eslint-disable-next-line no-alert
     alert(`批量写入失败:${(e as Error).message}`)
   }
   finally {
-    hpMpBusy.value = false
+    hpMpProgress.value = null
   }
 }
 
@@ -366,7 +379,7 @@ type BuffMode = 'attach' | 'detach' | 'clear'
 const buffMode = ref<BuffMode>('attach')
 const clearIncludeAoe = ref(false)
 const picker = ref<InstanceType<typeof BuffPicker> | null>(null)
-const buffBusy = ref(false)
+const buffProgress = ref<BatchProgress | null>(null)
 
 const buffTargets = computed<BuffBatchTarget[]>(() =>
   selectedActors.value.map(a => ({
@@ -400,14 +413,17 @@ const detachOptions = computed<DetachOption[]>(() => {
 })
 
 async function applyBuffOp() {
-  if (selectedCount.value === 0 || buffBusy.value)
+  if (selectedCount.value === 0 || buffProgress.value !== null)
     return
 
   const targets = buffTargets.value
   if (targets.length === 0)
     return
 
-  buffBusy.value = true
+  buffProgress.value = { done: 0, total: 0 }
+  const onProgress = (done: number, total: number) => {
+    buffProgress.value = { done, total }
+  }
   try {
     if (buffMode.value === 'attach') {
       // 把 picker 引用一次性钉住:applyBuffBatch 触发 firestore snapshot 后,
@@ -430,7 +446,7 @@ async function applyBuffOp() {
           { kind: 'single', characterId: target.characterId, partKey: target.partKey },
           turn,
         ),
-      })
+      }, { onProgress })
       inst.commitSaveToLibrary()
       inst.reset()
     }
@@ -444,7 +460,7 @@ async function applyBuffOp() {
         kind: 'detach',
         targets,
         definitionId: detachDefId.value,
-      })
+      }, { onProgress })
     }
     else {
       // clear:不需要选 def,直接清掉选中 part 上所有 single buff。
@@ -456,7 +472,7 @@ async function applyBuffOp() {
         // 多部位角色挂在 parent(partKey='')上的 single buff 也一起清掉,
         // 否则选了所有 part 仍会有"整体" buff 残留
         includeParent: true,
-      })
+      }, { onProgress })
     }
   }
   catch (e) {
@@ -464,7 +480,7 @@ async function applyBuffOp() {
     alert(`批量 buff 操作失败:${(e as Error).message}`)
   }
   finally {
-    buffBusy.value = false
+    buffProgress.value = null
   }
 }
 
@@ -497,18 +513,23 @@ function applyOverlay(visible: boolean) {
 }
 
 // 在 ccfolia「盤上のキャラクター一覧」里显示/隐藏 —— 写 firestore.hideStatus
-const hideStatusBusy = ref(false)
+const hideStatusProgress = ref<BatchProgress | null>(null)
 async function applyHideStatus(hide: boolean) {
-  if (overlayCharIds.value.length === 0 || hideStatusBusy.value)
+  if (overlayCharIds.value.length === 0 || hideStatusProgress.value !== null)
     return
   // 已是目标状态的跳过,减少无意义写
   const targets = overlayChars.value.filter(c => (c.hideStatus === true) !== hide)
   if (targets.length === 0)
     return
-  hideStatusBusy.value = true
+  const total = targets.length
+  let done = 0
+  hideStatusProgress.value = { done: 0, total }
   try {
     const results = await Promise.allSettled(
-      targets.map(c => setCharacterHideStatus(c._id, hide)),
+      targets.map(c => setCharacterHideStatus(c._id, hide).finally(() => {
+        done++
+        hideStatusProgress.value = { done, total }
+      })),
     )
     const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
     if (failures.length > 0) {
@@ -517,7 +538,7 @@ async function applyHideStatus(hide: boolean) {
     }
   }
   finally {
-    hideStatusBusy.value = false
+    hideStatusProgress.value = null
   }
 }
 
@@ -551,42 +572,36 @@ function tagCoverage(tagId: string): { hit: number, total: number } {
   }
   return { hit, total: uniqueSelectedChars.value.length }
 }
-const tagBusy = reactive(new Set<string>())
-async function batchAttachTag(tagId: string) {
-  if (tagBusy.has(tagId))
+// 每个 tagId 一份进度;按钮模板用 tagProgress.get(tagId) 取。
+const tagProgress = reactive(new Map<string, BatchProgress>())
+async function runTagOp(tagId: string, predicate: (c: CcfoliaCharacter) => boolean, write: (c: CcfoliaCharacter) => Promise<void>, errLabel: string) {
+  if (tagProgress.has(tagId))
     return
-  tagBusy.add(tagId)
+  const targets = uniqueSelectedChars.value.filter(predicate)
+  if (targets.length === 0)
+    return
+  const total = targets.length
+  let done = 0
+  tagProgress.set(tagId, { done: 0, total })
   try {
-    await Promise.all(uniqueSelectedChars.value.map(async (c) => {
-      if (!charHasTag(c, tagId))
-        await attachTag(c, tagId)
-    }))
+    await Promise.all(targets.map(c => write(c).finally(() => {
+      done++
+      tagProgress.set(tagId, { done, total })
+    })))
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`挂 tag 失败:${(e as Error).message}`)
+    alert(`${errLabel}:${(e as Error).message}`)
   }
   finally {
-    tagBusy.delete(tagId)
+    tagProgress.delete(tagId)
   }
 }
-async function batchDetachTag(tagId: string) {
-  if (tagBusy.has(tagId))
-    return
-  tagBusy.add(tagId)
-  try {
-    await Promise.all(uniqueSelectedChars.value.map(async (c) => {
-      if (charHasTag(c, tagId))
-        await detachTag(c, tagId)
-    }))
-  }
-  catch (e) {
-    // eslint-disable-next-line no-alert
-    alert(`卸 tag 失败:${(e as Error).message}`)
-  }
-  finally {
-    tagBusy.delete(tagId)
-  }
+function batchAttachTag(tagId: string) {
+  return runTagOp(tagId, c => !charHasTag(c, tagId), c => attachTag(c, tagId), '挂 tag 失败')
+}
+function batchDetachTag(tagId: string) {
+  return runTagOp(tagId, c => charHasTag(c, tagId), c => detachTag(c, tagId), '卸 tag 失败')
 }
 
 // --- Move tab ---
@@ -598,7 +613,7 @@ const enterPlacement = ref<'center' | 'cell'>('center')
 const enterCellInput = ref('')
 const setCellInput = ref('')
 const shift = reactive({ dx: 0, dy: 0 })
-const moveBusy = ref(false)
+const moveProgress = ref<BatchProgress | null>(null)
 
 const offBoardCharIds = computed(() =>
   uniqueSelectedChars.value.filter(c => !onCanvasIds.value.has(c._id)).map(c => c._id),
@@ -616,9 +631,12 @@ const parkedCharIds = computed(() =>
 )
 
 async function applyMove() {
-  if (moveBusy.value)
+  if (moveProgress.value !== null)
     return
   const grid = settings.grid
+  const onProgress = (done: number, total: number) => {
+    moveProgress.value = { done, total }
+  }
 
   let resultPromise: Promise<{ ok: number, failures: Array<{ charId: string, error: Error }> }> | null = null
 
@@ -633,19 +651,19 @@ async function applyMove() {
     }
     if (offBoardCharIds.value.length === 0)
       return
-    resultPromise = applyBatchMoveToCell({ charIds: offBoardCharIds.value, cellRef: cell, grid })
+    resultPromise = applyBatchMoveToCell({ charIds: offBoardCharIds.value, cellRef: cell, grid, onProgress })
   }
   else if (moveMode.value === 'exit') {
     if (onBoardCharIds.value.length === 0)
       return
-    resultPromise = applyBatchMoveOffBoard(onBoardCharIds.value, grid)
+    resultPromise = applyBatchMoveOffBoard(onBoardCharIds.value, grid, onProgress)
   }
   else if (moveMode.value === 'shift') {
     if (shift.dx === 0 && shift.dy === 0)
       return
     if (onBoardCharIds.value.length === 0)
       return
-    resultPromise = applyBatchShift({ charIds: onBoardCharIds.value, dx: shift.dx, dy: shift.dy, grid })
+    resultPromise = applyBatchShift({ charIds: onBoardCharIds.value, dx: shift.dx, dy: shift.dy, grid, onProgress })
   }
   else {
     const cell = setCellInput.value.trim()
@@ -656,10 +674,10 @@ async function applyMove() {
     }
     if (allSelectedCharIds.value.length === 0)
       return
-    resultPromise = applyBatchMoveToCell({ charIds: allSelectedCharIds.value, cellRef: cell, grid })
+    resultPromise = applyBatchMoveToCell({ charIds: allSelectedCharIds.value, cellRef: cell, grid, onProgress })
   }
 
-  moveBusy.value = true
+  // writer 在同步调用阶段已经 onProgress(0, total) 喂过初始进度;不要再覆盖回 0/0
   try {
     const result = await resultPromise
     if (result.failures.length > 0) {
@@ -668,29 +686,32 @@ async function applyMove() {
     }
   }
   finally {
-    moveBusy.value = false
+    moveProgress.value = null
   }
 }
 
 // 「板外位置」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
 async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
-  if (moveBusy.value)
+  if (moveProgress.value !== null)
     return
   const grid = settings.grid
+  const onProgress = (done: number, total: number) => {
+    moveProgress.value = { done, total }
+  }
 
   let resultPromise: Promise<{ ok: number, skipped: number, failures: Array<{ charId: string, error: Error }> }>
   if (kind === 'save') {
     if (offBoardCharIds.value.length === 0)
       return
-    resultPromise = applyBatchSavePark(offBoardCharIds.value, grid)
+    resultPromise = applyBatchSavePark(offBoardCharIds.value, grid, onProgress)
   }
   else {
     if (parkedCharIds.value.length === 0)
       return
-    resultPromise = applyBatchSendToPark(parkedCharIds.value, { restoreHpMp: kind === 'sendRestore' })
+    resultPromise = applyBatchSendToPark(parkedCharIds.value, { restoreHpMp: kind === 'sendRestore' }, onProgress)
   }
 
-  moveBusy.value = true
+  // writer 同步调用阶段已经喂过 onProgress(0, total),不要覆盖
   try {
     const result = await resultPromise
     if (result.failures.length > 0) {
@@ -699,7 +720,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
     }
   }
   finally {
-    moveBusy.value = false
+    moveProgress.value = null
   }
 }
 
@@ -859,10 +880,11 @@ async function writeRow(
             </Field>
             <Button
               size="md"
-              :disabled="selectedCount === 0 || hpMpBusy"
+              :loading="hpMpProgress !== null"
+              :disabled="selectedCount === 0"
               @click="applyHpMp"
             >
-              应用 ({{ selectedCount }})
+              {{ btnLabel('应用', selectedCount, hpMpProgress) }}
             </Button>
           </div>
           <label class="flex items-center gap-2 text-xs text-white/70">
@@ -873,19 +895,21 @@ async function writeRow(
             <span class="text-[11px] text-white/40">快捷:</span>
             <Button
               size="xs"
-              :disabled="selectedCount === 0 || hpMpBusy"
+              :loading="hpMpProgress !== null"
+              :disabled="selectedCount === 0"
               title="把选中 part 的 HP 一次性置为 max(忽略数值输入框)"
               @click="applyRestoreToMax('hp')"
             >
-              HP 回满 ({{ selectedCount }})
+              {{ btnLabel('HP 回满', selectedCount, hpMpProgress) }}
             </Button>
             <Button
               size="xs"
-              :disabled="selectedCount === 0 || hpMpBusy"
+              :loading="hpMpProgress !== null"
+              :disabled="selectedCount === 0"
               title="把选中 part 的 MP 一次性置为 max(忽略数值输入框);无 MP slot 的 part 跳过"
               @click="applyRestoreToMax('mp')"
             >
-              MP 回满 ({{ selectedCount }})
+              {{ btnLabel('MP 回满', selectedCount, hpMpProgress) }}
             </Button>
           </div>
           <p class="text-[11px] text-white/40">
@@ -954,13 +978,14 @@ async function writeRow(
               <Button
                 size="md"
                 :variant="buffMode === 'clear' ? 'danger' : 'solid'"
+                :loading="buffProgress !== null"
                 :disabled="
-                  selectedCount === 0 || buffBusy
+                  selectedCount === 0
                     || (buffMode === 'attach' && !picker?.state.valid)
                     || (buffMode === 'detach' && !detachDefId)
                 "
               >
-                应用 ({{ selectedCount }})
+                {{ btnLabel('应用', selectedCount, buffProgress) }}
               </Button>
             </PopConfirm>
           </div>
@@ -986,18 +1011,20 @@ async function writeRow(
               <Button
                 size="xs"
                 variant="ghost"
-                :disabled="tagBusy.has(tag.id) || tagCoverage(tag.id).hit >= tagCoverage(tag.id).total"
+                :loading="tagProgress.has(tag.id)"
+                :disabled="tagCoverage(tag.id).hit >= tagCoverage(tag.id).total"
                 @click="batchAttachTag(tag.id)"
               >
-                + 全部添加
+                {{ tagProgress.get(tag.id) ? `添加中 ${tagProgress.get(tag.id)!.done}/${tagProgress.get(tag.id)!.total}` : '+ 全部添加' }}
               </Button>
               <Button
                 size="xs"
                 variant="ghost"
-                :disabled="tagBusy.has(tag.id) || tagCoverage(tag.id).hit === 0"
+                :loading="tagProgress.has(tag.id)"
+                :disabled="tagCoverage(tag.id).hit === 0"
                 @click="batchDetachTag(tag.id)"
               >
-                − 全部移除
+                {{ tagProgress.get(tag.id) ? `移除中 ${tagProgress.get(tag.id)!.done}/${tagProgress.get(tag.id)!.total}` : '− 全部移除' }}
               </Button>
             </template>
           </div>
@@ -1032,18 +1059,20 @@ async function writeRow(
             <div class="flex gap-2">
               <Button
                 size="xs"
-                :disabled="overlayCharIds.length === 0 || hideStatusBusy"
+                :loading="hideStatusProgress !== null"
+                :disabled="overlayCharIds.length === 0"
                 @click="applyHideStatus(false)"
               >
-                全部显示 ({{ overlayCharIds.length }})
+                {{ btnLabel('全部显示', overlayCharIds.length, hideStatusProgress) }}
               </Button>
               <Button
                 size="xs"
                 variant="ghost"
-                :disabled="overlayCharIds.length === 0 || hideStatusBusy"
+                :loading="hideStatusProgress !== null"
+                :disabled="overlayCharIds.length === 0"
                 @click="applyHideStatus(true)"
               >
-                全部隐藏 ({{ overlayCharIds.length }})
+                {{ btnLabel('全部隐藏', overlayCharIds.length, hideStatusProgress) }}
               </Button>
             </div>
             <p class="text-[11px] text-white/40">
@@ -1165,10 +1194,11 @@ async function writeRow(
             <div class="flex justify-end pt-1">
               <Button
                 size="md"
-                :disabled="moveBusy || offBoardCharIds.length === 0 || (enterPlacement === 'cell' && !enterCellInput.trim())"
+                :loading="moveProgress !== null"
+                :disabled="offBoardCharIds.length === 0 || (enterPlacement === 'cell' && !enterCellInput.trim())"
                 @click="applyMove"
               >
-                应用 ({{ offBoardCharIds.length }} 在板外)
+                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${offBoardCharIds.length} 在板外)` }}
               </Button>
             </div>
             <p v-if="uniqueSelectedChars.length > 0 && offBoardCharIds.length === 0" class="text-[11px] text-white/40">
@@ -1184,10 +1214,11 @@ async function writeRow(
             <div class="flex justify-end pt-1">
               <Button
                 size="md"
-                :disabled="moveBusy || onBoardCharIds.length === 0"
+                :loading="moveProgress !== null"
+                :disabled="onBoardCharIds.length === 0"
                 @click="applyMove"
               >
-                应用 ({{ onBoardCharIds.length }} 在板上)
+                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在板上)` }}
               </Button>
             </div>
           </template>
@@ -1208,10 +1239,11 @@ async function writeRow(
             <div class="flex justify-end pt-1">
               <Button
                 size="md"
-                :disabled="moveBusy || onBoardCharIds.length === 0 || (shift.dx === 0 && shift.dy === 0)"
+                :loading="moveProgress !== null"
+                :disabled="onBoardCharIds.length === 0 || (shift.dx === 0 && shift.dy === 0)"
                 @click="applyMove"
               >
-                应用 ({{ onBoardCharIds.length }} 在板上)
+                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在板上)` }}
               </Button>
             </div>
           </template>
@@ -1227,10 +1259,11 @@ async function writeRow(
             <div class="flex justify-end pt-1">
               <Button
                 size="md"
-                :disabled="moveBusy || allSelectedCharIds.length === 0 || !setCellInput.trim()"
+                :loading="moveProgress !== null"
+                :disabled="allSelectedCharIds.length === 0 || !setCellInput.trim()"
                 @click="applyMove"
               >
-                应用 ({{ allSelectedCharIds.length }})
+                {{ btnLabel('应用', allSelectedCharIds.length, moveProgress) }}
               </Button>
             </div>
           </template>
@@ -1244,31 +1277,34 @@ async function writeRow(
             <div class="grid grid-cols-2 gap-1.5 pt-1">
               <Button
                 size="sm"
-                :disabled="moveBusy || parkedCharIds.length === 0"
+                :loading="moveProgress !== null"
+                :disabled="parkedCharIds.length === 0"
                 title="把角色精确送回各自记录的板外位置"
                 @click="applyParkedAction('send')"
               >
-                <span class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
-                送回 ({{ parkedCharIds.length }})
+                <span v-if="!moveProgress" class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
+                {{ btnLabel('送回', parkedCharIds.length, moveProgress) }}
               </Button>
               <Button
                 size="sm"
-                :disabled="moveBusy || offBoardCharIds.length === 0"
+                :loading="moveProgress !== null"
+                :disabled="offBoardCharIds.length === 0"
                 title="把当前位置记下作为板外位置(覆盖已有);仅在板外的角色生效"
                 class="text-black !bg-buff/70 hover:!bg-buff"
                 @click="applyParkedAction('save')"
               >
-                <span class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
-                保存板外位置 ({{ offBoardCharIds.length }})
+                <span v-if="!moveProgress" class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
+                {{ btnLabel('保存板外位置', offBoardCharIds.length, moveProgress) }}
               </Button>
               <Button
                 size="sm"
-                :disabled="moveBusy || parkedCharIds.length === 0"
+                :loading="moveProgress !== null"
+                :disabled="parkedCharIds.length === 0"
                 title="送回板外 + 全部部位 HP / MP 回满"
                 @click="applyParkedAction('sendRestore')"
               >
-                <span class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />
-                送回 + 回满 HP ({{ parkedCharIds.length }})
+                <span v-if="!moveProgress" class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />
+                {{ btnLabel('送回 + 回满 HP', parkedCharIds.length, moveProgress) }}
               </Button>
             </div>
           </template>

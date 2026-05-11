@@ -49,9 +49,12 @@ function applyStatusEdit(
 export async function applyStatusChangesBatch(
   changes: StatusChange[],
   labelMap: StatusLabelMap,
+  onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
-  if (changes.length === 0)
+  if (changes.length === 0) {
+    onProgress?.(0, 0)
     return
+  }
 
   const roomId = getCurrentRoomId()
   if (!roomId)
@@ -82,7 +85,14 @@ export async function applyStatusChangesBatch(
     return { char, beforeStatus: char.status, nextStatus }
   })
 
-  await Promise.all(plan.map(p => patchStatus({ roomId, charId: p.char._id, newStatus: p.nextStatus })))
+  const total = plan.length
+  let done = 0
+  onProgress?.(0, total)
+  // 即便单个 promise reject,onProgress 也照常自增 —— 用 finally 而不是 then
+  await Promise.all(plan.map(p =>
+    patchStatus({ roomId, charId: p.char._id, newStatus: p.nextStatus })
+      .finally(() => onProgress?.(++done, total)),
+  ))
 
   const undoChanges: StatusUndoChange[] = plan.map(p => ({
     charId: p.char._id,

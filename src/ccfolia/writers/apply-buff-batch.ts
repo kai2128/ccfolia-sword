@@ -45,6 +45,11 @@ export interface ApplyBuffBatchClear {
 
 export type ApplyBuffBatchInput = ApplyBuffBatchAttach | ApplyBuffBatchDetach | ApplyBuffBatchClear
 
+export interface ApplyBuffBatchOptions {
+  // 写每个角色完成(成功或失败)后回调,total = 按 characterId 去重后的并发数。
+  onProgress?: (done: number, total: number) => void
+}
+
 interface BatchFailure {
   characterId: string
   error: Error
@@ -79,12 +84,18 @@ function groupByChar(targets: BuffBatchTarget[]): Map<string, CharGroup> {
   return byChar
 }
 
-export async function applyBuffBatch(input: ApplyBuffBatchInput): Promise<void> {
-  if (input.targets.length === 0)
+export async function applyBuffBatch(input: ApplyBuffBatchInput, options: ApplyBuffBatchOptions = {}): Promise<void> {
+  const { onProgress } = options
+  if (input.targets.length === 0) {
+    onProgress?.(0, 0)
     return
+  }
 
   const byChar = groupByChar(input.targets)
   const failures: BatchFailure[] = []
+  const total = byChar.size
+  let done = 0
+  onProgress?.(0, total)
 
   await Promise.all([...byChar.entries()].map(async ([characterId, { partKeys }]) => {
     try {
@@ -136,6 +147,9 @@ export async function applyBuffBatch(input: ApplyBuffBatchInput): Promise<void> 
     }
     catch (e) {
       failures.push({ characterId, error: e as Error })
+    }
+    finally {
+      onProgress?.(++done, total)
     }
   }))
 

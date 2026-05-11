@@ -119,6 +119,26 @@ describe('applyBuffBatch attach', () => {
     })
     expect(commitParamsSpy).not.toHaveBeenCalled()
   })
+
+  it('onProgress 先报 (0,total),每个角色写完后自增到 (total,total)', async () => {
+    characterStore.set('a', makeChar('a'))
+    characterStore.set('b', makeChar('b'))
+    const onProgress = vi.fn()
+
+    await applyBuffBatch({
+      kind: 'attach',
+      targets: [{ characterId: 'a' }, { characterId: 'b' }],
+      buildBuff: target => makeBuff({
+        id: `${target.characterId}`,
+        definitionId: 'burning',
+        characterId: target.characterId,
+      }),
+    }, { onProgress })
+
+    expect(onProgress).toHaveBeenCalledTimes(3)
+    expect(onProgress.mock.calls[0]).toEqual([0, 2])
+    expect(onProgress.mock.calls[2]).toEqual([2, 2])
+  })
 })
 
 describe('applyBuffBatch detach', () => {
