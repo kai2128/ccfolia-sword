@@ -589,7 +589,7 @@ const onBoardCharIds = computed(() =>
 )
 const allSelectedCharIds = computed(() => uniqueSelectedChars.value.map(c => c._id))
 
-// 「场外停放位」候选集:
+// 「板外位置」候选集:
 //   - save:角色必须当前在板外 → 直接复用 offBoardCharIds
 //   - send / send+restore:角色必须已有保存的 cs_park 条目
 const parkedCharIds = computed(() =>
@@ -653,7 +653,7 @@ async function applyMove() {
   }
 }
 
-// 「场外停放位」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
+// 「板外位置」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
 async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
   if (moveBusy.value)
     return
@@ -1096,7 +1096,7 @@ async function writeRow(
               :class="moveMode === 'parked' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
               @click="moveMode = 'parked'"
             >
-              停放位
+              板外位置
             </button>
             <button
               type="button"
@@ -1160,7 +1160,7 @@ async function writeRow(
           <!-- 出板 -->
           <template v-else-if="moveMode === 'exit'">
             <p class="text-xs text-white/60">
-              把选中且在板上的角色一次性收纳到板外位(默认收纳位,不读已保存的停放位)。
+              把选中且在板上的角色一次性收纳到默认板外位置(不读各角色记录的板外位置)。
             </p>
             <div class="flex justify-end pt-1">
               <Button
@@ -1216,17 +1216,17 @@ async function writeRow(
             </div>
           </template>
 
-          <!-- 场外停放位 -->
+          <!-- 板外位置 -->
           <template v-else>
             <p class="text-xs text-white/60">
-              每个角色独立保存一个场外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
-              保存仅对当前位于场外的角色生效；送回仅对已有停放位的角色生效。
+              每个角色独立记一个板外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
+              保存仅对当前在板外的角色生效；送回仅对已记录板外位置的角色生效。
             </p>
             <div class="grid grid-cols-2 gap-1.5 pt-1">
               <Button
                 size="sm"
                 :disabled="moveBusy || parkedCharIds.length === 0"
-                title="把角色精确送回保存的停放位"
+                title="把角色精确送回各自记录的板外位置"
                 @click="applyParkedAction('send')"
               >
                 <span class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
@@ -1235,17 +1235,17 @@ async function writeRow(
               <Button
                 size="sm"
                 :disabled="moveBusy || offBoardCharIds.length === 0"
-                title="把当前位置保存为停放位(覆盖已有);仅在场外的角色生效"
+                title="把当前位置记下作为板外位置(覆盖已有);仅在板外的角色生效"
                 class="text-black !bg-buff/70 hover:!bg-buff"
                 @click="applyParkedAction('save')"
               >
                 <span class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
-                保存停放位 ({{ offBoardCharIds.length }})
+                保存板外位置 ({{ offBoardCharIds.length }})
               </Button>
               <Button
                 size="sm"
                 :disabled="moveBusy || parkedCharIds.length === 0"
-                title="送回停放位 + 全部部位 HP / MP 回满"
+                title="送回板外 + 全部部位 HP / MP 回满"
                 @click="applyParkedAction('sendRestore')"
               >
                 <span class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />

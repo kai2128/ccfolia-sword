@@ -134,7 +134,7 @@ const offBoard = computed(() => isPieceOffBoard({
   heightCells: num(props.char.height, 1),
 }, settings.grid))
 
-// 已保存的场外停放位:从 char.params 的 cs_park 条目读出。
+// 已保存的板外位置:从 char.params 的 cs_park 条目读出。
 const parked = computed(() => readParkedLocation(props.char))
 const hasParked = computed(() => parked.value !== null)
 
@@ -218,7 +218,7 @@ async function onSaveParked() {
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`保存停放位失败:${(e as Error).message}`)
+    alert(`保存板外位置失败:${(e as Error).message}`)
   }
 }
 
@@ -228,7 +228,7 @@ async function onSendToParked(restoreHpMp: boolean) {
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`送回停放位失败:${(e as Error).message}`)
+    alert(`送回板外失败:${(e as Error).message}`)
   }
 }
 
@@ -342,14 +342,14 @@ async function onClearBuffs() {
 
       <PopConfirm
         v-if="hasParked"
-        :message="`送回 ${char.name} 到停放位,并把全部部位 HP / MP 回满?`"
+        :message="`送回 ${char.name} 到板外,并把全部部位 HP / MP 回满?`"
         confirm-text="送回 + 回满"
         @confirm="onSendToParked(true)"
       >
         <button
           type="button"
           class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-emerald-400/70 hover:bg-emerald-400/15 hover:text-emerald-300"
-          title="送回停放位 + 全部部位 HP / MP 回满"
+          title="送回板外 + 全部部位 HP / MP 回满"
         >
           <span class="i-lucide-heart-pulse text-3.5" />
         </button>
@@ -358,7 +358,7 @@ async function onClearBuffs() {
         v-else
         type="button"
         class="h-5 w-5 flex shrink-0 cursor-not-allowed items-center justify-center rounded text-white/15"
-        title="还没保存过场外停放位"
+        title="还没保存过板外位置"
         disabled
       >
         <span class="i-lucide-heart-pulse text-3.5" />
@@ -409,7 +409,7 @@ async function onClearBuffs() {
           <span>{{ isHidden ? '一览中显示' : '一览隐藏' }}</span>
         </button>
         <PopConfirm
-          :message="`把 ${char.name} 移出 board? 可在 ccfolia 角色管理重新添加回 board`"
+          :message="`把 ${char.name} 从角色一览移除? 可在 ccfolia 角色管理重新添加`"
           confirm-text="移除"
           @confirm="onSetInactive"
         >

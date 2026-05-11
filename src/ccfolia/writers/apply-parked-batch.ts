@@ -6,7 +6,7 @@ import { isPieceOffBoard } from '@/core/range'
 import { saveCharacterParked } from './save-character-parked'
 import { sendCharacterToParked } from './send-character-to-parked'
 
-// 一批角色的「场外停放位」操作。同 apply-move-batch 范式:
+// 一批角色的「板外位置」操作。同 apply-move-batch 范式:
 // 各 char 互不影响,并行 + Promise.allSettled,失败汇总回报。
 // skipped 用来表达"语义不允许"(非错):save 时角色不在场外 / send 时没保存过 → 计入 skipped。
 
@@ -32,7 +32,7 @@ async function runParallel(
   return { ok: settled.length - failures.length, skipped, failures }
 }
 
-// 仅对当前位于场外的角色保存停放位 (x, y);场上的角色计入 skipped 不写。
+// 仅对当前位于板外的角色保存板外位置 (x, y);场上的角色计入 skipped 不写。
 export async function applyBatchSavePark(charIds: string[], grid: GridConfig): Promise<ParkedBatchResult> {
   const store = useRoomCharactersStore()
   const jobs: Array<{ charId: string, run: () => Promise<void> }> = []
@@ -56,7 +56,7 @@ export async function applyBatchSavePark(charIds: string[], grid: GridConfig): P
   return runParallel(jobs, skipped)
 }
 
-// 把所有保存过停放位的角色送回。没保存过的计入 skipped。
+// 把所有保存过板外位置的角色送回。没保存过的计入 skipped。
 export async function applyBatchSendToPark(
   charIds: string[],
   opts: { restoreHpMp: boolean },
