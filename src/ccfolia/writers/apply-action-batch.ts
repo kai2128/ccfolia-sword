@@ -1,7 +1,8 @@
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { StatusUndoChange } from '@/stores/undo-history'
 import type { CcfoliaCharacter, CcfoliaStatus } from '@/types/ccfolia'
-import { getCurrentRoomId, patchStatus } from '../firestore-writer'
+import { commitWriteBatch, getCurrentRoomId, patchStatus } from '../firestore-writer'
+import { getFirestoreApi } from '../webpack-hook'
 import { recordStatusUndo } from './_undo-helper'
 
 export interface StatusChange {
@@ -34,17 +35,16 @@ function applyStatusEdit(
   )
 }
 
-// 对多角色做一次性应用。名字里的 "Batch" 指"一批变更",**不是** Firestore writeBatch。
+// 对多角色做一次性应用。名字里的 "Batch" 指"一批变更"。
 //
-// 刻意不走 writeBatch:
-//   - SDK 的 setDoc 在调用瞬间就写本地 cache 并 fire onSnapshot(hasPendingWrites=true),
-//     ccfolia Redux 秒更,UI 反馈跟 writeBatch 无差别
-//   - writeBatch 唯一的额外保证是"原子提交",但战斗写回并不需要这种跨 doc 原子性
-//     (一个目标失败不该让其他目标也不落地,GM 分别看到错误再单独重试更合理)
-//   - 绕开 writeBatch 也让 webpack-hook 少扫一个不稳定的指纹(writeBatch 没有
-//     稳定字面量,只能靠 `new X(e, t=>Y(e,t))` 这种 regex 匹配)
+// 写入策略(2026-05 改):
+//   1. 优先用 firestore writeBatch ——
+//      N 个角色合成 1 个 RPC,把 SDK WriteStream 的 ack-by-ack 串行降级成一次 round-trip。
+//      300 角色实测从分钟级降到秒级。
+//   2. webpack-hook 没抓到 writeBatch(老 ccfolia / 指纹失配)→
+//      回退到 Promise.all(setDoc),即原来的"并行 setDoc"路径。
 //
-// 仍然需要按 charId 分组:同一角色的多 slot/多 part 必须合并成一次 setDoc,
+// 仍然需要按 charId 分组:同一角色的多 slot/多 part 必须合并成一次写,
 // 否则 `{ merge: true }` 对 `status` 数组是字段级整体替换,后一次 set 会覆盖前一次。
 export async function applyStatusChangesBatch(
   changes: StatusChange[],
@@ -86,13 +86,27 @@ export async function applyStatusChangesBatch(
   })
 
   const total = plan.length
-  let done = 0
-  onProgress?.(0, total)
-  // 即便单个 promise reject,onProgress 也照常自增 —— 用 finally 而不是 then
-  await Promise.all(plan.map(p =>
-    patchStatus({ roomId, charId: p.char._id, newStatus: p.nextStatus })
-      .finally(() => onProgress?.(++done, total)),
-  ))
+  const hasWriteBatch = !!getFirestoreApi()?.firestore.writeBatch
+
+  if (hasWriteBatch) {
+    // 优先路径:writeBatch,1 个 RPC(>400 时分 chunk 并行)。
+    // commitWriteBatch 内部会自己喂 onProgress(0,total) 起步。
+    await commitWriteBatch(
+      roomId,
+      plan.map(p => ({ charId: p.char._id, patch: { status: p.nextStatus } })),
+      onProgress,
+    )
+  }
+  else {
+    // 回退路径:webpack-hook 没抓到 writeBatch —— 退回到并行 setDoc。
+    let done = 0
+    onProgress?.(0, total)
+    // 即便单个 promise reject,onProgress 也照常自增 —— 用 finally 而不是 then
+    await Promise.all(plan.map(p =>
+      patchStatus({ roomId, charId: p.char._id, newStatus: p.nextStatus })
+        .finally(() => onProgress?.(++done, total)),
+    ))
+  }
 
   const undoChanges: StatusUndoChange[] = plan.map(p => ({
     charId: p.char._id,

@@ -211,7 +211,11 @@ function scanModules(attempt: number): boolean {
   }
 
   api = { db, firestore: foundFs, app: foundAppMod }
-  log.info('firebase SDK api ready', { attempt })
+  log.info('firebase SDK api ready', {
+    attempt,
+    writeBatch: !!foundFs.writeBatch,
+    updateDoc: !!foundFs.updateDoc,
+  })
   apiListeners.forEach(l => l(api!))
   apiListeners.clear()
   return true
@@ -261,8 +265,12 @@ function matchFirestoreExports(exp: Record<string, unknown>): FirestoreModule | 
   const collectionKey = pick(s => s.includes('"collection"') && s.includes('"path"'))
   const serverTimestampKey = pick(s => s.includes('"serverTimestamp"'))
   const updateDocKey = pick(s => s.includes('"updateDoc"'))
-  // writeBatch 没稳定字串;源码形如 `new X(e, t => Y(e, t))`
-  const writeBatchKey = pick(s => /new [A-Za-z_$]{1,4}\(e,\s*t=>[a-zA-Z_$]{1,4}\(e,t\)\)/.test(s))
+  // writeBatch 没稳定字串。SDK 源码:
+  //   function writeBatch(e) { return new WriteBatch(e, t => executeWrite(e, t)) }
+  // 实际 bundle(terser 输出):
+  //   function bl(e){return Xa(e=La(e,qa)),new pl(e,(t=>ul(e,t)))}
+  // 注意箭头外多一层括号 `(t=>...)`。匹配时把内 paren 设为可选,容下两种压缩。
+  const writeBatchKey = pick(s => /new [A-Za-z_$]{1,4}\(e,\s*\(?t=>[A-Za-z_$]{1,4}\(e,t\)\)?\)/.test(s))
 
   if (!docKey || !setDocKey || !serverTimestampKey)
     return null

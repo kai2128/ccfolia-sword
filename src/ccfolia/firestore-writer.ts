@@ -109,6 +109,71 @@ export async function patchParams({ roomId, charId, newParams }: PatchParamsArgs
   }
 }
 
+// ======== writeBatch 一次性多角色写入 ========
+// 走 firestore writeBatch:N 个角色合并成 1 个 RPC,把 ack-by-ack 串行降级成一次 round-trip。
+//
+// 单一 writeBatch 上限 500 op,这里按 chunkSize 切分,多 chunk 用 Promise.all 并行 commit。
+// 因为 commitWriteBatch 是「全成功或全失败」的,任一 chunk 失败抛错,调用方负责回退/告警。
+// onProgress(committedCharCount, total) 在每个 chunk 完成后喂一次。
+//
+// 如果 webpack-hook 没抓到 writeBatch(老 ccfolia / 指纹失配),抛 'writeBatch 不可用',
+// 调用方应当 try-catch 后回退到 Promise.all(setDoc) 路径。
+
+export type DocPatch = Record<string, unknown>
+
+export interface CharPatch {
+  charId: string
+  patch: DocPatch
+}
+
+// Firestore writeBatch 硬上限 500 op,但单个 RPC 还有 4 MiB body 限制。
+// status 数组每条角色 ~5-15 KB,300 条就能撞 4 MiB(实测 302 条单 chunk 收到 400 bad request)。
+// 收到 50 比较稳:302 → 7 个 chunk 并行 commit,每个 chunk 1 个 RPC,
+// 总时间 ~ max(单 chunk RTT) 接近一次 round-trip。
+const WRITE_BATCH_CHUNK = 50
+
+export async function commitWriteBatch(
+  roomId: string,
+  updates: CharPatch[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  const total = updates.length
+  if (total === 0) {
+    onProgress?.(0, 0)
+    return
+  }
+
+  const api = getFirestoreApi()
+  if (!api?.firestore.writeBatch)
+    throw new Error('writeBatch 不可用 — 走回退路径')
+
+  const { db, firestore: { doc, serverTimestamp, writeBatch } } = api
+  onProgress?.(0, total)
+  let done = 0
+
+  // chunk → 多个 batch 并行;每个 batch 内部 1 RPC
+  const chunks: CharPatch[][] = []
+  for (let i = 0; i < total; i += WRITE_BATCH_CHUNK)
+    chunks.push(updates.slice(i, i + WRITE_BATCH_CHUNK))
+
+  await Promise.all(chunks.map(async (chunk) => {
+    const batch = (writeBatch as (db: unknown) => {
+      set: (ref: unknown, data: unknown, opts?: unknown) => unknown
+      commit: () => Promise<void>
+    })(db)
+
+    for (const { charId, patch } of chunk) {
+      const ref = doc(db as never, 'rooms', roomId, 'characters', charId)
+      batch.set(ref, { ...patch, updatedAt: serverTimestamp() }, { merge: true })
+    }
+    await batch.commit()
+    done += chunk.length
+    onProgress?.(done, total)
+  }))
+
+  log.debug('writeBatch committed', { roomId, total, chunks: chunks.length })
+}
+
 // 写 params 数组的公共入口:Redux 乐观 + SDK 写,失败回滚。
 export async function commitParams(char: CcfoliaCharacter, newParams: CcfoliaParam[]): Promise<void> {
   const roomId = getCurrentRoomId()
