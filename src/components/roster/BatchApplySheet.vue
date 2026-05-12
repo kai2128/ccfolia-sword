@@ -105,14 +105,6 @@ const visibleRefs = computed<string[]>(() => {
 })
 
 const totalCount = computed(() => visibleRefs.value.length)
-const selectedCount = computed(() => {
-  let n = 0
-  for (const ref of visibleRefs.value) {
-    if (selected.has(ref))
-      n++
-  }
-  return n
-})
 
 function toggle(ref: string) {
   if (selected.has(ref))
@@ -134,8 +126,8 @@ function invert() {
   }
 }
 function clearAll() {
-  for (const ref of visibleRefs.value)
-    selected.delete(ref)
+  // 清空所有选中(含搜索/过滤视图外的),与 selectedCount 的全集口径保持一致
+  selected.clear()
 }
 
 // --- 按 tag 选择 ---
@@ -217,9 +209,7 @@ interface SelectedActor {
 }
 const selectedActors = computed<SelectedActor[]>(() => {
   const out: SelectedActor[] = []
-  for (const ref of visibleRefs.value) {
-    if (!selected.has(ref))
-      continue
+  for (const ref of selected) {
     const { charId, partKey } = parseActorRef(ref)
     const char = chars.byId(charId)
     if (!char)
@@ -229,6 +219,10 @@ const selectedActors = computed<SelectedActor[]>(() => {
   }
   return out
 })
+
+// 搜索/过滤只影响列表视图,不应丢掉视图外已选中的 actor。
+// selectedCount 走 selectedActors 全集,避免「搜索后选中数归零」。
+const selectedCount = computed(() => selectedActors.value.length)
 
 // --- HP/MP tab ---
 type SlotKind = 'hp' | 'mp'
