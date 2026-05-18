@@ -1,40 +1,29 @@
 <script setup lang="ts">
-import type { StatusChange } from '@/ccfolia/writers/apply-action-batch'
-import type { BuffBatchTarget } from '@/ccfolia/writers/apply-buff-batch'
+import type { SelectedActor } from './batch-apply/types'
 import type { CharacterPartView } from '@/core/character/parts'
-import type { VariantOverride } from '@/core/overlay/resolve-display-mode'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
 import { computed, reactive, ref, watch } from 'vue'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
-import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
-import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
-import { applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
-import { applyBatchSavePark, applyBatchSendToPark } from '@/ccfolia/writers/apply-parked-batch'
-import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
-import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
-import BuffPicker from '@/components/buffs/BuffPicker.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
-import { Button, Checkbox, Field, Input, NumberEdit, PopConfirm, Select, Sheet, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
+import { Button, Checkbox, NumberEdit, Sheet, Tabs, TabsContent, TabsList, TabsTrigger, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
-import { collectBuffsForPart } from '@/core/buff/collect'
-import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
-import { evaluateExpression } from '@/core/combat/eval-expr'
 import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
-import { readParkedLocation } from '@/core/parked-location'
-import { formatCellRef, parseCellRef } from '@/core/range'
 import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
 import { readTagInstances } from '@/core/tag'
-import { useEncounterStore } from '@/stores/encounter'
-import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
+import BuffPanel from './batch-apply/BuffPanel.vue'
+import HpMpPanel from './batch-apply/HpMpPanel.vue'
+import MovePanel from './batch-apply/MovePanel.vue'
+import OverlayPanel from './batch-apply/OverlayPanel.vue'
+import TagPanel from './batch-apply/TagPanel.vue'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -42,9 +31,7 @@ const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
 const view = useRosterViewStore()
 const lib = useTagLibraryStore()
-const encounter = useEncounterStore()
 const overlayVis = useOverlayVisibilityStore()
-const variantOverride = useHpmpVariantOverrideStore()
 
 const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
@@ -201,12 +188,7 @@ function toggleTagBucket(bucket: TagBucket) {
   }
 }
 
-// --- 选中 actor 解析助手 ---
-interface SelectedActor {
-  ref: string
-  char: CcfoliaCharacter
-  part: CharacterPartView | null // null = 角色无 status(退化场景),HP/MP 跳过
-}
+// --- 选中 actor 解析助手:把 selected ref 串解出成 char + part,喂给各 panel ---
 const selectedActors = computed<SelectedActor[]>(() => {
   const out: SelectedActor[] = []
   for (const ref of selected) {
@@ -224,326 +206,7 @@ const selectedActors = computed<SelectedActor[]>(() => {
 // selectedCount 走 selectedActors 全集,避免「搜索后选中数归零」。
 const selectedCount = computed(() => selectedActors.value.length)
 
-// --- HP/MP tab ---
-type SlotKind = 'hp' | 'mp'
-const hpMp = reactive({
-  slot: 'hp' as SlotKind,
-  input: '',
-  // 默认不截顶,与单角色 NumberEdit 行为一致;GM 想避免过量治疗就手动勾上
-  clampMax: false,
-})
-const slotOptions: Array<{ value: SlotKind, label: string }> = [
-  { value: 'hp', label: 'HP' },
-  { value: 'mp', label: 'MP' },
-]
-
-// busy 用 progress 表达:null = idle, { done, total } = 正在跑(写 0/total 意味着 writer 还没回报);
-// 按钮模板靠这个判断 :loading + 文案。
-interface BatchProgress { done: number, total: number }
-const hpMpProgress = ref<BatchProgress | null>(null)
-
-function btnLabel(base: string, count: number, progress: BatchProgress | null): string {
-  if (!progress)
-    return `${base} (${count})`
-  return `${base}中 ${progress.done}/${progress.total}`
-}
-
-// 解析批量输入,语义与单角色 NumberEdit / applyAdjustment 完全一致:
-//   '='          → absolute(允许负)。例:=10 / =-5 / =10+5
-//   + - * /      → 在 current 上做算术。例:+5 / -3 / *2 / /2
-//   裸数字/表达式 → absolute。例:10 / 2*5 / (1+2)*3
-// 解析失败返 null,调用方跳过该 target。截顶/截底走 resolveNewValue。
-function resolveBatchInput(read: { value: number, max: number }, raw: string): number | null {
-  const s = raw.trim()
-  if (!s)
-    return null
-  const first = s[0]
-  let evaluated: number | null
-  if (first === '=')
-    evaluated = evaluateExpression(s.slice(1))
-  else if (first === '+' || first === '-' || first === '*' || first === '/')
-    evaluated = evaluateExpression(`${read.value}${s}`)
-  else
-    evaluated = evaluateExpression(s)
-  if (evaluated === null)
-    return null
-  return resolveNewValue(read.value, { mode: 'absolute', input: evaluated, max: read.max, clampMax: hpMp.clampMax })
-}
-
-// 「HP 回满」/「MP 回满」快捷:忽略 input 框,把选中 part 的目标 slot 置 max。
-// 已经在 max(或 max 缺失/非有限数)的 part 跳过,避免无意义写。
-async function applyRestoreToMax(slot: SlotKind) {
-  if (selectedCount.value === 0 || hpMpProgress.value !== null)
-    return
-
-  const labelMap = settings.statusLabelMap
-  const changes: StatusChange[] = []
-
-  for (const actor of selectedActors.value) {
-    if (!actor.part)
-      continue
-    if (slot === 'mp' && !actor.part.mpLabel)
-      continue
-    const read = readStatusSlot(actor.char.status, slot, labelMap, actor.part.partKey)
-    if (!read)
-      continue
-    if (!Number.isFinite(read.max))
-      continue
-    if (read.value === read.max)
-      continue
-    changes.push({ char: actor.char, slot, newValue: read.max, partPrefix: actor.part.partKey })
-  }
-
-  if (changes.length === 0)
-    return
-
-  hpMpProgress.value = { done: 0, total: 0 }
-  try {
-    await applyStatusChangesBatch(changes, labelMap, (done, total) => {
-      hpMpProgress.value = { done, total }
-    })
-  }
-  catch (e) {
-    // eslint-disable-next-line no-alert
-    alert(`回满失败:${(e as Error).message}`)
-  }
-  finally {
-    hpMpProgress.value = null
-  }
-}
-
-async function applyHpMp() {
-  if (selectedCount.value === 0 || hpMpProgress.value !== null)
-    return
-  if (!hpMp.input.trim()) {
-    // eslint-disable-next-line no-alert
-    alert('请输入数字或表达式(+5 / -3 / =10 / 2*5)')
-    return
-  }
-
-  const labelMap = settings.statusLabelMap
-  const changes: StatusChange[] = []
-  let invalidExpr = false
-
-  for (const actor of selectedActors.value) {
-    if (!actor.part)
-      continue
-    if (hpMp.slot === 'mp' && !actor.part.mpLabel)
-      continue
-    const read = readStatusSlot(actor.char.status, hpMp.slot, labelMap, actor.part.partKey)
-    if (!read)
-      continue
-    const newValue = resolveBatchInput(read, hpMp.input)
-    if (newValue === null) {
-      invalidExpr = true
-      continue
-    }
-    changes.push({ char: actor.char, slot: hpMp.slot, newValue, partPrefix: actor.part.partKey })
-  }
-
-  if (invalidExpr && changes.length === 0) {
-    // eslint-disable-next-line no-alert
-    alert(`表达式无法解析:${hpMp.input}`)
-    return
-  }
-
-  if (changes.length === 0) {
-    // eslint-disable-next-line no-alert
-    alert('选中的目标没有可写入的 HP/MP slot')
-    return
-  }
-
-  hpMpProgress.value = { done: 0, total: 0 }
-  try {
-    await applyStatusChangesBatch(changes, labelMap, (done, total) => {
-      hpMpProgress.value = { done, total }
-    })
-  }
-  catch (e) {
-    // eslint-disable-next-line no-alert
-    alert(`批量写入失败:${(e as Error).message}`)
-  }
-  finally {
-    hpMpProgress.value = null
-  }
-}
-
-// --- Buff tab ---
-type BuffMode = 'attach' | 'detach' | 'clear'
-const buffMode = ref<BuffMode>('attach')
-const clearIncludeAoe = ref(false)
-const picker = ref<InstanceType<typeof BuffPicker> | null>(null)
-const buffProgress = ref<BatchProgress | null>(null)
-
-const buffTargets = computed<BuffBatchTarget[]>(() =>
-  selectedActors.value.map(a => ({
-    characterId: a.char._id,
-    partKey: a.part?.partKey || undefined,
-  })),
-)
-
-// detach:从选中 actor 各自的 part-buff 列表里取并集(单体 buff,严格按 part)
-const detachDefId = ref('')
-interface DetachOption { value: string, label: string }
-const detachOptions = computed<DetachOption[]>(() => {
-  const seen = new Map<string, { name: string, count: number }>()
-  for (const actor of selectedActors.value) {
-    if (!actor.part)
-      continue
-    for (const buff of collectBuffsForPart(actor.char, actor.part.partKey)) {
-      const cur = seen.get(buff.definitionId)
-      if (cur) {
-        cur.count++
-      }
-      else {
-        seen.set(buff.definitionId, { name: buff.snapshot.name, count: 1 })
-      }
-    }
-  }
-  const list: DetachOption[] = [{ value: '', label: '请选择 Buff' }]
-  for (const [defId, info] of seen)
-    list.push({ value: defId, label: `${info.name} · ${info.count} 个实例` })
-  return list
-})
-
-async function applyBuffOp() {
-  if (selectedCount.value === 0 || buffProgress.value !== null)
-    return
-
-  const targets = buffTargets.value
-  if (targets.length === 0)
-    return
-
-  buffProgress.value = { done: 0, total: 0 }
-  const onProgress = (done: number, total: number) => {
-    buffProgress.value = { done, total }
-  }
-  try {
-    if (buffMode.value === 'attach') {
-      // 把 picker 引用一次性钉住:applyBuffBatch 触发 firestore snapshot 后,
-      // 选中集合 / 视图重算可能让 v-if 短暂失配把 BuffPicker 卸掉,template ref 变 null,
-      // 之后再访问 picker.value.commitSaveToLibrary() 就会爆 "Cannot read of null"。
-      const inst = picker.value
-      if (!inst)
-        return
-      const prep = inst.prepare()
-      if (!prep.ok) {
-        // eslint-disable-next-line no-alert
-        alert(prep.error)
-        return
-      }
-      const turn = encounter.shared.turn
-      await applyBuffBatch({
-        kind: 'attach',
-        targets,
-        buildBuff: target => inst.buildInstance(
-          { kind: 'single', characterId: target.characterId, partKey: target.partKey },
-          turn,
-        ),
-      }, { onProgress })
-      inst.commitSaveToLibrary()
-      inst.reset()
-    }
-    else if (buffMode.value === 'detach') {
-      if (!detachDefId.value) {
-        // eslint-disable-next-line no-alert
-        alert('请选择要卸下的 Buff')
-        return
-      }
-      await applyBuffBatch({
-        kind: 'detach',
-        targets,
-        definitionId: detachDefId.value,
-      }, { onProgress })
-    }
-    else {
-      // clear:不需要选 def,直接清掉选中 part 上所有 single buff。
-      // 误点保护由按钮外面包裹的 PopConfirm 提供(buffMode='clear' 才弹气泡)。
-      await applyBuffBatch({
-        kind: 'clear',
-        targets,
-        includeAoe: clearIncludeAoe.value,
-        // 多部位角色挂在 parent(partKey='')上的 single buff 也一起清掉,
-        // 否则选了所有 part 仍会有"整体" buff 残留
-        includeParent: true,
-      }, { onProgress })
-    }
-  }
-  catch (e) {
-    // eslint-disable-next-line no-alert
-    alert(`批量 buff 操作失败:${(e as Error).message}`)
-  }
-  finally {
-    buffProgress.value = null
-  }
-}
-
-// --- 显示开关 tab(per-character,选中的多部位 actor 去重到 charId) ---
-const overlayCharIds = computed(() => {
-  const ids = new Set<string>()
-  for (const actor of selectedActors.value)
-    ids.add(actor.char._id)
-  return [...ids]
-})
-
-// 选中角色去重后的完整对象,用于读取 hideStatus 等字段
-const overlayChars = computed<CcfoliaCharacter[]>(() => {
-  const out: CcfoliaCharacter[] = []
-  for (const id of overlayCharIds.value) {
-    const c = chars.byId(id)
-    if (c)
-      out.push(c)
-  }
-  return out
-})
-
-function applyOverlay(visible: boolean) {
-  for (const id of overlayCharIds.value) {
-    if (visible)
-      overlayVis.show(id)
-    else
-      overlayVis.hide(id)
-  }
-}
-
-// 在 ccfolia「盤上のキャラクター一覧」里显示/隐藏 —— 写 firestore.hideStatus
-const hideStatusProgress = ref<BatchProgress | null>(null)
-async function applyHideStatus(hide: boolean) {
-  if (overlayCharIds.value.length === 0 || hideStatusProgress.value !== null)
-    return
-  // 已是目标状态的跳过,减少无意义写
-  const targets = overlayChars.value.filter(c => (c.hideStatus === true) !== hide)
-  if (targets.length === 0)
-    return
-  const total = targets.length
-  let done = 0
-  hideStatusProgress.value = { done: 0, total }
-  try {
-    const results = await Promise.allSettled(
-      targets.map(c => setCharacterHideStatus(c._id, hide).finally(() => {
-        done++
-        hideStatusProgress.value = { done, total }
-      })),
-    )
-    const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
-    if (failures.length > 0) {
-      // eslint-disable-next-line no-alert
-      alert(`部分写入失败 (${failures.length}/${targets.length}):\n${failures.map(f => (f.reason as Error).message).join('\n')}`)
-    }
-  }
-  finally {
-    hideStatusProgress.value = null
-  }
-}
-
-// 指示器类型(HP/MP variant override)—— 本地 store,同步即可
-function applyVariantOverride(mode: VariantOverride) {
-  for (const id of overlayCharIds.value)
-    variantOverride.set(id, mode)
-}
-
-// --- Tag tab ---
-// 选中角色去重(tag 只能挂角色级,不分 part)
+// Tag / Move 面板:角色级去重(多部位 actor 合并到一个 char)
 const uniqueSelectedChars = computed<CcfoliaCharacter[]>(() => {
   const seen = new Set<string>()
   const out: CcfoliaCharacter[] = []
@@ -555,177 +218,13 @@ const uniqueSelectedChars = computed<CcfoliaCharacter[]>(() => {
   }
   return out
 })
-function charHasTag(char: CcfoliaCharacter, tagId: string): boolean {
-  return readTagInstances(char).some(t => t.definitionId === tagId)
-}
-function tagCoverage(tagId: string): { hit: number, total: number } {
-  let hit = 0
-  for (const c of uniqueSelectedChars.value) {
-    if (charHasTag(c, tagId))
-      hit++
-  }
-  return { hit, total: uniqueSelectedChars.value.length }
-}
-// 每个 tagId 一份进度;按钮模板用 tagProgress.get(tagId) 取。
-const tagProgress = reactive(new Map<string, BatchProgress>())
-async function runTagOp(tagId: string, predicate: (c: CcfoliaCharacter) => boolean, write: (c: CcfoliaCharacter) => Promise<void>, errLabel: string) {
-  if (tagProgress.has(tagId))
-    return
-  const targets = uniqueSelectedChars.value.filter(predicate)
-  if (targets.length === 0)
-    return
-  const total = targets.length
-  let done = 0
-  tagProgress.set(tagId, { done: 0, total })
-  try {
-    await Promise.all(targets.map(c => write(c).finally(() => {
-      done++
-      tagProgress.set(tagId, { done, total })
-    })))
-  }
-  catch (e) {
-    // eslint-disable-next-line no-alert
-    alert(`${errLabel}:${(e as Error).message}`)
-  }
-  finally {
-    tagProgress.delete(tagId)
-  }
-}
-function batchAttachTag(tagId: string) {
-  return runTagOp(tagId, c => !charHasTag(c, tagId), c => attachTag(c, tagId), '挂 tag 失败')
-}
-function batchDetachTag(tagId: string) {
-  return runTagOp(tagId, c => charHasTag(c, tagId), c => detachTag(c, tagId), '卸 tag 失败')
-}
-
-// --- Move tab ---
-// 位置是角色级,选中集是 part 级 → 用 uniqueSelectedChars dedupe 到 charId。
-// 板内/板外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
-type MoveMode = 'enter' | 'parked' | 'shift' | 'set'
-const moveMode = ref<MoveMode>('enter')
-const enterPlacement = ref<'center' | 'cell'>('center')
-const enterCellInput = ref('')
-const setCellInput = ref('')
-const shift = reactive({ dx: 0, dy: 0 })
-const moveProgress = ref<BatchProgress | null>(null)
-
-const offBoardCharIds = computed(() =>
-  uniqueSelectedChars.value.filter(c => !onCanvasIds.value.has(c._id)).map(c => c._id),
-)
-const onBoardCharIds = computed(() =>
-  uniqueSelectedChars.value.filter(c => onCanvasIds.value.has(c._id)).map(c => c._id),
-)
-const allSelectedCharIds = computed(() => uniqueSelectedChars.value.map(c => c._id))
-
-// 「板外位置」候选集:
-//   - save:角色必须当前在板外 → 直接复用 offBoardCharIds
-//   - send / send+restore:角色必须已有保存的 cs_park 条目
-const parkedCharIds = computed(() =>
-  uniqueSelectedChars.value.filter(c => readParkedLocation(c) !== null).map(c => c._id),
-)
-
-async function applyMove() {
-  if (moveProgress.value !== null)
-    return
-  const grid = settings.grid
-  const onProgress = (done: number, total: number) => {
-    moveProgress.value = { done, total }
-  }
-
-  let resultPromise: Promise<{ ok: number, failures: Array<{ charId: string, error: Error }> }> | null = null
-
-  if (moveMode.value === 'enter') {
-    const cell = enterPlacement.value === 'center'
-      ? formatCellRef({ col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) })
-      : enterCellInput.value.trim()
-    if (!parseCellRef(cell, grid)) {
-      // eslint-disable-next-line no-alert
-      alert(`无效格位:${cell || '(空)'}`)
-      return
-    }
-    if (offBoardCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchMoveToCell({ charIds: offBoardCharIds.value, cellRef: cell, grid, onProgress })
-  }
-  else if (moveMode.value === 'shift') {
-    if (shift.dx === 0 && shift.dy === 0)
-      return
-    if (onBoardCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchShift({ charIds: onBoardCharIds.value, dx: shift.dx, dy: shift.dy, grid, onProgress })
-  }
-  else {
-    const cell = setCellInput.value.trim()
-    if (!parseCellRef(cell, grid)) {
-      // eslint-disable-next-line no-alert
-      alert(`无效格位:${cell || '(空)'}`)
-      return
-    }
-    if (allSelectedCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchMoveToCell({ charIds: allSelectedCharIds.value, cellRef: cell, grid, onProgress })
-  }
-
-  // writer 在同步调用阶段已经 onProgress(0, total) 喂过初始进度;不要再覆盖回 0/0
-  try {
-    const result = await resultPromise
-    if (result.failures.length > 0) {
-      // eslint-disable-next-line no-alert
-      alert(`成功 ${result.ok} 个,失败 ${result.failures.length} 个:\n${result.failures.map(f => f.error.message).join('\n')}`)
-    }
-  }
-  finally {
-    moveProgress.value = null
-  }
-}
-
-// 「板外位置」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
-async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
-  if (moveProgress.value !== null)
-    return
-  const grid = settings.grid
-  const onProgress = (done: number, total: number) => {
-    moveProgress.value = { done, total }
-  }
-
-  let resultPromise: Promise<{ ok: number, skipped: number, failures: Array<{ charId: string, error: Error }> }>
-  if (kind === 'save') {
-    if (offBoardCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchSavePark(offBoardCharIds.value, grid, onProgress)
-  }
-  else {
-    if (parkedCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchSendToPark(parkedCharIds.value, { restoreHpMp: kind === 'sendRestore' }, onProgress)
-  }
-
-  // writer 同步调用阶段已经喂过 onProgress(0, total),不要覆盖
-  try {
-    const result = await resultPromise
-    if (result.failures.length > 0) {
-      // eslint-disable-next-line no-alert
-      alert(`成功 ${result.ok} 个,跳过 ${result.skipped} 个,失败 ${result.failures.length} 个:\n${result.failures.map(f => f.error.message).join('\n')}`)
-    }
-  }
-  finally {
-    moveProgress.value = null
-  }
-}
 
 const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay' | 'move'>('hpmp')
 
-// 关对话框时清状态(nameQuery 走持久化存储,不在这里清)
+// 关 sheet 只清父级管的选中集;各 panel 自己 watch sheetOpen 清局部输入
 watch(open, (v) => {
-  if (!v) {
+  if (!v)
     selected.clear()
-    hpMp.input = ''
-    detachDefId.value = ''
-    enterCellInput.value = ''
-    setCellInput.value = ''
-    shift.dx = 0
-    shift.dy = 0
-  }
 })
 
 // 列表渲染:与 RosterList 一致
@@ -854,424 +353,35 @@ async function writeRow(
           </TabsTrigger>
         </TabsList>
 
-        <!-- HP/MP -->
-        <TabsContent value="hpmp" class="flex flex-col gap-2 pt-3">
-          <div class="grid grid-cols-[100px_1fr_auto] items-end gap-2">
-            <Field label="对象">
-              <Select v-model="hpMp.slot" :options="slotOptions" />
-            </Field>
-            <Field label="数值(支持表达式)">
-              <Input
-                v-model="hpMp.input"
-                placeholder="+5 / -3 / =10 / 2*5"
-                title="与单角色编辑一致:+5/-3/*2/ 对 current 做算术;=10 absolute(允许负);裸数字/表达式 absolute"
-              />
-            </Field>
-            <Button
-              size="md"
-              :loading="hpMpProgress !== null"
-              :disabled="selectedCount === 0"
-              @click="applyHpMp"
-            >
-              {{ btnLabel('应用', selectedCount, hpMpProgress) }}
-            </Button>
-          </div>
-          <label class="flex items-center gap-2 text-xs text-white/70">
-            <Checkbox v-model="hpMp.clampMax" />
-            不超过上限(开启以阻止过量治疗/伤害)
-          </label>
-          <div class="flex items-center gap-2 pt-1">
-            <span class="text-[11px] text-white/40">快捷:</span>
-            <Button
-              size="xs"
-              :loading="hpMpProgress !== null"
-              :disabled="selectedCount === 0"
-              title="把选中 part 的 HP 一次性置为 max(忽略数值输入框)"
-              @click="applyRestoreToMax('hp')"
-            >
-              {{ btnLabel('HP 回满', selectedCount, hpMpProgress) }}
-            </Button>
-            <Button
-              size="xs"
-              :loading="hpMpProgress !== null"
-              :disabled="selectedCount === 0"
-              title="把选中 part 的 MP 一次性置为 max(忽略数值输入框);无 MP slot 的 part 跳过"
-              @click="applyRestoreToMax('mp')"
-            >
-              {{ btnLabel('MP 回满', selectedCount, hpMpProgress) }}
-            </Button>
-          </div>
-          <p class="text-[11px] text-white/40">
-            多部位角色按勾选的 part 各自写入;MP 仅写有 MP slot 的 part。
-          </p>
+        <TabsContent value="hpmp">
+          <HpMpPanel
+            :selected-actors="selectedActors"
+            :selected-count="selectedCount"
+            :sheet-open="open"
+          />
         </TabsContent>
 
-        <!-- Buff -->
-        <TabsContent value="buff" class="flex flex-col gap-3 pt-3">
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="buffMode === 'attach' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="buffMode = 'attach'"
-            >
-              挂载
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="buffMode === 'detach' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="buffMode = 'detach'"
-            >
-              卸下
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="buffMode === 'clear' ? 'border-debuff bg-debuff/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="buffMode = 'clear'"
-            >
-              清空
-            </button>
-            <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} 个 part</span>
-          </div>
-
-          <template v-if="buffMode === 'attach'">
-            <BuffPicker ref="picker" force-single />
-          </template>
-          <template v-else-if="buffMode === 'detach'">
-            <Field label="选择要卸下的 Buff" hint="按 definitionId,严格匹配选中 part 上的 single buff">
-              <Select v-model="detachDefId" :options="detachOptions" placeholder="选择 Buff" />
-            </Field>
-            <p v-if="detachOptions.length <= 1 && selectedCount > 0" class="text-xs text-white/40">
-              选中的 part 上没有可移除的单体 buff
-            </p>
-          </template>
-          <template v-else>
-            <p class="text-xs text-white/60">
-              清掉选中 part 上的所有单体 buff。点击应用前会再确认一次。
-            </p>
-            <label class="flex items-center gap-2 text-xs text-white/70">
-              <Checkbox v-model="clearIncludeAoe" />
-              连同中心在该角色身上的 AoE buff 一并清掉
-            </label>
-          </template>
-
-          <div class="flex justify-end pt-1">
-            <PopConfirm
-              :message="`确认清除 ${selectedCount} 个 part 上的全部 buff${clearIncludeAoe ? '(含 AoE)' : ''}?`"
-              confirm-text="清空"
-              :bypass="buffMode !== 'clear'"
-              @confirm="applyBuffOp"
-            >
-              <Button
-                size="md"
-                :variant="buffMode === 'clear' ? 'danger' : 'solid'"
-                :loading="buffProgress !== null"
-                :disabled="
-                  selectedCount === 0
-                    || (buffMode === 'attach' && !picker?.state.valid)
-                    || (buffMode === 'detach' && !detachDefId)
-                "
-              >
-                {{ btnLabel('应用', selectedCount, buffProgress) }}
-              </Button>
-            </PopConfirm>
-          </div>
+        <TabsContent value="move">
+          <MovePanel
+            :unique-selected-chars="uniqueSelectedChars"
+            :sheet-open="open"
+          />
         </TabsContent>
 
-        <!-- Tag -->
-        <TabsContent value="tag" class="flex flex-col gap-2 pt-3">
-          <p class="text-xs text-white/60">
-            Tag 挂在角色级,多部位角色去重后操作。每个 tag 显示当前选中里的覆盖度。
-          </p>
-          <div v-if="uniqueSelectedChars.length === 0" class="py-2 text-center text-xs text-white/40">
-            未选中角色
-          </div>
-          <div v-else-if="lib.all.length === 0" class="py-2 text-center text-xs text-white/40">
-            Tag 库为空,先去设置里建几个 tag
-          </div>
-          <div v-else class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-2 gap-y-1">
-            <template v-for="tag in lib.all" :key="tag.id">
-              <TagChip :tag="tag" size="sm" />
-              <span class="text-[11px] text-white/50 tabular-nums">
-                {{ tagCoverage(tag.id).hit }} / {{ tagCoverage(tag.id).total }}
-              </span>
-              <Button
-                size="xs"
-                variant="ghost"
-                :loading="tagProgress.has(tag.id)"
-                :disabled="tagCoverage(tag.id).hit >= tagCoverage(tag.id).total"
-                @click="batchAttachTag(tag.id)"
-              >
-                {{ tagProgress.get(tag.id) ? `添加中 ${tagProgress.get(tag.id)!.done}/${tagProgress.get(tag.id)!.total}` : '+ 全部添加' }}
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                :loading="tagProgress.has(tag.id)"
-                :disabled="tagCoverage(tag.id).hit === 0"
-                @click="batchDetachTag(tag.id)"
-              >
-                {{ tagProgress.get(tag.id) ? `移除中 ${tagProgress.get(tag.id)!.done}/${tagProgress.get(tag.id)!.total}` : '− 全部移除' }}
-              </Button>
-            </template>
-          </div>
+        <TabsContent value="overlay">
+          <OverlayPanel :selected-actors="selectedActors" />
         </TabsContent>
 
-        <!-- 场景指示 -->
-        <TabsContent value="overlay" class="flex flex-col gap-3 pt-3">
-          <p class="text-[11px] text-white/40">
-            场景指示均为角色级(非 part 级);多部位角色选中任一 part 即作用于该角色。已选 {{ overlayCharIds.length }} 名角色。
-          </p>
-
-          <!-- HP/MP pill 显示(本地) -->
-          <div class="flex flex-col gap-1.5">
-            <div class="text-xs text-white/70">
-              场景上的 HP/MP pill
-            </div>
-            <div class="flex gap-2">
-              <Button size="xs" :disabled="overlayCharIds.length === 0" @click="applyOverlay(true)">
-                全部显示 ({{ overlayCharIds.length }})
-              </Button>
-              <Button size="xs" variant="ghost" :disabled="overlayCharIds.length === 0" @click="applyOverlay(false)">
-                全部隐藏 ({{ overlayCharIds.length }})
-              </Button>
-            </div>
-          </div>
-
-          <!-- ccfolia 一览 -->
-          <div class="flex flex-col gap-1.5">
-            <div class="text-xs text-white/70">
-              在 ccfolia 一览中显示
-            </div>
-            <div class="flex gap-2">
-              <Button
-                size="xs"
-                :loading="hideStatusProgress !== null"
-                :disabled="overlayCharIds.length === 0"
-                @click="applyHideStatus(false)"
-              >
-                {{ btnLabel('全部显示', overlayCharIds.length, hideStatusProgress) }}
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                :loading="hideStatusProgress !== null"
-                :disabled="overlayCharIds.length === 0"
-                @click="applyHideStatus(true)"
-              >
-                {{ btnLabel('全部隐藏', overlayCharIds.length, hideStatusProgress) }}
-              </Button>
-            </div>
-            <p class="text-[11px] text-white/40">
-              对应「盤上のキャラクター一覧に表示しない」。
-            </p>
-          </div>
-
-          <!-- HP/MP 指示器类型(本地 override) -->
-          <div class="flex flex-col gap-1.5">
-            <div class="text-xs text-white/70">
-              HP/MP 指示器类型
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <Button
-                size="xs"
-                variant="ghost"
-                :disabled="overlayCharIds.length === 0"
-                title="跟随全局自动判定(清除覆盖)"
-                @click="applyVariantOverride('auto')"
-              >
-                <span class="i-lucide-circle-dashed mr-1 text-3.5" />
-                自动 ({{ overlayCharIds.length }})
-              </Button>
-              <Button
-                size="xs"
-                :disabled="overlayCharIds.length === 0"
-                title="强制使用条状指示器"
-                @click="applyVariantOverride('C')"
-              >
-                <span class="i-lucide-rectangle-horizontal mr-1 text-3.5" />
-                条状 ({{ overlayCharIds.length }})
-              </Button>
-              <Button
-                size="xs"
-                :disabled="overlayCharIds.length === 0"
-                title="强制使用药丸指示器"
-                @click="applyVariantOverride('E')"
-              >
-                <span class="i-lucide-pill mr-1 text-3.5" />
-                药丸 ({{ overlayCharIds.length }})
-              </Button>
-            </div>
-          </div>
+        <TabsContent value="tag">
+          <TagPanel :unique-selected-chars="uniqueSelectedChars" />
         </TabsContent>
 
-        <!-- 移动 -->
-        <TabsContent value="move" class="flex flex-col gap-3 pt-3">
-          <!-- mode 切换:抄 buff tab 那三个按钮的样式 -->
-          <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="moveMode === 'enter' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="moveMode = 'enter'"
-            >
-              入板
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="moveMode === 'parked' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="moveMode = 'parked'"
-            >
-              板外位置
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="moveMode === 'shift' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="moveMode = 'shift'"
-            >
-              位移
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="moveMode === 'set' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="moveMode = 'set'"
-            >
-              定位
-            </button>
-            <span class="ml-auto text-xs text-white/50">已选 {{ uniqueSelectedChars.length }} 名角色</span>
-          </div>
-
-          <!-- 入板 -->
-          <template v-if="moveMode === 'enter'">
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                class="h-7 border rounded px-2 text-xs transition-colors"
-                :class="enterPlacement === 'center' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-                @click="enterPlacement = 'center'"
-              >
-                棋盘中心
-              </button>
-              <button
-                type="button"
-                class="h-7 border rounded px-2 text-xs transition-colors"
-                :class="enterPlacement === 'cell' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-                @click="enterPlacement = 'cell'"
-              >
-                指定格
-              </button>
-            </div>
-            <Field v-if="enterPlacement === 'cell'" label="目标格位" hint="如 5J / 12C;全部角色叠到该格,后续 GM 在 ccfolia 里手动拖开">
-              <Input v-model="enterCellInput" placeholder="5J" />
-            </Field>
-            <p v-else class="text-xs text-white/50">
-              全部放到棋盘中心格(可重叠)。
-            </p>
-            <div class="flex justify-end pt-1">
-              <Button
-                size="md"
-                :loading="moveProgress !== null"
-                :disabled="offBoardCharIds.length === 0 || (enterPlacement === 'cell' && !enterCellInput.trim())"
-                @click="applyMove"
-              >
-                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${offBoardCharIds.length} 在板外)` }}
-              </Button>
-            </div>
-            <p v-if="uniqueSelectedChars.length > 0 && offBoardCharIds.length === 0" class="text-[11px] text-white/40">
-              选中角色全部已在板上,跳过。
-            </p>
-          </template>
-
-          <!-- 位移 -->
-          <template v-else-if="moveMode === 'shift'">
-            <p class="text-xs text-white/60">
-              对在板上的角色整体按格平移,板外的角色跳过。dx 正方向 = 右,dy 正方向 = 下。
-            </p>
-            <div class="flex items-center gap-3">
-              <Field label="dx (列)">
-                <NumberEdit :value="shift.dx" @change="(v: number) => shift.dx = v" />
-              </Field>
-              <Field label="dy (行)">
-                <NumberEdit :value="shift.dy" @change="(v: number) => shift.dy = v" />
-              </Field>
-            </div>
-            <div class="flex justify-end pt-1">
-              <Button
-                size="md"
-                :loading="moveProgress !== null"
-                :disabled="onBoardCharIds.length === 0 || (shift.dx === 0 && shift.dy === 0)"
-                @click="applyMove"
-              >
-                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在板上)` }}
-              </Button>
-            </div>
-          </template>
-
-          <!-- 定位 -->
-          <template v-else-if="moveMode === 'set'">
-            <p class="text-xs text-white/60">
-              覆盖式写入位置:全部选中角色(包括已在板上的)都移到目标格。
-            </p>
-            <Field label="目标格位">
-              <Input v-model="setCellInput" placeholder="5J" />
-            </Field>
-            <div class="flex justify-end pt-1">
-              <Button
-                size="md"
-                :loading="moveProgress !== null"
-                :disabled="allSelectedCharIds.length === 0 || !setCellInput.trim()"
-                @click="applyMove"
-              >
-                {{ btnLabel('应用', allSelectedCharIds.length, moveProgress) }}
-              </Button>
-            </div>
-          </template>
-
-          <!-- 板外位置 -->
-          <template v-else>
-            <p class="text-xs text-white/60">
-              每个角色独立记一个板外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
-              保存仅对当前在板外的角色生效；送回仅对已记录板外位置的角色生效。
-            </p>
-            <div class="grid grid-cols-2 gap-1.5 pt-1">
-              <Button
-                size="sm"
-                :loading="moveProgress !== null"
-                :disabled="parkedCharIds.length === 0"
-                title="把角色精确送回各自记录的板外位置"
-                @click="applyParkedAction('send')"
-              >
-                <span v-if="!moveProgress" class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
-                {{ btnLabel('送回', parkedCharIds.length, moveProgress) }}
-              </Button>
-              <Button
-                size="sm"
-                :loading="moveProgress !== null"
-                :disabled="offBoardCharIds.length === 0"
-                title="把当前位置记下作为板外位置(覆盖已有);仅在板外的角色生效"
-                class="text-black !bg-buff/70 hover:!bg-buff"
-                @click="applyParkedAction('save')"
-              >
-                <span v-if="!moveProgress" class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
-                {{ btnLabel('保存板外位置', offBoardCharIds.length, moveProgress) }}
-              </Button>
-              <Button
-                size="sm"
-                :loading="moveProgress !== null"
-                :disabled="parkedCharIds.length === 0"
-                title="送回板外 + 全部部位 HP / MP 回满"
-                @click="applyParkedAction('sendRestore')"
-              >
-                <span v-if="!moveProgress" class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />
-                {{ btnLabel('送回 + 回满 HP', parkedCharIds.length, moveProgress) }}
-              </Button>
-            </div>
-          </template>
+        <TabsContent value="buff">
+          <BuffPanel
+            :selected-actors="selectedActors"
+            :selected-count="selectedCount"
+            :sheet-open="open"
+          />
         </TabsContent>
       </Tabs>
 
