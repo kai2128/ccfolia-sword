@@ -4,9 +4,10 @@
 // 每条带 +/- 直接增减自身 value。**不会**新建条目 —— 只 modify 现有 label。
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { adjustStatusByLabel } from '@/ccfolia/writers/adjust-status-by-label'
 import { usePortalTarget } from '@/components/ui'
+import { useShadowPopoverTrigger } from '@/composables/useShadowPopoverTrigger'
 import { extractStatusChips } from '@/core/overlay/status-chip'
 
 const props = defineProps<{
@@ -15,6 +16,8 @@ const props = defineProps<{
 
 const open = ref(false)
 const target = usePortalTarget()
+const triggerRef = useTemplateRef<{ $el: HTMLElement }>('trigger')
+const { onPointerDownOutside } = useShadowPopoverTrigger(triggerRef)
 
 // rows 直接来自 extractStatusChips:label 用角色身上的原 label(可能带后缀),
 // +/- 走相同 label,所以不会插出 "高昂" / "高昂+1" 两条。
@@ -33,7 +36,7 @@ async function bump(label: string, delta: number) {
 
 <template>
   <PopoverRoot v-model:open="open">
-    <PopoverTrigger as-child>
+    <PopoverTrigger ref="trigger" as-child>
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white hover:bg-white/10"
@@ -48,6 +51,7 @@ async function bump(label: string, delta: number) {
         :side-offset="6"
         :collision-padding="8"
         class="z-30 min-w-44 flex flex-col gap-1 border border-white/15 rounded bg-surface p-1.5 text-white shadow-lg focus:outline-none"
+        @pointer-down-outside="onPointerDownOutside"
       >
         <div
           v-for="r in rows"

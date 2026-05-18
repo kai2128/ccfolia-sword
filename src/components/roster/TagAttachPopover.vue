@@ -2,9 +2,10 @@
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { attachTag, detachTag } from '@/ccfolia/writers/write-tags'
 import { TagChip, usePortalTarget } from '@/components/ui'
+import { useShadowPopoverTrigger } from '@/composables/useShadowPopoverTrigger'
 import { readTagInstances } from '@/core/tag'
 import { useTagLibraryStore } from '@/stores/tag-library'
 
@@ -20,6 +21,8 @@ const open = ref(false)
 const busy = ref(false)
 // Shadow DOM 下 Reka Portal 必须显式传目标节点,否则样式跑出 Shadow 边界丢 UnoCSS
 const target = usePortalTarget()
+const triggerRef = useTemplateRef<{ $el: HTMLElement }>('trigger')
+const { onPointerDownOutside } = useShadowPopoverTrigger(triggerRef)
 
 const attachedIds = computed(() =>
   new Set(readTagInstances(props.char).map(tag => tag.definitionId)),
@@ -58,7 +61,7 @@ async function toggle(tagId: string) {
 
 <template>
   <PopoverRoot v-model:open="open">
-    <PopoverTrigger as-child>
+    <PopoverTrigger ref="trigger" as-child>
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center border rounded-full transition-colors"
@@ -80,6 +83,7 @@ async function toggle(tagId: string) {
         :side-offset="6"
         :collision-padding="8"
         class="z-30 min-w-44 flex flex-col gap-0.5 border border-white/15 rounded bg-surface p-1.5 text-white shadow-lg focus:outline-none"
+        @pointer-down-outside="onPointerDownOutside"
       >
         <button
           v-for="tag in lib.all"

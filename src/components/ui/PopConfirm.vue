@@ -2,16 +2,11 @@
 // 通用 popconfirm:点 trigger 弹气泡问"确认/取消",和 NumberEdit / TagAttachPopover 同款 Reka 风格。
 // trigger 走默认 slot + PopoverTrigger as-child,保留外部按钮原状。
 //   bypass=true 时点击直接 emit confirm 不弹气泡,用来跳过"无需确认的快路径"。
-//
-// Shadow DOM 适配:整个 app 跑在 createShadowMount 的 shadow root 里。reka-ui 的 outside-click
-// 检测通过 detail.originalEvent.target 判断是否点在 trigger 上,但 Shadow DOM 的事件 retargeting
-// 把 target 改成了 shadow host,trigger.contains(host) 永远 false → 再点 trigger 时 popover 关了又
-// 立刻被 trigger 自己的 click 重开。这里拦截 PopoverContent 的 pointer-down-outside 事件,用
-// composedPath() 穿透 shadow 边界拿真实 target,落在 trigger 内就 preventDefault,让 trigger toggle
-// 走 reka-ui 原生路径。
+// Shadow DOM 下 trigger toggle 失效问题统一走 useShadowPopoverTrigger composable。
 
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
+import { useShadowPopoverTrigger } from '@/composables/useShadowPopoverTrigger'
 import { usePortalTarget } from './portal'
 
 const props = withDefaults(
@@ -34,8 +29,8 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const target = usePortalTarget()
-// 包 slot 的 wrapper(display: contents 不占布局),用于 outside-click 时 composedPath 反查 trigger
-const triggerRef = ref<HTMLElement | null>(null)
+const triggerRef = useTemplateRef<{ $el: HTMLElement }>('trigger')
+const { onPointerDownOutside } = useShadowPopoverTrigger(triggerRef)
 
 function onOpenChange(next: boolean) {
   if (next && props.bypass) {
@@ -53,30 +48,12 @@ function onConfirm() {
 function onCancel() {
   open.value = false
 }
-
-type PointerDownOutsideEvent = CustomEvent<{ originalEvent: PointerEvent }>
-
-function onPointerDownOutside(event: PointerDownOutsideEvent) {
-  const wrapper = triggerRef.value
-  if (!wrapper)
-    return
-  // composedPath 会穿透 shadow 边界,第一个就是真实 pointerdown target
-  const path = event.detail.originalEvent.composedPath()
-  for (const node of path) {
-    if (node === wrapper || (node instanceof Node && wrapper.contains(node))) {
-      event.preventDefault()
-      return
-    }
-  }
-}
 </script>
 
 <template>
   <PopoverRoot :open="open" @update:open="onOpenChange">
-    <PopoverTrigger as-child>
-      <span ref="triggerRef" style="display: contents">
-        <slot />
-      </span>
+    <PopoverTrigger ref="trigger" as-child>
+      <slot />
     </PopoverTrigger>
     <PopoverPortal :to="target ?? undefined">
       <PopoverContent

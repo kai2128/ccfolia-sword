@@ -5,8 +5,9 @@
 //   - 板外:放回画布中央 / 送回板外 / 送回板外 + 回满 HP/MP
 // 没有保存过板外位置时,送回两项 disabled 且 hint「先点下方「保存板外位置」存一下」。
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 import { usePortalTarget } from '@/components/ui'
+import { useShadowPopoverTrigger } from '@/composables/useShadowPopoverTrigger'
 
 defineProps<{
   offBoard: boolean
@@ -22,6 +23,8 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const target = usePortalTarget()
+const triggerRef = useTemplateRef<{ $el: HTMLElement }>('trigger')
+const { onPointerDownOutside } = useShadowPopoverTrigger(triggerRef)
 
 function pick(action: 'toggle' | 'park' | 'parkRestore' | 'save') {
   open.value = false
@@ -42,7 +45,7 @@ function cancel() {
 
 <template>
   <PopoverRoot v-model:open="open">
-    <PopoverTrigger as-child>
+    <PopoverTrigger ref="trigger" as-child>
       <button
         type="button"
         class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
@@ -57,6 +60,7 @@ function cancel() {
         :collision-padding="8"
         align="end"
         class="z-30 flex flex-col border border-white/15 rounded bg-surface p-1 text-white shadow-lg focus:outline-none"
+        @pointer-down-outside="onPointerDownOutside"
       >
         <button
           type="button"
