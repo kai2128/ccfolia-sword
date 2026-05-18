@@ -10,7 +10,7 @@ import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
-import { applyBatchMoveOffBoard, applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
+import { applyBatchMoveToCell, applyBatchShift } from '@/ccfolia/writers/apply-move-batch'
 import { applyBatchSavePark, applyBatchSendToPark } from '@/ccfolia/writers/apply-parked-batch'
 import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
@@ -601,7 +601,7 @@ function batchDetachTag(tagId: string) {
 // --- Move tab ---
 // 位置是角色级,选中集是 part 级 → 用 uniqueSelectedChars dedupe 到 charId。
 // 板内/板外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
-type MoveMode = 'enter' | 'exit' | 'parked' | 'shift' | 'set'
+type MoveMode = 'enter' | 'parked' | 'shift' | 'set'
 const moveMode = ref<MoveMode>('enter')
 const enterPlacement = ref<'center' | 'cell'>('center')
 const enterCellInput = ref('')
@@ -646,11 +646,6 @@ async function applyMove() {
     if (offBoardCharIds.value.length === 0)
       return
     resultPromise = applyBatchMoveToCell({ charIds: offBoardCharIds.value, cellRef: cell, grid, onProgress })
-  }
-  else if (moveMode.value === 'exit') {
-    if (onBoardCharIds.value.length === 0)
-      return
-    resultPromise = applyBatchMoveOffBoard(onBoardCharIds.value, grid, onProgress)
   }
   else if (moveMode.value === 'shift') {
     if (shift.dx === 0 && shift.dy === 0)
@@ -834,16 +829,16 @@ async function writeRow(
             HP / MP
           </TabsTrigger>
           <TabsTrigger
-            value="overlay"
-            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
-          >
-            场景指示
-          </TabsTrigger>
-          <TabsTrigger
             value="move"
             class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
           >
             移动
+          </TabsTrigger>
+          <TabsTrigger
+            value="overlay"
+            class="h-8 px-3 text-xs text-white/60 data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-white"
+          >
+            场景指示
           </TabsTrigger>
           <TabsTrigger
             value="tag"
@@ -1127,14 +1122,6 @@ async function writeRow(
             <button
               type="button"
               class="h-7 border rounded px-2 text-xs transition-colors"
-              :class="moveMode === 'exit' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-              @click="moveMode = 'exit'"
-            >
-              出板
-            </button>
-            <button
-              type="button"
-              class="h-7 border rounded px-2 text-xs transition-colors"
               :class="moveMode === 'parked' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
               @click="moveMode = 'parked'"
             >
@@ -1198,23 +1185,6 @@ async function writeRow(
             <p v-if="uniqueSelectedChars.length > 0 && offBoardCharIds.length === 0" class="text-[11px] text-white/40">
               选中角色全部已在板上,跳过。
             </p>
-          </template>
-
-          <!-- 出板 -->
-          <template v-else-if="moveMode === 'exit'">
-            <p class="text-xs text-white/60">
-              把选中且在板上的角色一次性收纳到默认板外位置(不读各角色记录的板外位置)。
-            </p>
-            <div class="flex justify-end pt-1">
-              <Button
-                size="md"
-                :loading="moveProgress !== null"
-                :disabled="onBoardCharIds.length === 0"
-                @click="applyMove"
-              >
-                {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在板上)` }}
-              </Button>
-            </div>
           </template>
 
           <!-- 位移 -->
