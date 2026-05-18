@@ -5,7 +5,7 @@ import { reactive, ref, watch } from 'vue'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
 import { Button, Checkbox, Field, Input, Select } from '@/components/ui'
 import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
-import { evaluateExpression } from '@/core/combat/eval-expr'
+import { applyAdjustment } from '@/core/combat/eval-expr'
 import { readStatusSlot } from '@/core/status-slot'
 import { useSettingsStore } from '@/stores/settings'
 import { btnLabel } from './types'
@@ -22,8 +22,9 @@ type SlotKind = 'hp' | 'mp'
 const hpMp = reactive({
   slot: 'hp' as SlotKind,
   input: '',
-  // 默认不截顶,与单角色 NumberEdit 行为一致;GM 想避免过量治疗就手动勾上
-  clampMax: false,
+  // 默认不截上下限,与单角色 NumberEdit 行为一致(允许过量治疗 / 负血);
+  // GM 想限制在 [0, max] 范围内就手动勾上
+  clamp: false,
 })
 const slotOptions: Array<{ value: SlotKind, label: string }> = [
   { value: 'hp', label: 'HP' },
@@ -38,26 +39,24 @@ watch(() => props.sheetOpen, (v) => {
     hpMp.input = ''
 })
 
-// 解析批量输入,语义与单角色 NumberEdit / applyAdjustment 完全一致:
+// 解析批量输入,直接复用单角色 NumberEdit 的 applyAdjustment,保证语义完全一致:
 //   '='          → absolute(允许负)。例:=10 / =-5 / =10+5
-//   + - * /      → 在 current 上做算术。例:+5 / -3 / *2 / /2
+//   + / -        → delta,|delta| 按放大方向向上取整(伤害 -3/2 = -1.5 → -2)
+//   * / /        → 在 current 上做算术,最终向上取整
 //   裸数字/表达式 → absolute。例:10 / 2*5 / (1+2)*3
-// 解析失败返 null,调用方跳过该 target。截顶/截底走 resolveNewValue。
+// 解析失败返 null,调用方跳过该 target。
+// 上下限截断由 hpMp.clamp 单一开关控制:勾上 = 截到 [0, max],否则允许越界。
 function resolveBatchInput(read: { value: number, max: number }, raw: string): number | null {
-  const s = raw.trim()
-  if (!s)
+  const next = applyAdjustment(raw, read.value)
+  if (next === null)
     return null
-  const first = s[0]
-  let evaluated: number | null
-  if (first === '=')
-    evaluated = evaluateExpression(s.slice(1))
-  else if (first === '+' || first === '-' || first === '*' || first === '/')
-    evaluated = evaluateExpression(`${read.value}${s}`)
-  else
-    evaluated = evaluateExpression(s)
-  if (evaluated === null)
-    return null
-  return resolveNewValue(read.value, { mode: 'absolute', input: evaluated, max: read.max, clampMax: hpMp.clampMax })
+  return resolveNewValue(read.value, {
+    mode: 'absolute',
+    input: next,
+    max: read.max,
+    clampMax: hpMp.clamp,
+    clampMin: hpMp.clamp,
+  })
 }
 
 // 「HP 回满」/「MP 回满」快捷:忽略 input 框,把选中 part 的目标 slot 置 max。
@@ -182,8 +181,8 @@ async function applyHpMp() {
       </Button>
     </div>
     <label class="flex items-center gap-2 text-xs text-white/70">
-      <Checkbox v-model="hpMp.clampMax" />
-      不超过上限(开启以阻止过量治疗/伤害)
+      <Checkbox v-model="hpMp.clamp" />
+      不超过上下限(开启以阻止过量治疗 / 伤害)
     </label>
     <div class="flex items-center gap-2 pt-1">
       <span class="text-[11px] text-white/40">快捷:</span>
