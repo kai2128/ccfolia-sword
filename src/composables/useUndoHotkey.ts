@@ -1,11 +1,6 @@
-// 全局 Ctrl/Cmd+Z 钩子。冲突策略:
-//   - 我们的 undoStack 非空 -> capture 阶段 stopImmediatePropagation,自己处理
-//   - 栈空 -> 不动,事件继续冒泡到 ccfolia 自己的 document 监听器
-//   - 焦点在 input/textarea/contenteditable -> 不动,让浏览器原生输入框 undo 接管
-//
-// 用 capture 阶段(window 优先于 document)抢在 ccfolia 之前判断,
-// 不复用 src/core/shell/hotkey.ts 因为那里是 bubbling + 无条件 preventDefault,
-// 与"按需放行"语义不合,硬塞 flag 反而更乱。
+// 全局 Ctrl+` / Ctrl+Shift+` 钩子。
+// 用 Backquote 物理键避开 ccfolia 原生 Ctrl/Cmd+Z;Cmd+` 在 macOS 是系统切窗口,
+// 这里只接 Ctrl,Mac 用户同样按 Ctrl+`。焦点在输入框时放行。
 
 import { onMounted, onUnmounted } from 'vue'
 import { useUndoHistoryStore } from '@/stores/undo-history'
@@ -24,15 +19,14 @@ function isInTextInput(target: EventTarget | null): boolean {
 type Intent = 'undo' | 'redo' | null
 
 function resolveIntent(ev: KeyboardEvent): Intent {
-  const isMod = ev.metaKey || ev.ctrlKey
-  if (!isMod)
+  if (!ev.ctrlKey)
     return null
-  const key = ev.key.toLowerCase()
-  if (key === 'z')
-    return ev.shiftKey ? 'redo' : 'undo'
-  if (key === 'y' && !ev.shiftKey)
-    return 'redo'
-  return null
+  if (ev.altKey || ev.metaKey)
+    return null
+  // Backquote 是 ` 键的物理标识,跨键盘布局稳定。
+  if (ev.code !== 'Backquote')
+    return null
+  return ev.shiftKey ? 'redo' : 'undo'
 }
 
 export function useUndoHotkey(): void {
@@ -48,13 +42,7 @@ export function useUndoHotkey(): void {
       if (isInTextInput(ev.target))
         return
 
-      const stackLen = intent === 'undo' ? store.undoStack.length : store.redoStack.length
-      if (stackLen === 0)
-        return
-
       ev.preventDefault()
-      ev.stopImmediatePropagation()
-      ev.stopPropagation()
 
       if (intent === 'undo')
         void store.undo()
@@ -62,8 +50,8 @@ export function useUndoHotkey(): void {
         void store.redo()
     }
 
-    window.addEventListener('keydown', handler, { capture: true })
-    cleanup = () => window.removeEventListener('keydown', handler, { capture: true })
+    window.addEventListener('keydown', handler)
+    cleanup = () => window.removeEventListener('keydown', handler)
   })
 
   onUnmounted(() => {

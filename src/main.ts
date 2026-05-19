@@ -57,8 +57,8 @@ function mount() {
   const settings = useSettingsStore()
   settings.applyLogMaxLines()
 
-  // Alt+S 切面板显隐
-  bindHotkey({ alt: true, key: 's' }, () => settings.togglePanel())
+  // Alt+S 切面板显隐(Mac 上 Option+S 会把 ev.key 合成成 'ß',必须用 code)
+  bindHotkey({ alt: true, code: 'KeyS' }, () => settings.togglePanel())
 
   app.mount(mountPoint)
 

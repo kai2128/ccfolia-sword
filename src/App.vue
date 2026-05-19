@@ -8,7 +8,7 @@ import TurnIndicator from '@/components/scene/TurnIndicator.vue'
 import PanelShell from '@/components/shell/PanelShell.vue'
 import { useUndoHotkey } from '@/composables/useUndoHotkey'
 
-// 全局 Ctrl/Cmd+Z / Cmd+Shift+Z(redo)。栈空时放行让 ccfolia 原生 undo 接管。
+// 全局 Ctrl+` / Ctrl+Shift+`(redo)。让出 Ctrl/Cmd+Z 给 ccfolia 原生 undo。
 useUndoHotkey()
 </script>
 

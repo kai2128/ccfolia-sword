@@ -1,6 +1,6 @@
 // HP/MP 写入的 undo / redo 栈。两条独立栈,纯客户端、不持久化。
 //
-// 我们绕过了 ccfolia 自己的 Redux dispatcher 直接 setDoc,所以原生 Ctrl+Z 看不到
+// 我们绕过了 ccfolia 自己的 Redux dispatcher 直接 setDoc,所以原生 undo 看不到
 // 这边的写入。这里保存写前 / 写后的整段 status 数组,撤销时再走一遍 patchStatus。
 //
 // 与 ccfolia 原生 undo 同语义:粗暴覆盖,中间他人改动也直接顶掉,不满意就再 redo。

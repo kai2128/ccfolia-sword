@@ -14,9 +14,25 @@ import { Logo, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useDraggable } from '@/composables/useDraggable'
 import { useSettingsStore } from '@/stores/settings'
 import { useUiStore } from '@/stores/ui'
+import { useUndoHistoryStore } from '@/stores/undo-history'
 
 const settings = useSettingsStore()
 const ui = useUiStore()
+const undoHistory = useUndoHistoryStore()
+
+const canUndo = computed(() => undoHistory.undoStack.length > 0)
+const undoTitle = computed(() => {
+  if (!canUndo.value)
+    return '撤销 (Ctrl+`) — 无可撤销操作'
+  const top = undoHistory.undoStack[undoHistory.undoStack.length - 1]
+  return `撤销 (Ctrl+\`) — ${top.label}`
+})
+
+function onUndoClick() {
+  if (!canUndo.value)
+    return
+  void undoHistory.undo()
+}
 
 const containerRef = ref<HTMLElement | null>(null)
 const handleRef = ref<HTMLElement | null>(null)
@@ -94,7 +110,16 @@ onBeforeUnmount(() => {
       <span class="text-sm font-medium">ccfolia-sword</span>
       <button
         type="button"
-        class="ml-auto h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+        class="ml-auto h-6 w-6 flex items-center justify-center rounded disabled:cursor-not-allowed hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent"
+        :title="undoTitle"
+        :disabled="!canUndo"
+        @click="onUndoClick"
+      >
+        <div class="i-lucide-undo-2 text-4" />
+      </button>
+      <button
+        type="button"
+        class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
         title="收起到 launcher (Alt+S)"
         @click="settings.hidePanel()"
       >

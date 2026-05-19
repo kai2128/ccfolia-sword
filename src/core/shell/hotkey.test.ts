@@ -27,4 +27,15 @@ describe('matchesHotkey', () => {
     const ev = new KeyboardEvent('keydown', { key: 's', ctrlKey: true, shiftKey: true })
     expect(matchesHotkey(ev, { ctrl: true, shift: true, key: 's' })).toBe(true)
   })
+
+  it('matches by code when binding uses code', () => {
+    // Mac 上 Option+S: ev.key 是 'ß',ev.code 仍是 'KeyS'
+    const ev = new KeyboardEvent('keydown', { key: 'ß', code: 'KeyS', altKey: true })
+    expect(matchesHotkey(ev, { alt: true, code: 'KeyS' })).toBe(true)
+  })
+
+  it('code binding ignores ev.key value', () => {
+    const ev = new KeyboardEvent('keydown', { key: 'Ω', code: 'KeyZ', altKey: true })
+    expect(matchesHotkey(ev, { alt: true, code: 'KeyZ' })).toBe(true)
+  })
 })
