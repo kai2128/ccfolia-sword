@@ -314,16 +314,6 @@ async function onClearBuffs() {
       <button
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
-        :class="variantMode === 'auto' ? 'text-white/30' : 'text-white'"
-        :title="variantTitle"
-        @click="cycleVariant"
-      >
-        <span :class="variantIcon" class="text-3.5" />
-      </button>
-
-      <button
-        type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
         :class="isDown ? 'text-debuff' : 'text-white/30'"
         :title="isDown ? '已倒地 · 点击站起' : '倒地'"
         @click="onToggleDown"
@@ -337,8 +327,26 @@ async function onClearBuffs() {
         @toggle-board="onToggleBoard"
         @send-to-parked="onSendToParked(false)"
         @send-to-parked-restore="onSendToParked(true)"
-        @save-parked="onSaveParked"
       />
+
+      <button
+        v-if="offBoard"
+        type="button"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-buff/50 hover:bg-buff/15 hover:text-buff"
+        :title="hasParked ? '更新板外位置(覆盖当前)' : '保存板外位置'"
+        @click="onSaveParked"
+      >
+        <span class="i-lucide-bookmark-plus text-3.5" />
+      </button>
+      <button
+        v-else
+        type="button"
+        class="h-5 w-5 flex shrink-0 cursor-not-allowed items-center justify-center rounded text-white/15"
+        title="需先把角色挪到板外再点保存"
+        disabled
+      >
+        <span class="i-lucide-bookmark-plus text-3.5" />
+      </button>
 
       <PopConfirm
         v-if="hasParked"
@@ -375,53 +383,65 @@ async function onClearBuffs() {
     </div>
 
     <div v-if="expanded" class="mt-2 flex flex-col gap-1 pl-6">
-      <div class="flex items-center gap-1.5">
-        <TagAttachPopover :char="char" :primary="primary" />
-        <button
-          type="button"
-          class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-          @click="emit('attachBuff')"
-        >
-          + 挂 buff
-        </button>
-        <PopConfirm
-          v-if="buffs.length > 0"
-          :message="`清空 ${char.name} 身上全部单体 buff(${buffs.length} 条)?`"
-          confirm-text="清空"
-          @confirm="onClearBuffs"
-        >
+      <div class="flex items-center justify-between gap-1.5">
+        <div class="flex items-center gap-1.5">
+          <TagAttachPopover :char="char" :primary="primary" />
+          <PopConfirm
+            v-if="buffs.length > 0"
+            :message="`清空 ${char.name} 身上全部单体 buff(${buffs.length} 条)?`"
+            confirm-text="清空"
+            @confirm="onClearBuffs"
+          >
+            <button
+              type="button"
+              class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
+              title="清空当前 part 上所有单体 buff"
+            >
+              清空 buff
+            </button>
+          </PopConfirm>
           <button
             type="button"
-            class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
-            title="清空当前 part 上所有单体 buff"
+            class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+            @click="emit('attachBuff')"
           >
-            清空 buff
+            + 挂 buff
           </button>
-        </PopConfirm>
-        <StatusBuffMenu v-if="hasStatusChips" :char="char" />
-        <button
-          type="button"
-          class="h-6 inline-flex items-center gap-1 border border-white/15 rounded bg-black/20 px-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-          :title="isHidden ? '在 ccfolia 一览中显示' : '从 ccfolia 一览隐藏'"
-          @click="onToggleHideStatus"
-        >
-          <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="shrink-0 text-3.5" />
-          <span>{{ isHidden ? '一览中显示' : '一览隐藏' }}</span>
-        </button>
-        <PopConfirm
-          :message="`把 ${char.name} 从角色一览移除? 可在 ccfolia 角色管理重新添加`"
-          confirm-text="移除"
-          @confirm="onSetInactive"
-        >
+        </div>
+        <div class="flex items-center gap-1.5">
+          <StatusBuffMenu v-if="hasStatusChips" :char="char" />
           <button
             type="button"
-            class="h-6 inline-flex items-center gap-1 border border-white/15 rounded bg-black/20 px-1.5 text-xs text-white/40 hover:bg-debuff/20 hover:text-debuff"
-            title="移除角色 (set inactive)"
+            class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+            :class="variantMode === 'auto' ? 'text-white/30' : 'text-white'"
+            :title="variantTitle"
+            @click="cycleVariant"
           >
-            <span class="i-lucide-trash-2 shrink-0 text-3.5" />
-            <span>移除角色</span>
+            <span :class="variantIcon" class="text-3.5" />
           </button>
-        </PopConfirm>
+          <button
+            type="button"
+            class="h-5 w-5 flex shrink-0 items-center justify-center rounded hover:bg-white/10"
+            :class="isHidden ? 'text-white/30' : 'text-white'"
+            :title="isHidden ? '在 ccfolia 一览中显示' : '从 ccfolia 一览隐藏'"
+            @click="onToggleHideStatus"
+          >
+            <span :class="isHidden ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-3.5" />
+          </button>
+          <PopConfirm
+            :message="`把 ${char.name} 从角色一览移除? 可在 ccfolia 角色管理重新添加`"
+            confirm-text="移除"
+            @confirm="onSetInactive"
+          >
+            <button
+              type="button"
+              class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/30 hover:bg-debuff/20 hover:text-debuff"
+              title="移除角色 (set inactive)"
+            >
+              <span class="i-lucide-trash-2 text-3.5" />
+            </button>
+          </PopConfirm>
+        </div>
       </div>
       <BuffRow
         v-for="buff in buffs"
