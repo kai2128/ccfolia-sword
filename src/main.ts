@@ -2,6 +2,7 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { createApp } from 'vue'
 import App from './App.vue'
+import { startCcfoliaSelectionSync, useCcfoliaSelectionStore } from './ccfolia/ccfolia-selection-store'
 import { usePiecesStore } from './ccfolia/pieces-store'
 import { startRoomCharactersSync, useRoomCharactersStore } from './ccfolia/room-characters-store'
 import { startSceneMount } from './ccfolia/scene-mount'
@@ -65,6 +66,7 @@ function mount() {
   // 启动 ccfolia Redux 订阅 + scene overlay(共享主 app 的 pinia + portalTarget,
   // 否则派生 store 看不到数据 / Reka Portal 无家可归)。
   startRoomCharactersSync()
+  startCcfoliaSelectionSync()
   startSceneMount(SceneOverlayRoot, pinia, portalTarget)
 
   // devtools 验收桥;生产里只是几个对象引用,无运行时开销。
@@ -78,6 +80,7 @@ function mount() {
       ...(dbg.__CCS_STORES__ ?? {}),
       roomCharacters: useRoomCharactersStore(),
       pieces: usePiecesStore(),
+      ccfoliaSelection: useCcfoliaSelectionStore(),
       encounter,
       settings,
     }

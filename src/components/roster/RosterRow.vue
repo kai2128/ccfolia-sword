@@ -3,6 +3,7 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
+import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { num } from '@/ccfolia/pieces-store'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import { moveCharacterByCells } from '@/ccfolia/writers/move-character-by-cells'
@@ -59,6 +60,10 @@ const partKey = computed(() => props.partView?.partKey ?? '')
 
 const overlayVis = useOverlayVisibilityStore()
 const pillVisible = computed(() => overlayVis.isVisible(props.char._id))
+
+// ccfolia 画布上该角色被多选/单选时高亮整行。主行 + 所有 part 行都亮 —— 同一 char._id。
+const selectionStore = useCcfoliaSelectionStore()
+const isCanvasSelected = computed(() => selectionStore.selectedCharacterIds.has(props.char._id))
 
 function togglePill() {
   overlayVis.toggle(props.char._id)
@@ -247,7 +252,10 @@ async function onClearBuffs() {
 </script>
 
 <template>
-  <li class="border-b border-white/5 px-1 py-1 last:border-b-0">
+  <li
+    class="border-b border-white/5 px-1 py-1 transition-colors last:border-b-0"
+    :class="isCanvasSelected && 'bg-accent/15 ring-1 ring-accent/40 ring-inset'"
+  >
     <div class="flex items-center gap-1.5">
       <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 

@@ -4,6 +4,7 @@ import type { CharacterPartView } from '@/core/character/parts'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
 import { computed, reactive, ref, watch } from 'vue'
+import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
@@ -36,6 +37,7 @@ const overlayVis = useOverlayVisibilityStore()
 const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
 const pieces = usePiecesStore()
+const canvasSelection = useCcfoliaSelectionStore()
 
 // 同 RosterList:用 pxToCell 的 anchor + origin 公式量化 y,
 // 避免 Math.round 边界把同一行内的 piece 翻进上/下一行。
@@ -115,6 +117,24 @@ function invert() {
 function clearAll() {
   // 清空所有选中(含搜索/过滤视图外的),与 selectedCount 的全集口径保持一致
   selected.clear()
+}
+
+// 把 ccfolia 画布当前选中的角色合并加入 selected(只读,不写回 ccfolia)。
+// 多部位角色一次加上全部 part 行,与 toggleChar 的"全选 / 全清"语义对齐。
+// 合并语义:不清空已勾选,允许多轮叠加。
+function importFromCanvas() {
+  const ids = canvasSelection.selectedCharacterIds
+  if (ids.size === 0)
+    return
+  for (const charId of ids) {
+    const parts = partsOf(charId)
+    if (parts.length === 0) {
+      selected.add(formatActorRef(charId, ''))
+      continue
+    }
+    for (const p of parts)
+      selected.add(formatActorRef(charId, p.partKey))
+  }
 }
 
 // --- 按 tag 选择 ---
@@ -262,6 +282,11 @@ function charSelectionState(charId: string): 'all' | 'partial' | 'none' {
   return 'partial'
 }
 
+// ccfolia 画布上是否选中该角色 —— 给列表行加视觉强调,与 RosterRow 表达一致。
+function isCharCanvasSelected(charId: string): boolean {
+  return canvasSelection.selectedCharacterIds.has(charId)
+}
+
 function toggleChar(charId: string) {
   const refs = charPartRefs(charId)
   const state = charSelectionState(charId)
@@ -387,7 +412,7 @@ async function writeRow(
 
       <!-- 目标列表:占满剩余空间,内部独立滚动 -->
       <div class="min-h-0 flex flex-1 flex-col border-t border-white/10 pt-2">
-        <!-- 工具按钮行 -->
+        <!-- 工具按钮行 1:选择操作 -->
         <div class="flex flex-wrap items-center gap-1.5 pb-1.5">
           <Button size="xs" variant="ghost" :disabled="totalCount === 0" @click="selectAll">
             全选
@@ -398,6 +423,23 @@ async function writeRow(
           <Button size="xs" variant="ghost" :disabled="selectedCount === 0" @click="clearAll">
             清空
           </Button>
+          <button
+            type="button"
+            class="h-5 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-1.5 text-xs text-white/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:enabled:bg-accent/20 hover:enabled:text-white"
+            :disabled="!canvasSelection.hasCharacterSelection"
+            :title="canvasSelection.hasCharacterSelection
+              ? `把 ccfolia 画布当前选中(${canvasSelection.selectedCharacterIds.size} 人)合并到此列表`
+              : '先在 ccfolia 画布上选中角色(支持 Shift+点击 / Command+拖拽)再点这里'"
+            @click="importFromCanvas"
+          >
+            <span class="i-lucide-square-dashed-mouse-pointer text-3" />
+            添加已选中
+          </button>
+          <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} / {{ totalCount }}</span>
+        </div>
+
+        <!-- 工具按钮行 2:视图筛选 -->
+        <div class="flex flex-wrap items-center gap-1.5 pb-1.5">
           <button
             type="button"
             class="h-5 flex items-center gap-1 border rounded px-1.5 text-xs transition-colors"
@@ -429,7 +471,6 @@ async function writeRow(
             <span :class="view.sortMode === 'position' ? 'i-lucide-layout-grid' : 'i-lucide-arrow-down-a-z'" class="text-3" />
             {{ view.sortMode === 'position' ? '位置' : '名称' }}
           </button>
-          <span class="ml-auto text-xs text-white/50">已选 {{ selectedCount }} / {{ totalCount }}</span>
         </div>
 
         <!-- 按名搜索:持久化在 roster-view store(与 roster 面板独立) -->
@@ -499,7 +540,8 @@ async function writeRow(
                 <template v-for="char in group.chars" :key="char._id">
                   <!-- 父行:多部位 = 汇总(部分选中显示半亮);单部位 = 直接绑那唯一 part -->
                   <li
-                    class="flex items-center gap-2 border-b border-white/5 px-1 py-1 last:border-b-0 hover:bg-white/5"
+                    class="flex items-center gap-2 border-b border-white/5 px-1 py-1 transition-colors last:border-b-0 hover:bg-white/5"
+                    :class="isCharCanvasSelected(char._id) && 'bg-accent/15 ring-1 ring-accent/40 ring-inset'"
                   >
                     <Checkbox
                       v-if="isMultiPart(char._id)"
@@ -551,7 +593,8 @@ async function writeRow(
                     <li
                       v-for="part in partsOf(char._id)"
                       :key="formatActorRef(char._id, part.partKey)"
-                      class="flex items-center gap-2 border-b border-white/5 py-0.5 pl-6 pr-1 last:border-b-0 hover:bg-white/5"
+                      class="flex items-center gap-2 border-b border-white/5 py-0.5 pl-6 pr-1 transition-colors last:border-b-0 hover:bg-white/5"
+                      :class="isCharCanvasSelected(char._id) && 'bg-accent/10'"
                     >
                       <Checkbox
                         :model-value="selected.has(formatActorRef(char._id, part.partKey))"
