@@ -176,7 +176,7 @@ onBeforeUnmount(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roster" class="flex-1 overflow-auto p-3">
+        <TabsContent value="roster" class="min-h-0 flex flex-1 flex-col p-3">
           <RosterTab />
         </TabsContent>
         <TabsContent value="battle" class="flex-1 overflow-auto p-3">

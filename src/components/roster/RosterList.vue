@@ -6,7 +6,6 @@ import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { writeStatusValue } from '@/ccfolia/writers/write-status-value'
 import AttachBuffDialog from '@/components/buffs/AttachBuffDialog.vue'
-import RosterFilterBar from '@/components/roster/RosterFilterBar.vue'
 import RosterPartRow from '@/components/roster/RosterPartRow.vue'
 import RosterRow from '@/components/roster/RosterRow.vue'
 import RosterSectionHeader from '@/components/roster/RosterSectionHeader.vue'
@@ -93,8 +92,6 @@ function partRowsFor(charId: string): CharacterPartView[] {
 
 <template>
   <div class="flex flex-col">
-    <RosterFilterBar />
-
     <template v-if="chars.all.length === 0">
       <p class="py-2 text-xs text-white/50">
         房间内没有角色
