@@ -3,7 +3,7 @@ import type { BatchProgress, SelectedActor } from './types'
 import type { StatusChange } from '@/ccfolia/writers/apply-action-batch'
 import { reactive, ref, watch } from 'vue'
 import { applyStatusChangesBatch } from '@/ccfolia/writers/apply-action-batch'
-import { Button, Checkbox, Field, Input, Select } from '@/components/ui'
+import { Button, Checkbox, Field, Input } from '@/components/ui'
 import { resolveNewValue } from '@/core/combat/adjust-hp-mp'
 import { applyAdjustment } from '@/core/combat/eval-expr'
 import { readStatusSlot } from '@/core/status-slot'
@@ -26,10 +26,6 @@ const hpMp = reactive({
   // GM 想限制在 [0, max] 范围内就手动勾上
   clamp: false,
 })
-const slotOptions: Array<{ value: SlotKind, label: string }> = [
-  { value: 'hp', label: 'HP' },
-  { value: 'mp', label: 'MP' },
-]
 
 const hpMpProgress = ref<BatchProgress | null>(null)
 
@@ -160,11 +156,28 @@ async function applyHpMp() {
 
 <template>
   <div class="flex flex-col gap-2 pt-3">
-    <div class="grid grid-cols-[100px_1fr_auto] items-end gap-2">
-      <Field label="对象">
-        <Select v-model="hpMp.slot" :options="slotOptions" />
-      </Field>
-      <Field label="数值(支持表达式)">
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        class="h-7 flex items-center gap-1 rounded px-2 transition-colors"
+        :class="hpMp.slot === 'hp' ? 'bg-accent/20 text-accent' : 'text-white/40 hover:text-white/70'"
+        @click="hpMp.slot = 'hp'"
+      >
+        <span :class="hpMp.slot === 'hp' ? 'i-lucide-circle-dot' : 'i-lucide-circle'" class="text-3" />
+        HP
+      </button>
+      <button
+        type="button"
+        class="h-7 flex items-center gap-1 rounded px-2 transition-colors"
+        :class="hpMp.slot === 'mp' ? 'bg-accent/20 text-accent' : 'text-white/40 hover:text-white/70'"
+        @click="hpMp.slot = 'mp'"
+      >
+        <span :class="hpMp.slot === 'mp' ? 'i-lucide-circle-dot' : 'i-lucide-circle'" class="text-3" />
+        MP
+      </button>
+    </div>
+    <div class="flex items-end gap-2">
+      <Field label="数值(支持表达式)" class="flex-1">
         <Input
           v-model="hpMp.input"
           placeholder="+5 / -3 / =10 / 2*5"

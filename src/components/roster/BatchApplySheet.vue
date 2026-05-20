@@ -3,7 +3,7 @@ import type { SelectedActor } from './batch-apply/types'
 import type { CharacterPartView } from '@/core/character/parts'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
@@ -17,6 +17,7 @@ import { groupRoster } from '@/core/roster/group'
 import { readStatusSlot } from '@/core/status-slot'
 import { readTagInstances } from '@/core/tag'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
+import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
@@ -38,6 +39,10 @@ const onCanvasIds = useOnCanvasIds()
 const partsByCharId = usePartsByCharId()
 const pieces = usePiecesStore()
 const canvasSelection = useCcfoliaSelectionStore()
+// 与 roster tab 内联 selection 模式共享同一份选中集合;关 sheet 不再清空,
+// 用户切回 roster 还能继续编辑同一批。
+const selection = useRosterSelectionStore()
+const selected = selection.selected
 
 // 同 RosterList:用 pxToCell 的 anchor + origin 公式量化 y,
 // 避免 Math.round 边界把同一行内的 piece 翻进上/下一行。
@@ -51,9 +56,6 @@ function positionOf(charId: string) {
   const row = Math.floor((anchorY - grid.originPx.y) / cell)
   return { x: p.x, y: row }
 }
-
-// --- 选中集合(actorRef = `${charId}::${partKey}`,与 RosterPartRow 一致) ---
-const selected = reactive(new Set<string>())
 
 // --- 分组(同 BatchAssignTagsDialog) ---
 // batchNameQuery 独立持久化(与 roster 面板的 nameQuery 不共享),关 sheet 也保留
@@ -96,27 +98,18 @@ const visibleRefs = computed<string[]>(() => {
 const totalCount = computed(() => visibleRefs.value.length)
 
 function toggle(ref: string) {
-  if (selected.has(ref))
-    selected.delete(ref)
-  else
-    selected.add(ref)
+  selection.toggle(ref)
 }
 
 function selectAll() {
-  for (const ref of visibleRefs.value)
-    selected.add(ref)
+  selection.add(visibleRefs.value)
 }
 function invert() {
-  for (const ref of visibleRefs.value) {
-    if (selected.has(ref))
-      selected.delete(ref)
-    else
-      selected.add(ref)
-  }
+  selection.invert(visibleRefs.value)
 }
 function clearAll() {
   // 清空所有选中(含搜索/过滤视图外的),与 selectedCount 的全集口径保持一致
-  selected.clear()
+  selection.clear()
 }
 
 // 把 ccfolia 画布当前选中的角色合并加入 selected(只读,不写回 ccfolia)。
@@ -129,11 +122,10 @@ function importFromCanvas() {
   for (const charId of ids) {
     const parts = partsOf(charId)
     if (parts.length === 0) {
-      selected.add(formatActorRef(charId, ''))
+      selection.add([formatActorRef(charId, '')])
       continue
     }
-    for (const p of parts)
-      selected.add(formatActorRef(charId, p.partKey))
+    selection.add(parts.map(p => formatActorRef(charId, p.partKey)))
   }
 }
 
@@ -198,14 +190,10 @@ function tagBucketState(bucket: TagBucket): 'all' | 'partial' | 'none' {
 function toggleTagBucket(bucket: TagBucket) {
   const state = tagBucketState(bucket)
   const refs = bucketRefs(bucket)
-  if (state === 'all') {
-    for (const ref of refs)
-      selected.delete(ref)
-  }
-  else {
-    for (const ref of refs)
-      selected.add(ref)
-  }
+  if (state === 'all')
+    selection.remove(refs)
+  else
+    selection.add(refs)
 }
 
 // --- 选中 actor 解析助手:把 selected ref 串解出成 char + part,喂给各 panel ---
@@ -241,11 +229,8 @@ const uniqueSelectedChars = computed<CcfoliaCharacter[]>(() => {
 
 const opTab = ref<'hpmp' | 'buff' | 'tag' | 'overlay' | 'move'>('hpmp')
 
-// 关 sheet 只清父级管的选中集;各 panel 自己 watch sheetOpen 清局部输入
-watch(open, (v) => {
-  if (!v)
-    selected.clear()
-})
+// 选中集放在 useRosterSelectionStore,关 sheet 不清空 —— roster tab 内联 selection mode 还要继续用。
+// 各 panel 自己 watch sheetOpen 清局部输入(input 等)。
 
 // 列表渲染:与 RosterList 一致
 //   - 单部位:一行(父 = part)
@@ -255,13 +240,6 @@ function isMultiPart(charId: string): boolean {
   return partsOf(charId).length > 1
 }
 
-function charPartRefs(charId: string): string[] {
-  const parts = partsOf(charId)
-  if (parts.length === 0)
-    return [formatActorRef(charId, '')]
-  return parts.map(p => formatActorRef(charId, p.partKey))
-}
-
 function singleRefOf(charId: string): string {
   // 单部位(或无 status):父行就是唯一一行,直接复用 part 的 ref
   const parts = partsOf(charId)
@@ -269,17 +247,9 @@ function singleRefOf(charId: string): string {
 }
 
 function charSelectionState(charId: string): 'all' | 'partial' | 'none' {
-  const refs = charPartRefs(charId)
-  let hit = 0
-  for (const ref of refs) {
-    if (selected.has(ref))
-      hit++
-  }
-  if (hit === 0)
-    return 'none'
-  if (hit === refs.length)
-    return 'all'
-  return 'partial'
+  const parts = partsOf(charId)
+  const partKeys = parts.length === 0 ? [''] : parts.map(p => p.partKey)
+  return selection.charSelectionState(charId, partKeys)
 }
 
 // ccfolia 画布上是否选中该角色 —— 给列表行加视觉强调,与 RosterRow 表达一致。
@@ -288,16 +258,9 @@ function isCharCanvasSelected(charId: string): boolean {
 }
 
 function toggleChar(charId: string) {
-  const refs = charPartRefs(charId)
-  const state = charSelectionState(charId)
-  if (state === 'all') {
-    for (const ref of refs)
-      selected.delete(ref)
-  }
-  else {
-    for (const ref of refs)
-      selected.add(ref)
-  }
+  const parts = partsOf(charId)
+  const partKeys = parts.length === 0 ? [''] : parts.map(p => p.partKey)
+  selection.toggleChar(charId, partKeys)
 }
 
 // --- 行内 NumberEdit:与 RosterRow / RosterList 同款单角色写入路径 ---

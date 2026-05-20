@@ -16,7 +16,8 @@ import { setCharacterCell } from '@/ccfolia/writers/set-character-cell'
 import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-status'
 import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
-import { CellEdit, NumberEdit, PopConfirm } from '@/components/ui'
+import { CellEdit, Checkbox, NumberEdit, PopConfirm } from '@/components/ui'
+import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
 import { extractStatusChips } from '@/core/overlay/status-chip'
 import { readParkedLocation } from '@/core/parked-location'
@@ -26,6 +27,7 @@ import { primaryTag as pickPrimaryTag, readTagInstances, resolveTags } from '@/c
 import { useEncounterStore } from '@/stores/encounter'
 import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
+import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
 import RosterRowBoardMenu from './RosterRowBoardMenu.vue'
@@ -64,6 +66,25 @@ const pillVisible = computed(() => overlayVis.isVisible(props.char._id))
 // ccfolia 画布上该角色被多选/单选时高亮整行。主行 + 所有 part 行都亮 —— 同一 char._id。
 const selectionStore = useCcfoliaSelectionStore()
 const isCanvasSelected = computed(() => selectionStore.selectedCharacterIds.has(props.char._id))
+
+// roster 内联 selection mode:勾在名字前面;char 级聚合 → 多部位一次切全部 part
+const selection = useRosterSelectionStore()
+const partsByCharId = usePartsByCharId()
+const partKeysForSelection = computed<string[]>(() => {
+  const parts = partsByCharId.value.get(props.char._id) ?? []
+  return parts.length === 0 ? [''] : parts.map(p => p.partKey)
+})
+const charCheckState = computed<boolean | 'indeterminate'>(() => {
+  const s = selection.charSelectionState(props.char._id, partKeysForSelection.value)
+  if (s === 'all')
+    return true
+  if (s === 'partial')
+    return 'indeterminate'
+  return false
+})
+function onToggleCharSelection() {
+  selection.toggleChar(props.char._id, partKeysForSelection.value)
+}
 
 function togglePill() {
   overlayVis.toggle(props.char._id)
@@ -257,6 +278,13 @@ async function onClearBuffs() {
     :class="isCanvasSelected && 'bg-accent/15 ring-1 ring-accent/40 ring-inset'"
   >
     <div class="flex items-center gap-1.5">
+      <Checkbox
+        v-if="selection.selectionMode"
+        :model-value="charCheckState"
+        class="shrink-0"
+        :title="charCheckState === 'indeterminate' ? '部分 part 已选 · 点击切换全部' : '勾选角色'"
+        @update:model-value="onToggleCharSelection"
+      />
       <span class="min-w-0 flex-1 truncate text-sm text-white">{{ char.name }}</span>
 
       <div class="inline-flex shrink-0 items-center gap-1">

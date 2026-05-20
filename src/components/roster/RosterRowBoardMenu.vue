@@ -48,7 +48,7 @@ function cancel() {
         class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
         :title="offBoard ? '位置操作 · 当前在板外' : '位置操作 · 当前在板内'"
       >
-        <span class="i-lucide-archive text-3.5" />
+        <span class="i-lucide-move text-3.5" />
       </button>
     </PopoverTrigger>
     <PopoverPortal :to="target ?? undefined">

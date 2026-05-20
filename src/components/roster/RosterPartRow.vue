@@ -5,9 +5,11 @@ import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { computed } from 'vue'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
 import BuffRow from '@/components/buffs/BuffRow.vue'
-import { NumberEdit, PopConfirm } from '@/components/ui'
+import { Checkbox, NumberEdit, PopConfirm } from '@/components/ui'
 import { collectBuffsForPart } from '@/core/buff/collect'
+import { formatActorRef } from '@/core/encounter/actor-ref'
 import { readStatusSlot } from '@/core/status-slot'
+import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
@@ -32,6 +34,14 @@ const mp = computed(() =>
 )
 const buffs = computed(() => collectBuffsForPart(props.char, props.part.partKey))
 
+// roster 内联 selection mode:勾在 part 名字前面;part 级 actorRef 单独 toggle
+const selection = useRosterSelectionStore()
+const actorRef = computed(() => formatActorRef(props.char._id, props.part.partKey))
+const partChecked = computed(() => selection.has(actorRef.value))
+function onTogglePartSelection() {
+  selection.toggle(actorRef.value)
+}
+
 async function onClearBuffs() {
   try {
     await applyBuffBatch({
@@ -49,6 +59,12 @@ async function onClearBuffs() {
 <template>
   <li class="border-b border-white/5 px-1 py-1 last:border-b-0">
     <div class="flex items-center gap-1.5 pl-0">
+      <Checkbox
+        v-if="selection.selectionMode"
+        :model-value="partChecked"
+        class="shrink-0"
+        @update:model-value="onTogglePartSelection"
+      />
       <span class="text-xs text-white/40">·</span>
       <span class="min-w-0 flex-1 truncate text-sm text-white/80">{{ part.partName }}</span>
 

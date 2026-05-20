@@ -8,6 +8,7 @@ import { PopConfirm } from '@/components/ui'
 import { extractParts } from '@/core/character/parts'
 import { formatActorRef } from '@/core/encounter/actor-ref'
 import { useEncounterStore } from '@/stores/encounter'
+import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -15,6 +16,14 @@ const view = useRosterViewStore()
 const encounter = useEncounterStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
+const selection = useRosterSelectionStore()
+
+function toggleSelectionMode() {
+  if (selection.selectionMode)
+    selection.exit()
+  else
+    selection.enter()
+}
 
 // 战斗回合控制和 BattleTab 行为完全一致(同一 store);此处只是把"开战 / 下一回合 / 结束战斗"
 // 的常用动作搬到 roster 顶栏,GM 不必为推回合切 tab。
@@ -106,10 +115,25 @@ function onTurnKey(ev: KeyboardEvent) {
         {{ view.sortMode === 'position' ? '位置' : '名称' }}
       </button>
 
+      <span class="mx-1 h-4 w-px bg-white/20" />
+
+      <button
+        type="button"
+        class="h-6 flex items-center gap-1 border rounded px-2 text-xs transition-colors"
+        :class="selection.selectionMode
+          ? 'border-accent bg-accent/20 text-white'
+          : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+        :title="selection.selectionMode ? '退出多选模式' : '进入多选模式:在 roster 内勾选角色快速做 HP/MP / 移动'"
+        @click="toggleSelectionMode"
+      >
+        <span class="i-lucide-check-square text-3" />
+        多选
+      </button>
+
       <button
         type="button"
         class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-2 text-xs text-white/70 transition-colors hover:bg-white/10"
-        title="批量操作:HP/MP · Buff · Tag · 场景指示"
+        title="批量操作抽屉:HP/MP · Buff · Tag · 场景指示(与 roster 选择模式共享已选)"
         @click="batchOpsOpen = true"
       >
         <span class="i-lucide-layers text-3" />
