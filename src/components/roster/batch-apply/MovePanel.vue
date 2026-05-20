@@ -20,7 +20,7 @@ const settings = useSettingsStore()
 const onCanvasIds = useOnCanvasIds()
 
 // 位置是角色级,选中集是 part 级 → 用 uniqueSelectedChars dedupe 到 charId。
-// 板内/板外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
+// 场上/场外划分由 onCanvasIds 实时算,各 mode 自行决定要喂哪一份给 batch writer。
 type MoveMode = 'enter' | 'parked' | 'shift' | 'set'
 const moveMode = ref<MoveMode>('enter')
 const enterPlacement = ref<'center' | 'cell'>('center')
@@ -46,8 +46,8 @@ const onBoardCharIds = computed(() =>
 )
 const allSelectedCharIds = computed(() => props.uniqueSelectedChars.map(c => c._id))
 
-// 「板外位置」候选集:
-//   - save:角色必须当前在板外 → 直接复用 offBoardCharIds
+// 「场外位置」候选集:
+//   - save:角色必须当前在场外 → 直接复用 offBoardCharIds
 //   - send / send+restore:角色必须已有保存的 cs_park 条目
 const parkedCharIds = computed(() =>
   props.uniqueSelectedChars.filter(c => readParkedLocation(c) !== null).map(c => c._id),
@@ -108,7 +108,7 @@ async function applyMove() {
   }
 }
 
-// 「板外位置」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
+// 「场外位置」三个动作:save 当前 / send 回去 / send + 回满。失败/跳过汇总弹一次 alert。
 async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
   if (moveProgress.value !== null)
     return
@@ -153,7 +153,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
         :class="moveMode === 'enter' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
         @click="moveMode = 'enter'"
       >
-        入板
+        上场
       </button>
       <button
         type="button"
@@ -161,7 +161,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
         :class="moveMode === 'parked' ? 'border-accent bg-accent/20 text-white' : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
         @click="moveMode = 'parked'"
       >
-        板外位置
+        场外位置
       </button>
       <button
         type="button"
@@ -182,7 +182,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
       <span class="ml-auto text-xs text-white/50">已选 {{ uniqueSelectedChars.length }} 名角色</span>
     </div>
 
-    <!-- 入板 -->
+    <!-- 上场 -->
     <template v-if="moveMode === 'enter'">
       <div class="flex items-center gap-2">
         <button
@@ -215,18 +215,18 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
           :disabled="offBoardCharIds.length === 0 || (enterPlacement === 'cell' && !enterCellInput.trim())"
           @click="applyMove"
         >
-          {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${offBoardCharIds.length} 在板外)` }}
+          {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${offBoardCharIds.length} 在场外)` }}
         </Button>
       </div>
       <p v-if="uniqueSelectedChars.length > 0 && offBoardCharIds.length === 0" class="text-[11px] text-white/40">
-        选中角色全部已在板上,跳过。
+        选中角色全部已在场上,跳过。
       </p>
     </template>
 
     <!-- 位移 -->
     <template v-else-if="moveMode === 'shift'">
       <p class="text-xs text-white/60">
-        对在板上的角色整体按格平移,板外的角色跳过。dx 正方向 = 右,dy 正方向 = 下。
+        对在场上的角色整体按格平移,场外的角色跳过。dx 正方向 = 右,dy 正方向 = 下。
       </p>
       <div class="flex items-center gap-3">
         <Field label="dx (列)">
@@ -243,7 +243,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
           :disabled="onBoardCharIds.length === 0 || (shift.dx === 0 && shift.dy === 0)"
           @click="applyMove"
         >
-          {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在板上)` }}
+          {{ moveProgress ? `应用中 ${moveProgress.done}/${moveProgress.total}` : `应用 (${onBoardCharIds.length} 在场上)` }}
         </Button>
       </div>
     </template>
@@ -251,7 +251,7 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
     <!-- 定位 -->
     <template v-else-if="moveMode === 'set'">
       <p class="text-xs text-white/60">
-        覆盖式写入位置:全部选中角色(包括已在板上的)都移到目标格。
+        覆盖式写入位置:全部选中角色(包括已在场上的)都移到目标格。
       </p>
       <Field label="目标格位">
         <Input v-model="setCellInput" placeholder="5J" />
@@ -268,18 +268,18 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
       </div>
     </template>
 
-    <!-- 板外位置 -->
+    <!-- 场外位置 -->
     <template v-else>
       <p class="text-xs text-white/60">
-        每个角色独立记一个板外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
-        保存仅对当前在板外的角色生效；送回仅对已记录板外位置的角色生效。
+        每个角色独立记一个场外位置 (px 精确)，之后可一键送回。送回时可选是否同时回满全部部位 HP / MP。
+        保存仅对当前在场外的角色生效；送回仅对已记录场外位置的角色生效。
       </p>
       <div class="grid grid-cols-2 gap-1.5 pt-1">
         <Button
           size="sm"
           :loading="moveProgress !== null"
           :disabled="parkedCharIds.length === 0"
-          title="把角色精确送回各自记录的板外位置"
+          title="把角色精确送回各自记录的场外位置"
           @click="applyParkedAction('send')"
         >
           <span v-if="!moveProgress" class="i-lucide-home mr-1 inline-block align-[-2px] text-3" />
@@ -289,18 +289,18 @@ async function applyParkedAction(kind: 'save' | 'send' | 'sendRestore') {
           size="sm"
           :loading="moveProgress !== null"
           :disabled="offBoardCharIds.length === 0"
-          title="把当前位置记下作为板外位置(覆盖已有);仅在板外的角色生效"
+          title="把当前位置记下作为场外位置(覆盖已有);仅在场外的角色生效"
           class="text-black !bg-buff/70 hover:!bg-buff"
           @click="applyParkedAction('save')"
         >
           <span v-if="!moveProgress" class="i-lucide-bookmark-plus mr-1 inline-block align-[-2px] text-3" />
-          {{ btnLabel('保存板外位置', offBoardCharIds.length, moveProgress) }}
+          {{ btnLabel('保存场外位置', offBoardCharIds.length, moveProgress) }}
         </Button>
         <Button
           size="sm"
           :loading="moveProgress !== null"
           :disabled="parkedCharIds.length === 0"
-          title="送回板外 + 全部部位 HP / MP 回满"
+          title="送回场外 + 全部部位 HP / MP 回满"
           @click="applyParkedAction('sendRestore')"
         >
           <span v-if="!moveProgress" class="i-lucide-heart-pulse mr-1 inline-block align-[-2px] text-3" />

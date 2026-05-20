@@ -139,7 +139,7 @@ const settings = useSettingsStore()
 // 仅当角色身上有命中 高昂 / 镇静 / 魅惑 前缀的 status 时才出 music 按钮 —— 没有就什么也不渲染。
 const hasStatusChips = computed(() => extractStatusChips(props.char.status).length > 0)
 
-// 当前格位文本:在板内显示如 "5J",在板外返空字符串(input placeholder 显示"板外")。
+// 当前格位文本:在场上显示如 "5J",在场外返空字符串(input placeholder 显示"场外")。
 // 用 piece 底边中点(脚下),和 setCharacterCell / moveCharacterByCells / useOnCanvasIds 锚点一致。
 // 底边中点正好落在 cell 底边时,floor 会推到下一格,所以减去一个 epsilon。
 const currentCell = computed(() => {
@@ -160,11 +160,11 @@ const offBoard = computed(() => isPieceOffBoard({
   heightCells: num(props.char.height, 1),
 }, settings.grid))
 
-// 已保存的板外位置:从 char.params 的 cs_park 条目读出。
+// 已保存的场外位置:从 char.params 的 cs_park 条目读出。
 const parked = computed(() => readParkedLocation(props.char))
 const hasParked = computed(() => parked.value !== null)
 
-// hideStatus=true 时 ccfolia 把角色从板上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
+// hideStatus=true 时 ccfolia 把角色从场上角色一览里隐掉(盤上のキャラクター一覧に表示しない)
 const isHidden = computed(() => props.char.hideStatus === true)
 
 // angle 非 0 即视为倒地(点击切换会归位到 0;缺字段按 0 处理)
@@ -190,7 +190,7 @@ async function onCellMove(delta: { dx: number, dy: number }) {
   }
 }
 
-// 双向 toggle:在板上 → 移出收纳位;在板外 → 放回画布中央格
+// 双向 toggle:在场上 → 移出收纳位;在场外 → 放回场上中央格
 async function onToggleBoard() {
   try {
     if (offBoard.value) {
@@ -244,7 +244,7 @@ async function onSaveParked() {
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`保存板外位置失败:${(e as Error).message}`)
+    alert(`保存场外位置失败:${(e as Error).message}`)
   }
 }
 
@@ -254,7 +254,7 @@ async function onSendToParked(restoreHpMp: boolean) {
   }
   catch (e) {
     // eslint-disable-next-line no-alert
-    alert(`送回板外失败:${(e as Error).message}`)
+    alert(`送回场外失败:${(e as Error).message}`)
   }
 }
 
@@ -372,7 +372,7 @@ async function onClearBuffs() {
         :class="hasParked
           ? 'text-buff/70 hover:bg-buff/15 hover:text-buff'
           : 'text-white/35 hover:bg-accent/15 hover:text-accent'"
-        :title="hasParked ? '更新板外位置(覆盖当前)' : '保存板外位置(当前无记录)'"
+        :title="hasParked ? '更新场外位置(覆盖当前)' : '保存场外位置(当前无记录)'"
         @click="onSaveParked"
       >
         <span :class="hasParked ? 'i-lucide-bookmark-check' : 'i-lucide-bookmark-plus'" class="text-3.5" />
@@ -381,7 +381,7 @@ async function onClearBuffs() {
         v-else
         type="button"
         class="h-5 w-5 flex shrink-0 cursor-not-allowed items-center justify-center rounded text-white/15"
-        title="需先把角色挪到板外再点保存"
+        title="需先把角色挪到场外再点保存"
         disabled
       >
         <span class="i-lucide-bookmark-plus text-3.5" />
@@ -389,14 +389,14 @@ async function onClearBuffs() {
 
       <PopConfirm
         v-if="hasParked"
-        :message="`送回 ${char.name} 到板外,并把全部部位 HP / MP 回满?`"
+        :message="`送回 ${char.name} 到场外,并把全部部位 HP / MP 回满?`"
         confirm-text="送回 + 回满"
         @confirm="onSendToParked(true)"
       >
         <button
           type="button"
           class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-emerald-400/70 hover:bg-emerald-400/15 hover:text-emerald-300"
-          title="送回板外 + 全部部位 HP / MP 回满"
+          title="送回场外 + 全部部位 HP / MP 回满"
         >
           <span class="i-lucide-heart-pulse text-3.5" />
         </button>
@@ -405,7 +405,7 @@ async function onClearBuffs() {
         v-else
         type="button"
         class="h-5 w-5 flex shrink-0 cursor-not-allowed items-center justify-center rounded text-white/15"
-        title="还没保存过板外位置"
+        title="还没保存过场外位置"
         disabled
       >
         <span class="i-lucide-heart-pulse text-3.5" />

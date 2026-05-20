@@ -12,7 +12,7 @@ type CharLike = { _id: string } & Record<string, unknown>
 const CELL_BOUNDARY_EPS = 0.001
 
 // 按格做相对位移。语义和 setCharacterCell 一致:typed cell 的底边中点 = piece box 底边中点(脚下)。
-// 当前在板外直接抛错(UI 把方向键禁掉,所以正常路径不会走到)。越界只限制锚点格位,允许 box 溢出棋盘边缘。
+// 当前在场外直接抛错(UI 把方向键禁掉,所以正常路径不会走到)。越界只限制锚点格位,允许 box 溢出棋盘边缘。
 export async function moveCharacterByCells(
   characterId: string,
   dx: number,
@@ -27,7 +27,7 @@ export async function moveCharacterByCells(
   const bottomCenter = pieceBottomCenter({ x: char.x as number, y: char.y as number, ...size }, grid)
   const cur = pxToCell({ x: bottomCenter.x, y: bottomCenter.y - CELL_BOUNDARY_EPS }, grid)
   if (!cur)
-    throw new Error('角色在板外,无法按格相对移动')
+    throw new Error('角色在场外,无法按格相对移动')
 
   const nextCol = Math.max(0, Math.min(grid.cols - 1, cur.col + dx))
   const nextRow = Math.max(0, Math.min(grid.rows - 1, cur.row + dy))

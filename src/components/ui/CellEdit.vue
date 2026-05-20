@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 紧凑格位编辑器:非编辑态显示 "5J"(板外为"板外"),点击进入编辑。
+// 紧凑格位编辑器:非编辑态显示 "5J"(场外为"场外"),点击进入编辑。
 // 编辑态:input 接受多种写法,周围浮出 ▲▼◀▶ 做相对移动,Shift+click 在方向键上 ×5。
 // 输入语法(commit 时按顺序尝试):
 //   "u10" / "d3" / "l2" / "r5"   方向字母 + 正整数,emit move
@@ -98,7 +98,7 @@ function onKey(ev: KeyboardEvent) {
       ref="inputEl"
       v-model="draft"
       type="text"
-      :placeholder="cell || '板外'"
+      :placeholder="cell || '场外'"
       class="h-5 w-12 shrink-0 border border-accent rounded bg-black/40 px-1 text-center text-xs text-white tabular-nums placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
       title="5J 绝对 / u10 d3 l2 r5 / +2,-3 (dRow,dCol)"
       @keydown="onKey"
@@ -110,10 +110,10 @@ function onKey(ev: KeyboardEvent) {
       class="h-5 w-12 shrink-0 border border-white/20 rounded bg-black/30 px-1 text-center text-xs tabular-nums hover:bg-black/50 focus:outline-none focus:ring-1 focus:ring-accent"
       :class="cell ? 'text-white' : 'text-white/40'"
       :disabled="disabled"
-      :title="cell ? `当前 ${cell},点击编辑/移动` : '板外,点击输入格位拉回'"
+      :title="cell ? `当前 ${cell},点击编辑/移动` : '场外,点击输入格位拉回'"
       @click="startEdit"
     >
-      {{ cell || '板外' }}
+      {{ cell || '场外' }}
     </button>
 
     <!-- 编辑态:十字方向键浮在 input 周围。@mousedown.prevent 保住 input focus,

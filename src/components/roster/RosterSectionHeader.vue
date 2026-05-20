@@ -19,6 +19,6 @@ defineProps<{
     </span>
     <span v-else class="text-xs text-white/40">未分类</span>
     <span class="text-[11px] text-white/40">· {{ count }}</span>
-    <span v-if="location === 'on-canvas'" class="i-lucide-map-pin text-3.5 text-accent -py-1" title="在画布上" />
+    <span v-if="location === 'on-canvas'" class="i-lucide-map-pin text-3.5 text-accent -py-1" title="在场上" />
   </div>
 </template>

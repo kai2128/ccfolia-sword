@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 紧凑目标选择器:列画布上的角色(每个 part 一个 chip),按 primary tag 分组。
+// 紧凑目标选择器:列场上的角色(每个 part 一个 chip),按 primary tag 分组。
 // 输入/输出统一用 actorRef(`${charId}::${partKey}`),与 encounter store 同源。
 import { computed } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
@@ -123,6 +123,6 @@ function chipStyle(isSelected: boolean, color: string | undefined) {
     </div>
   </div>
   <p v-else class="rounded bg-black/10 py-1 text-center text-[11px] text-white/40">
-    {{ emptyText ?? '画布上没有可选角色' }}
+    {{ emptyText ?? '场上没有可选角色' }}
   </p>
 </template>

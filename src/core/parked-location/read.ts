@@ -2,7 +2,7 @@ import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { ParkedPayload } from '@/types/parked-location'
 import { PARKED_LABEL } from '@/types/parked-location'
 
-// 从 params 中解出板外位置坐标。坏 JSON / 缺字段 / 字段类型不对一律返 null,避免脏数据触发错误送回。
+// 从 params 中解出场外位置坐标。坏 JSON / 缺字段 / 字段类型不对一律返 null,避免脏数据触发错误送回。
 export function readParkedLocation(char: CcfoliaCharacter): ParkedPayload | null {
   const param = char.params.find(p => p.label === PARKED_LABEL)
   if (!param)

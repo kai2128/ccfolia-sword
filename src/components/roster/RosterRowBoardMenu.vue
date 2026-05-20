@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // 「archive」按钮的多选 popover:替代单 PopConfirm。
-// 触发器仍是熟悉的 i-lucide-archive 图标;点开后按当前状态(板内/板外)与是否有保存的板外位置列出可选动作。
-//   - 板内:移动到板外(默认收纳位) / 送回板外 / 送回板外 + 回满 HP/MP
-//   - 板外:放回画布中央 / 送回板外 / 送回板外 + 回满 HP/MP
-// 没有保存过板外位置时,送回两项 disabled。保存/更新板外位置按钮在主行 bookmark-plus icon。
+// 触发器仍是熟悉的 i-lucide-archive 图标;点开后按当前状态(场上/场外)与是否有保存的场外位置列出可选动作。
+//   - 场上:移动到场外(默认收纳位) / 送回场外 / 送回场外 + 回满 HP/MP
+//   - 场外:放回场上中央 / 送回场外 / 送回场外 + 回满 HP/MP
+// 没有保存过场外位置时,送回两项 disabled。保存/更新场外位置按钮在主行 bookmark-plus icon。
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { ref, useTemplateRef } from 'vue'
 import { usePortalTarget } from '@/components/ui'
@@ -46,7 +46,7 @@ function cancel() {
       <button
         type="button"
         class="ml-1.5 h-5 w-5 flex shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white"
-        :title="offBoard ? '位置操作 · 当前在板外' : '位置操作 · 当前在板内'"
+        :title="offBoard ? '位置操作 · 当前在场外' : '位置操作 · 当前在场上'"
       >
         <span class="i-lucide-move text-3.5" />
       </button>
@@ -65,7 +65,7 @@ function cancel() {
           @click="pick('toggle')"
         >
           <span class="i-lucide-archive shrink-0 text-3" />
-          <span>{{ offBoard ? '放回画布中央' : '移动到板外' }}</span>
+          <span>{{ offBoard ? '放回场上中央' : '移动到场外' }}</span>
         </button>
 
         <button
@@ -73,11 +73,11 @@ function cancel() {
           class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] transition-colors disabled:cursor-not-allowed"
           :class="hasParked ? 'text-white/85 hover:bg-white/10' : 'text-white/30'"
           :disabled="!hasParked"
-          :title="hasParked ? '送回保存的板外位置' : '先用主行 bookmark 按钮保存板外位置'"
+          :title="hasParked ? '送回保存的场外位置' : '先用主行 bookmark 按钮保存场外位置'"
           @click="pick('park')"
         >
           <span class="i-lucide-home shrink-0 text-3" />
-          <span>送回板外</span>
+          <span>送回场外</span>
         </button>
 
         <button
@@ -85,11 +85,11 @@ function cancel() {
           class="flex items-center gap-1.5 whitespace-nowrap rounded px-1.5 py-1 text-left text-[11px] transition-colors disabled:cursor-not-allowed"
           :class="hasParked ? 'text-emerald-300 hover:bg-emerald-400/15' : 'text-emerald-400/30'"
           :disabled="!hasParked"
-          :title="hasParked ? '送回板外 + 全部部位 HP / MP 回满' : '先用主行 bookmark 按钮保存板外位置'"
+          :title="hasParked ? '送回场外 + 全部部位 HP / MP 回满' : '先用主行 bookmark 按钮保存场外位置'"
           @click="pick('parkRestore')"
         >
           <span class="i-lucide-heart-pulse shrink-0 text-3" />
-          <span>送回板外 + 回满 HP / MP</span>
+          <span>送回场外 + 回满 HP / MP</span>
         </button>
 
         <div class="my-0.5 h-px bg-white/10" />

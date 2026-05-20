@@ -20,7 +20,7 @@ export interface GridConfig {
 }
 
 // cellSizePx 默认 24 = ccfolia 硬编码 cellSize。sword 一格 = ccfolia 一格,
-// 用户在 ccfolia 房间把 fieldWidth/Height 设为 19×34,从 Settings tab 点「从画布校准」即可映射到 SW2.5 标准棋盘。
+// 用户在 ccfolia 房间把 fieldWidth/Height 设为 19×34,从 Settings tab 点「自动校准」即可映射到 SW2.5 标准棋盘。
 export const DEFAULT_GRID_CONFIG: GridConfig = {
   cols: 19,
   rows: 34,

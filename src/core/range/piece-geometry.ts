@@ -30,7 +30,7 @@ function pieceSizePx(
 
 // ccfolia 立绘 <img> 是 bottom:0/width:100%,角色名 Label 紧贴 box 底边外侧 ——
 // "脚下" = box 底边中点 = .movable 左上角 + (widthPx/2, heightPx)。
-// range 圆心 / Fx 起始 / 板内外判定 / 写回 cell 都按这个口径,达成"feet on cell"语义。
+// range 圆心 / Fx 起始 / 场上/场外判定 / 写回 cell 都按这个口径,达成"feet on cell"语义。
 export function pieceBottomCenter(p: PieceBoxLike, grid: GridConfig): { x: number, y: number } {
   const sizePx = pieceSizePx(p, grid)
   return {

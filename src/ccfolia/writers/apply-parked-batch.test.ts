@@ -17,9 +17,9 @@ vi.mock('./send-character-to-parked', () => ({
 const { useRoomCharactersStore } = await import('@/ccfolia/room-characters-store')
 const { applyBatchSavePark, applyBatchSendToPark } = await import('./apply-parked-batch')
 
-// 默认 grid 19×34 @24px,origin (0,0) → 板内格在 (0..456, 0..816) 像素范围。
-// onBoard:把 piece (1×1) 放在 (100, 100),脚下落在板内
-// offBoard:放在 (-100, -100),脚下落在板外
+// 默认 grid 19×34 @24px,origin (0,0) → 场上格在 (0..456, 0..816) 像素范围。
+// onBoard:把 piece (1×1) 放在 (100, 100),脚下落在场上
+// offBoard:放在 (-100, -100),脚下落在场外
 function char(id: string, x: number, y: number, parked?: { x: number, y: number }): CcfoliaCharacter {
   const params = parked
     ? [{ label: 'cs_park', value: JSON.stringify({ x: parked.x, y: parked.y, savedAt: 0 }) }]

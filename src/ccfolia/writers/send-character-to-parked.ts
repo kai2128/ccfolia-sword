@@ -9,7 +9,7 @@ export interface SendToParkedOptions {
   restoreHpMp?: boolean
 }
 
-// 把角色精确送回先前保存的板外位置 (px 级精度,不走 cell 网格)。
+// 把角色精确送回先前保存的场外位置 (px 级精度,不走 cell 网格)。
 // 找不到 parked 条目 → throw,让上层在 UI 上把按钮 disable 掉以避免走到这里。
 // opts.restoreHpMp = true 时,写完位置再回满 HP/MP(各部位独立)。
 export async function sendCharacterToParked(
@@ -22,7 +22,7 @@ export async function sendCharacterToParked(
 
   const parked = readParkedLocation(char)
   if (!parked)
-    throw new Error(`${char.name} 还没保存过板外位置`)
+    throw new Error(`${char.name} 还没保存过场外位置`)
 
   const roomId = getCurrentRoomId()
   if (!roomId)

@@ -16,7 +16,7 @@ export interface GroupArgs {
   isOnCanvas: (charId: string) => boolean
   byTagId: (id: string) => TagDefinition | undefined
   onCanvasOnly: boolean
-  // 仅显示板外。和 onCanvasOnly 互斥(调用方负责),两个都为 true 时本函数会返回空。
+  // 仅显示场外。和 onCanvasOnly 互斥(调用方负责),两个都为 true 时本函数会返回空。
   offCanvasOnly?: boolean
   // 按名称子串过滤(大小写不敏感,去首尾空白)。空串/undefined = 不过滤。
   nameQuery?: string

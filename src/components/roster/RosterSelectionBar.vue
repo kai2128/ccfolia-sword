@@ -2,7 +2,7 @@
 // roster tab 内联多选模式的顶部 action bar(三行紧凑布局)。
 // 行 1:计数 + 全选 / 反选 / 清空 / 添加已选中 + 退出
 // 行 2:盟友 / 敌人 tag 快选(label 匹配,无匹配时不渲染)
-// 行 3:HP/MP popover + 上场 + 送回板外 + 送回 + 回满 + 保存板外位置(动作执行时显示进度)
+// 行 3:HP/MP popover + 上场 + 送回场外 + 送回 + 回满 + 保存场外位置(动作执行时显示进度)
 // selectionMode === false 时整条不渲染。其它批量动作(Buff / Tag / Overlay)仍走 BatchApplySheet。
 import type { BatchProgress } from '@/components/roster/batch-apply/types'
 import { computed, ref, watch } from 'vue'
@@ -60,7 +60,7 @@ const groups = computed(() => groupRoster({
   positionOf,
 }))
 
-// 当前 roster 视图(含 只看画布上 / 名称搜索)下可见的角色
+// 当前 roster 视图(含 只看场上 / 名称搜索)下可见的角色
 const visibleChars = computed(() => groups.value.flatMap(g => g.chars))
 
 // 当前 roster 视图下可见的 part 级 actorRef
@@ -143,7 +143,7 @@ const onBoardCharIds = computed(() =>
 const parkedCharIds = computed(() =>
   uniqueSelectedChars.value.filter(c => readParkedLocation(c) !== null).map(c => c._id),
 )
-// 全员板外:save-park 才有意义(板内角色没有"当前板外位置"可保存)
+// 全员场外:save-park 才有意义(场上角色没有"当前场外位置"可保存)
 const allOffBoard = computed(() =>
   uniqueSelectedChars.value.length > 0 && onBoardCharIds.value.length === 0,
 )
@@ -168,7 +168,7 @@ function makeOnProgress() {
   }
 }
 
-// 上场:全员板外 → 放到画布中央格(混合状态时按钮禁用,不会进来)
+// 上场:全员场外 → 放到场上中央格(混合状态时按钮禁用,不会进来)
 async function onBatchEnterBoard() {
   if (moveBusy.value !== null || offBoardCharIds.value.length === 0)
     return
@@ -183,7 +183,7 @@ async function onBatchEnterBoard() {
       grid,
       onProgress: makeOnProgress(),
     })
-    await reportFailures('放回画布中央', result.failures)
+    await reportFailures('放回场上中央', result.failures)
   }
   finally {
     moveBusy.value = null
@@ -202,7 +202,7 @@ async function onBatchSendToParked(restoreHpMp: boolean) {
       { restoreHpMp },
       makeOnProgress(),
     )
-    await reportFailures(restoreHpMp ? '送回 + 回满' : '送回板外', result.failures)
+    await reportFailures(restoreHpMp ? '送回 + 回满' : '送回场外', result.failures)
   }
   finally {
     moveBusy.value = null
@@ -221,7 +221,7 @@ async function onBatchSavePark() {
       settings.grid,
       makeOnProgress(),
     )
-    await reportFailures('保存板外位置', result.failures)
+    await reportFailures('保存场外位置', result.failures)
   }
   finally {
     moveBusy.value = null
@@ -243,7 +243,7 @@ const tagBuckets = computed<TagBucket[]>(() => {
   const out: TagBucket[] = []
   for (const def of defs) {
     const charIds: string[] = []
-    // 跟随当前视图过滤(只看画布上 / 名称搜索),与批量抽屉口径一致
+    // 跟随当前视图过滤(只看场上 / 名称搜索),与批量抽屉口径一致
     for (const char of visibleChars.value) {
       const tagIds = readTagInstances(char).map(t => t.definitionId)
       if (tagIds.includes(def.id))
@@ -388,13 +388,13 @@ function toggleTagBucket(bucket: TagBucket) {
       </button>
     </div>
 
-    <!-- 行 3:批量动作(HP/MP · 上场 · 送回板外 · 送回+回满 · 保存板外位置) -->
+    <!-- 行 3:批量动作(HP/MP · 上场 · 送回场外 · 送回+回满 · 保存场外位置) -->
     <div class="flex flex-wrap items-center gap-1">
       <HpMpQuickPopover />
 
       <span class="mx-1 h-4 w-px bg-white/20" />
 
-      <!-- 上场:全员板外才启用,放到画布中央格 -->
+      <!-- 上场:全员场外才启用,放到场上中央格 -->
       <button
         type="button"
         class="h-6 flex shrink-0 items-center gap-1 border rounded px-1.5 text-xs transition-colors disabled:cursor-not-allowed"
@@ -402,7 +402,7 @@ function toggleTagBucket(bucket: TagBucket) {
           ? 'border-white/20 bg-black/30 text-white/80 hover:bg-white/10 hover:text-white'
           : 'border-white/10 bg-black/20 text-white/25'"
         :disabled="!allOffBoard || moveBusy !== null"
-        :title="!allOffBoard ? '需选中全部为板外角色才能上场' : `上场到画布中央格 · ${offBoardCharIds.length} 人`"
+        :title="!allOffBoard ? '需选中全部为场外角色才能上场' : `上场到场上中央格 · ${offBoardCharIds.length} 人`"
         @click="onBatchEnterBoard"
       >
         <span :class="moveBusy === 'enter' ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-log-in'" class="text-3" />
@@ -410,7 +410,7 @@ function toggleTagBucket(bucket: TagBucket) {
         <span v-else>上场</span>
       </button>
 
-      <!-- 送回板外:任一有 parked 位置就启用 -->
+      <!-- 送回场外:任一有 parked 位置就启用 -->
       <button
         type="button"
         class="h-6 flex shrink-0 items-center gap-1 border rounded px-1.5 text-xs transition-colors disabled:cursor-not-allowed"
@@ -418,12 +418,12 @@ function toggleTagBucket(bucket: TagBucket) {
           ? 'border-white/20 bg-black/30 text-white/80 hover:bg-white/10 hover:text-white'
           : 'border-white/10 bg-black/20 text-white/25'"
         :disabled="!anyParked || moveBusy !== null"
-        :title="anyParked ? `送回保存的板外位置 · ${parkedCharIds.length} 人有记录` : '选中角色都没有保存的板外位置'"
+        :title="anyParked ? `送回保存的场外位置 · ${parkedCharIds.length} 人有记录` : '选中角色都没有保存的场外位置'"
         @click="onBatchSendToParked(false)"
       >
         <span :class="moveBusy === 'sendParked' ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-home'" class="text-3" />
         <span v-if="moveBusy === 'sendParked' && moveProgress" class="tabular-nums">{{ moveProgress.done }}/{{ moveProgress.total }}</span>
-        <span v-else>送回板外</span>
+        <span v-else>送回场外</span>
       </button>
 
       <!-- 送回 + 回满 HP/MP -->
@@ -434,7 +434,7 @@ function toggleTagBucket(bucket: TagBucket) {
           ? 'border-white/20 bg-black/30 text-emerald-300 hover:bg-emerald-400/15'
           : 'border-white/10 bg-black/20 text-white/25'"
         :disabled="!anyParked || moveBusy !== null"
-        :title="anyParked ? `送回保存的板外位置 + 全部部位 HP/MP 回满 · ${parkedCharIds.length} 人有记录` : '选中角色都没有保存的板外位置'"
+        :title="anyParked ? `送回保存的场外位置 + 全部部位 HP/MP 回满 · ${parkedCharIds.length} 人有记录` : '选中角色都没有保存的场外位置'"
         @click="onBatchSendToParked(true)"
       >
         <span :class="moveBusy === 'sendParkedRestore' ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-heart-pulse'" class="text-3" />
@@ -442,7 +442,7 @@ function toggleTagBucket(bucket: TagBucket) {
         <span v-else>送回+回满</span>
       </button>
 
-      <!-- 保存板外位置:全员板外才启用 -->
+      <!-- 保存场外位置:全员场外才启用 -->
       <button
         type="button"
         class="h-6 flex shrink-0 items-center gap-1 border rounded px-1.5 text-xs transition-colors disabled:cursor-not-allowed"
@@ -451,13 +451,13 @@ function toggleTagBucket(bucket: TagBucket) {
           : 'border-white/10 bg-black/20 text-white/25'"
         :disabled="!allOffBoard || moveBusy !== null"
         :title="!allOffBoard
-          ? '需选中全部为板外角色才能记录当前位置'
-          : (anyParked ? `更新板外位置(覆盖已有)· ${offBoardCharIds.length} 人` : `保存当前位置作为板外位置 · ${offBoardCharIds.length} 人`)"
+          ? '需选中全部为场外角色才能记录当前位置'
+          : (anyParked ? `更新场外位置(覆盖已有)· ${offBoardCharIds.length} 人` : `保存当前位置作为场外位置 · ${offBoardCharIds.length} 人`)"
         @click="onBatchSavePark"
       >
         <span :class="moveBusy === 'savePark' ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-bookmark-plus'" class="text-3" />
         <span v-if="moveBusy === 'savePark' && moveProgress" class="tabular-nums">{{ moveProgress.done }}/{{ moveProgress.total }}</span>
-        <span v-else>保存板外位置</span>
+        <span v-else>保存场外位置</span>
       </button>
     </div>
   </div>

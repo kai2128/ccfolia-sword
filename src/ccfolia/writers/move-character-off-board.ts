@@ -6,7 +6,7 @@ import { getFirestoreApi } from '@/ccfolia/webpack-hook'
 
 // 主板外的"收纳位":贴在棋盘左侧外 2 格、与棋盘顶对齐。
 // 既保证 pxToCell 返 null(group.ts 归 off-canvas),又让 piece 留在画布近板区域 ——
-// GM 滚一下/缩一下就能看到、能直接在 ccfolia 拖回板上。
+// GM 滚一下/缩一下就能看到、能直接在 ccfolia 拖回场上。
 function offBoardCoords(grid: GridConfig): { x: number, y: number } {
   return {
     x: grid.originPx.x - grid.cellSizePx * 2,

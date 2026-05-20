@@ -11,7 +11,7 @@ import { computeRestoredStatus } from './restore-hp-mp-to-max'
 import { saveCharacterParked } from './save-character-parked'
 import { sendCharacterToParked } from './send-character-to-parked'
 
-// 一批角色的「板外位置」操作。沿用 apply-move-batch 的策略:
+// 一批角色的「场外位置」操作。沿用 apply-move-batch 的策略:
 // 优先 writeBatch(N → 少量 RPC,适合 300+ 量级),抓不到回退到老的 Promise.allSettled 路径。
 //
 // skipped 用来表达"语义不允许"(非错):
@@ -78,7 +78,7 @@ async function commitParkedPatchesViaWriteBatch(
   }
 }
 
-// 仅对当前位于板外的角色保存板外位置 (x, y);场上的角色计入 skipped 不写。
+// 仅对当前位于场外的角色保存场外位置 (x, y);场上的角色计入 skipped 不写。
 export async function applyBatchSavePark(
   charIds: string[],
   grid: GridConfig,
@@ -131,7 +131,7 @@ export async function applyBatchSavePark(
   return runParallelFallback(jobs, skipped, onProgress)
 }
 
-// 把所有保存过板外位置的角色送回。没保存过的计入 skipped。
+// 把所有保存过场外位置的角色送回。没保存过的计入 skipped。
 // opts.restoreHpMp = true 时,把回满 status 和 {x,y} 合并到一次 setDoc(比原来两步快)。
 export async function applyBatchSendToPark(
   charIds: string[],

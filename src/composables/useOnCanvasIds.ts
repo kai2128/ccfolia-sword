@@ -6,7 +6,7 @@ import { useSettingsStore } from '@/stores/settings'
 // 脚下锚点落在 cell 底边时,需要略微回到格内侧,否则被 floor 推到下一格。
 const CELL_BOUNDARY_EPS = 0.001
 
-// "画布上" = 三个条件同时成立:
+// "场上" = 三个条件同时成立:
 //   1) ccfolia 把它当 piece 渲染(active=true + 有 x/y) —— 已被 pieces.list 过滤
 //   2) 未被 GM 隐藏(invisible=false)
 //   3) piece 底边中点(脚下)落在主板格网内 —— 和 setCharacterCell / moveCharacterByCells 锚点口径一致。

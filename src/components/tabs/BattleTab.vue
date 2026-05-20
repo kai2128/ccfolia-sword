@@ -110,7 +110,7 @@ function endCombat() {
           <TargetQuickPicker
             :allowed-ids="encounter.local.pendingIds"
             :selected-ids="encounter.local.currentActorId ? [encounter.local.currentActorId] : []"
-            empty-text="本回合已全部行动 / 画布上无可选行动者"
+            empty-text="本回合已全部行动 / 场上无可选行动者"
             @toggle="selectActor"
           />
         </div>

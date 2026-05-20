@@ -43,7 +43,7 @@ function computeOffBoardCoords(grid: GridConfig): { x: number, y: number } {
   return { x: grid.originPx.x - grid.cellSizePx * 2, y: grid.originPx.y }
 }
 
-// 计算 shift 模式下的 top-left,板外角色抛错
+// 计算 shift 模式下的 top-left,场外角色抛错
 function computeShiftTopLeft(charId: string, dx: number, dy: number, grid: GridConfig): { x: number, y: number } | null {
   const char = useRoomCharactersStore().byId(charId)
   if (!char)
@@ -52,7 +52,7 @@ function computeShiftTopLeft(charId: string, dx: number, dy: number, grid: GridC
   const bottomCenter = pieceBottomCenter({ x: char.x as number, y: char.y as number, ...size }, grid)
   const cur = pxToCell({ x: bottomCenter.x, y: bottomCenter.y - CELL_BOUNDARY_EPS }, grid)
   if (!cur)
-    throw new Error('角色在板外,无法按格相对移动')
+    throw new Error('角色在场外,无法按格相对移动')
   const nextCol = Math.max(0, Math.min(grid.cols - 1, cur.col + dx))
   const nextRow = Math.max(0, Math.min(grid.rows - 1, cur.row + dy))
   if (nextCol === cur.col && nextRow === cur.row)

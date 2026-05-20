@@ -167,7 +167,7 @@ function resetAllData() {
         <div class="flex items-center gap-1">
           <Button size="sm" @click="calibrateGrid">
             <span class="i-lucide-crosshair text-3" />
-            从画布校准
+            自动校准
           </Button>
           <Button size="sm" variant="ghost" @click="settings.resetGrid()">
             恢复默认
@@ -188,7 +188,7 @@ function resetAllData() {
           :model-value="settings.gridOverlayVisible"
           @update:model-value="settings.setGridOverlayVisible($event ?? false)"
         />
-        显示在画布上
+        显示场上
       </label>
 
       <div class="grid grid-cols-2 gap-2">

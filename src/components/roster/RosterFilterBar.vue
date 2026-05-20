@@ -93,11 +93,11 @@ function onTurnKey(ev: KeyboardEvent) {
         :class="view.onCanvasOnly
           ? 'border-accent bg-accent/20 text-white'
           : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
-        :title="view.onCanvasOnly ? '当前仅显示画布上的角色,点击关闭' : '仅显示画布上的角色'"
+        :title="view.onCanvasOnly ? '当前仅显示场上的角色,点击关闭' : '仅显示场上的角色'"
         @click="view.toggleOnCanvasOnly()"
       >
         <span class="i-lucide-map-pin text-3" />
-        只看画布上
+        只看场上
       </button>
 
       <button
@@ -107,8 +107,8 @@ function onTurnKey(ev: KeyboardEvent) {
           ? 'border-accent bg-accent/20 text-white'
           : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
         :title="view.sortMode === 'position'
-          ? '当前按画布位置排序(上→下、左→右),点击切回按名称'
-          : '按画布位置排序(上→下、左→右),仍保留 tag 分组'"
+          ? '当前按位置排序(上→下、左→右),点击切回按名称'
+          : '按位置排序(上→下、左→右),仍保留 tag 分组'"
         @click="view.toggleSortMode()"
       >
         <span :class="view.sortMode === 'position' ? 'i-lucide-layout-grid' : 'i-lucide-arrow-down-a-z'" class="text-3" />
