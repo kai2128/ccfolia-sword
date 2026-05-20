@@ -51,8 +51,18 @@ export const useRoomCharactersStore = defineStore('roomCharacters', {
   state: (): RoomCharactersState => ({ list: [] }),
   getters: {
     all: state => state.list,
-    byId: state => (characterId: string): CcfoliaCharacter | undefined =>
-      state.list.find(c => c._id === characterId),
+    // id → character 索引。Pinia 按 list 反应性缓存,list 不变就复用同一个 Map。
+    // 用它把 byId 从 O(N) 线性 find 降到 O(1) —— overlay 的 entries 里逐棋子查角色,
+    // 否则整体是 O(N²),棋子一多拖动就卡。
+    byIdMap(state): Map<string, CcfoliaCharacter> {
+      const map = new Map<string, CcfoliaCharacter>()
+      for (const c of state.list)
+        map.set(c._id, c)
+      return map
+    },
+    byId(): (characterId: string) => CcfoliaCharacter | undefined {
+      return characterId => this.byIdMap.get(characterId)
+    },
   },
   actions: {
     replace(list: CcfoliaCharacter[]) {
@@ -63,6 +73,7 @@ export const useRoomCharactersStore = defineStore('roomCharacters', {
 
 let unsub: (() => void) | null = null
 let bootstrapTimer: number | null = null
+let resyncRafId: number | null = null
 let aliveCache = new Map<string, AliveState>()
 let hpZeroCache = new Map<string, HpZeroState>()
 // 跨 tab FX 同步:每个客户端的 onSnapshot 都会推 HP 变化,各自跑 diff 喷自己 tab 的演出。
@@ -174,6 +185,28 @@ function reconcileTagKnockdownHpZeroDiff(list: CcfoliaCharacter[]) {
   }
 }
 
+// materialize + 三趟 reconcile + 写回 pinia(随后触发 Vue 重渲染)。
+// 拖动棋子时 ccfolia 每帧派发多次 character/update,逐次跑这个会把开销放大到 60×/s。
+function resync(pinia: ReturnType<typeof useRoomCharactersStore>, slice: RoomCharactersSlice) {
+  pinia.replace(materialize(slice))
+  reconcileAliveDiff(pinia.list)
+  reconcileTagKnockdownHpZeroDiff(pinia.list)
+  reconcileHpFxDiff(pinia.list)
+}
+
+// 用 rAF 把一帧内的多次 store 通知合并成一次重算;fire 时读最新 state,保证不丢更新。
+function scheduleResync() {
+  if (resyncRafId !== null)
+    return
+  resyncRafId = window.requestAnimationFrame(() => {
+    resyncRafId = null
+    const store = getReduxStore()
+    if (!store)
+      return
+    resync(useRoomCharactersStore(), selectRoomCharacters(store.getState()))
+  })
+}
+
 function trySubscribe(): boolean {
   if (unsub)
     return true
@@ -181,19 +214,12 @@ function trySubscribe(): boolean {
   if (!store)
     return false
   const pinia = useRoomCharactersStore()
-  pinia.replace(materialize(selectRoomCharacters(store.getState())))
-  reconcileAliveDiff(pinia.list)
-  reconcileTagKnockdownHpZeroDiff(pinia.list)
-  reconcileHpFxDiff(pinia.list)
+  // 冷启动同步跑一次,先把 alive/hp-zero/fx cache 填好;后续通知走 rAF 合并。
+  resync(pinia, selectRoomCharacters(store.getState()))
   unsub = subscribeSlice(
     store,
     selectRoomCharacters,
-    (slice) => {
-      pinia.replace(materialize(slice))
-      reconcileAliveDiff(pinia.list)
-      reconcileTagKnockdownHpZeroDiff(pinia.list)
-      reconcileHpFxDiff(pinia.list)
-    },
+    () => scheduleResync(),
     { emitInitial: false },
   )
   stopBootstrap()
@@ -212,6 +238,10 @@ export function startRoomCharactersSync(bootstrapIntervalMs = 1000): void {
 
 export function stopRoomCharactersSync(): void {
   stopBootstrap()
+  if (resyncRafId !== null) {
+    window.cancelAnimationFrame(resyncRafId)
+    resyncRafId = null
+  }
   unsub?.()
   unsub = null
   aliveCache = new Map()

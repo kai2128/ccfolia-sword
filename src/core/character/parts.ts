@@ -22,13 +22,25 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// extractParts 在 overlay 重算里每棋子调一次,又在 reconcileHpFxDiff 里每角色调一次。
+// 前缀正则只取决于 hpLabel,按 label 缓存,免去每次 new RegExp 编译。
+let cachedHpLabel: string | null = null
+let cachedHpPrefixRe: RegExp | null = null
+function hpPrefixRegex(hpLabel: string): RegExp {
+  if (cachedHpPrefixRe === null || cachedHpLabel !== hpLabel) {
+    cachedHpLabel = hpLabel
+    cachedHpPrefixRe = new RegExp(`^(.*)${escapeRegex(hpLabel)}$`)
+  }
+  return cachedHpPrefixRe
+}
+
 export function extractParts(
   char: CcfoliaCharacter,
   labelMap: StatusLabelMap,
 ): CharacterPartView[] {
   const hpLabel = labelMap.hp
   const mpLabel = labelMap.mp
-  const re = new RegExp(`^(.*)${escapeRegex(hpLabel)}$`)
+  const re = hpPrefixRegex(hpLabel)
 
   const seen = new Set<string>()
   const prefixes: string[] = []

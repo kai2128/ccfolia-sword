@@ -5,10 +5,22 @@ import { decodeBuff, isBuffLabel } from './codec'
 
 const log = createLogger('collect-buffs')
 
-export function collectBuffs(character: CcfoliaCharacter): BuffInstance[] {
-  const buffs: BuffInstance[] = []
+// 按 params 数组引用缓存解析结果。ccfolia 的 RTK Immer 只在内容变化时换新数组引用,
+// 拖动棋子(仅改 x/y)时 params 引用不变 → 命中缓存,免去每帧对每个角色重复 JSON.parse。
+// 返回的数组按约定只读(所有调用方都是 filter / for-of,不原地改),所以可安全共享。
+const buffsCache = new WeakMap<object, BuffInstance[]>()
 
-  for (const param of character.params ?? []) {
+export function collectBuffs(character: CcfoliaCharacter): BuffInstance[] {
+  const params = character.params
+  if (!params || params.length === 0)
+    return []
+
+  const cached = buffsCache.get(params)
+  if (cached)
+    return cached
+
+  const buffs: BuffInstance[] = []
+  for (const param of params) {
     if (!isBuffLabel(param.label))
       continue
     const buff = decodeBuff(param.value)
@@ -19,6 +31,7 @@ export function collectBuffs(character: CcfoliaCharacter): BuffInstance[] {
     buffs.push(buff)
   }
 
+  buffsCache.set(params, buffs)
   return buffs
 }
 

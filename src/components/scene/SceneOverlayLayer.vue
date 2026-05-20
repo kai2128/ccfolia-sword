@@ -138,6 +138,12 @@ function modeFor(entry: OverlayEntry): 'C' | 'E' {
     autoSwitchOnCrowded: settings.autoSwitchOnCrowded,
   })
 }
+
+// mode 依赖 crowdedSet(又依赖 entries),不能塞进 entries 自身。
+// 这里二次 map 一次性算好,模板里直接读 entry.mode,免去原先每 entry 在模板里调 3-4 次 modeFor。
+const decoratedEntries = computed(() =>
+  entries.value.map(entry => ({ ...entry, mode: modeFor(entry) })),
+)
 </script>
 
 <template>
@@ -149,7 +155,7 @@ function modeFor(entry: OverlayEntry): 'C' | 'E' {
       :character-id="rc.characterId"
       :radius="rc.radius"
     />
-    <template v-for="entry in entries" :key="entry.key">
+    <template v-for="entry in decoratedEntries" :key="entry.key">
       <!-- Buff badges:沿用棋子上方位置 -->
       <div
         class="anchor"
@@ -167,20 +173,20 @@ function modeFor(entry: OverlayEntry): 'C' | 'E' {
       <div
         v-if="entry.parts.some(p => p.hp)"
         class="anchor"
-        :style="{ transform: `translate3d(${entry.centerX}px, ${entry.pieceBottomY + nameOffsetFor(modeFor(entry))}px, 0)` }"
+        :style="{ transform: `translate3d(${entry.centerX}px, ${entry.pieceBottomY + nameOffsetFor(entry.mode)}px, 0)` }"
       >
         <div
           class="hpmp-stack"
-          :style="{ '--mini-scale': calcIndicatorScale(entry.widthPx, modeFor(entry)) }"
+          :style="{ '--mini-scale': calcIndicatorScale(entry.widthPx, entry.mode) }"
         >
           <OverlayCharacterIndicator
             :parts="entry.parts"
-            :display-mode="modeFor(entry)"
+            :display-mode="entry.mode"
           />
           <!-- StatusChip:贴 HP/MP 之下,共享同一 --mini-scale。compact 与 HP/MP 的 E 模式同步 -->
           <StatusChipRow
             :status="entry.status"
-            :compact="modeFor(entry) === 'E'"
+            :compact="entry.mode === 'E'"
           />
         </div>
       </div>

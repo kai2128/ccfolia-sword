@@ -51,9 +51,16 @@ export const usePiecesStore = defineStore('pieces', {
     list(): PieceSnapshot[] {
       return toPieceSnapshots(useRoomCharactersStore().all)
     },
-    byCharacterId() {
-      return (characterId: string): PieceSnapshot | undefined =>
-        this.list.find(p => p.characterId === characterId)
+    // id → snapshot 索引,随 list 反应性缓存。byCharacterId 由此走 O(1),
+    // 避免 FxLayer / aoe 覆盖计算里逐次线性 find。
+    byIdMap(): Map<string, PieceSnapshot> {
+      const map = new Map<string, PieceSnapshot>()
+      for (const p of this.list)
+        map.set(p.characterId, p)
+      return map
+    },
+    byCharacterId(): (characterId: string) => PieceSnapshot | undefined {
+      return characterId => this.byIdMap.get(characterId)
     },
   },
 })
