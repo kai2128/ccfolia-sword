@@ -368,11 +368,14 @@ async function onClearBuffs() {
       <button
         v-if="offBoard"
         type="button"
-        class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-buff/50 hover:bg-buff/15 hover:text-buff"
-        :title="hasParked ? '更新板外位置(覆盖当前)' : '保存板外位置'"
+        class="h-5 w-5 flex shrink-0 items-center justify-center rounded transition-colors"
+        :class="hasParked
+          ? 'text-buff/70 hover:bg-buff/15 hover:text-buff'
+          : 'text-white/35 hover:bg-accent/15 hover:text-accent'"
+        :title="hasParked ? '更新板外位置(覆盖当前)' : '保存板外位置(当前无记录)'"
         @click="onSaveParked"
       >
-        <span class="i-lucide-bookmark-plus text-3.5" />
+        <span :class="hasParked ? 'i-lucide-bookmark-check' : 'i-lucide-bookmark-plus'" class="text-3.5" />
       </button>
       <button
         v-else
