@@ -145,3 +145,94 @@
 .fx-aura {
   animation: auraSpin 6s linear infinite;
 }
+
+/* ── MP FX(蓝色,比 HP 小一号)——见 docs/superpowers/plans/design_handoff_mp_fx ── */
+/* 符文环:drain 向心收缩,restore 向外扩张 */
+@keyframes mpRingContract {
+  0% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.35);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.1);
+    opacity: 0;
+  }
+}
+@keyframes mpRingExpand {
+  0% {
+    transform: scale(0.25);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+/* 光点:用 --mp-mx / --mp-my 当径向目标。drain 向心、restore 向外上飘 */
+@keyframes mpMoteIn {
+  0% {
+    transform: translate(calc(var(--mp-mx) * 1.5), calc(var(--mp-my) * 1.5));
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate(calc(var(--mp-mx) * 0.25), calc(var(--mp-my) * 0.25));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+@keyframes mpMoteOut {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate(calc(var(--mp-mx) * 1.6), calc(var(--mp-my) * 1.6 - 6px));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--mp-mx) * 2.1), calc(var(--mp-my) * 2.1 - 18px));
+    opacity: 0;
+  }
+}
+/* 浮动数字 */
+@keyframes mpFloatUp {
+  0% {
+    transform: translate(-50%, 12px) scale(0.65);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.1);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1);
+  }
+  100% {
+    transform: translate(-50%, -26px) scale(0.92);
+    opacity: 0;
+  }
+}

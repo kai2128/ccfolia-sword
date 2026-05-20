@@ -6,6 +6,7 @@ import { pieceStandingCellCenter } from '@/core/range'
 import { onFx } from '@/infra/fx-bus'
 import { useSettingsStore } from '@/stores/settings'
 import FxHeal from './FxHeal.vue'
+import FxMpDelta from './FxMpDelta.vue'
 import FxSplash from './FxSplash.vue'
 
 interface FxItem {
@@ -30,9 +31,12 @@ function pieceCenter(charId: string): { x: number, y: number } | null {
 }
 
 // slash ~1100ms(浮字),heal 去掉粒子后 ~1300ms,多给一点尾防 forwards 末态被剪。
+// MP 浮字 1000ms,留点尾到 1200。
 const TTL_MS: Record<FxEvent['kind'], number> = {
-  damage: 1200,
-  heal: 1400,
+  'damage': 1200,
+  'heal': 1400,
+  'mp-drain': 1200,
+  'mp-restore': 1200,
 }
 
 let off: (() => void) | null = null
@@ -59,7 +63,14 @@ onUnmounted(() => {
   <div class="pointer-events-none absolute inset-0">
     <template v-for="item in items" :key="item.id">
       <FxSplash v-if="item.kind === 'damage'" :x="item.x" :y="item.y" :damage="item.amount" />
-      <FxHeal v-else :x="item.x" :y="item.y" :amount="item.amount" />
+      <FxHeal v-else-if="item.kind === 'heal'" :x="item.x" :y="item.y" :amount="item.amount" />
+      <FxMpDelta
+        v-else
+        :x="item.x"
+        :y="item.y"
+        :amount="item.amount"
+        :gain="item.kind === 'mp-restore'"
+      />
     </template>
   </div>
 </template>

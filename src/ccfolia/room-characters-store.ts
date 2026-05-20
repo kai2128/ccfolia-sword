@@ -1,4 +1,5 @@
 import type { StatusLabelMap } from '@/core/status-slot'
+import type { FxKind } from '@/infra/fx-bus'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import { defineStore } from 'pinia'
 import { extractParts } from '@/core/character/parts'
@@ -80,6 +81,8 @@ let hpZeroCache = new Map<string, HpZeroState>()
 // cache 是"上一帧观察到的 HP 总和(累加多部位)";prev=undefined 的冷启动一帧只填 cache 不喷,
 // 避免进房间时把所有现有 HP 当成 +N 治疗演一遍。
 let hpFxCache = new Map<string, number>()
+// MP FX 同 HP:cache 上一帧观察到的 MP 总和(累加多部位),冷启动一帧只填不喷。
+let mpFxCache = new Map<string, number>()
 
 // 冷启动时 ccfolia Redux store 可能要几百 ms ~ 几秒才就位(用户先打开首页再进房间时尤其明显)。
 // 和 composables/useCcfoliaCharacters 一致,用退避轮询直到 store 出现,subscribe 成功后立刻停轮询。
@@ -128,38 +131,44 @@ function shouldAutoKnockdown(character: CcfoliaCharacter): boolean {
   return readTagInstances(character).some(t => lib.byId(t.definitionId)?.autoKnockdownOnHpZero === true)
 }
 
-// 多部位累加 HP。多部位 char 在同一帧里两个部位反向变化(罕见)按净 delta 喷一次。
-function totalHp(character: CcfoliaCharacter, labelMap: StatusLabelMap): number {
+// 多部位累加某个 slot(hp/mp)。多部位 char 在同一帧里两个部位反向变化(罕见)按净 delta 喷一次。
+function totalSlot(character: CcfoliaCharacter, slot: 'hp' | 'mp', labelMap: StatusLabelMap): number {
   let sum = 0
   for (const part of extractParts(character, labelMap)) {
-    const slot = readStatusSlot(character.status, 'hp', labelMap, part.partKey)
-    if (slot)
-      sum += slot.value
+    const s = readStatusSlot(character.status, slot, labelMap, part.partKey)
+    if (s)
+      sum += s.value
   }
   return sum
 }
 
-function reconcileHpFxDiff(list: CcfoliaCharacter[]) {
+// HP/MP 共用一套 diff 逻辑:按 slot 取总和,跟上一帧比,净 delta 喷对应方向的 FX。
+// 关闭时直接清 cache 走人,redux 高频 tick 不再做 O(N×P) 的 status 扫描。
+// 切回开启:第一帧 prev===undefined 静默重新填 cache,语义和首次进房间一致。
+function reconcileSlotFxDiff(
+  list: CcfoliaCharacter[],
+  slot: 'hp' | 'mp',
+  cache: Map<string, number>,
+  kinds: { up: FxKind, down: FxKind },
+) {
   const settings = useSettingsStore()
-  // 关闭时直接清 cache 走人,redux 高频 tick 不再做 O(N×P) 的 status 扫描。
-  // 切回开启:第一帧 prev===undefined 静默重新填 cache,语义和首次进房间一致。
   if (!settings.combatFxEnabled) {
-    if (hpFxCache.size > 0)
-      hpFxCache.clear()
+    if (cache.size > 0)
+      cache.clear()
     return
   }
   const labelMap = settings.statusLabelMap
   for (const character of list) {
-    const next = totalHp(character, labelMap)
-    const prev = hpFxCache.get(character._id)
-    hpFxCache.set(character._id, next)
+    const next = totalSlot(character, slot, labelMap)
+    const prev = cache.get(character._id)
+    cache.set(character._id, next)
     if (prev === undefined)
       continue
     const delta = next - prev
     if (delta === 0)
       continue
     emitFx({
-      kind: delta < 0 ? 'damage' : 'heal',
+      kind: delta < 0 ? kinds.down : kinds.up,
       charId: character._id,
       amount: Math.abs(delta),
     })
@@ -191,7 +200,8 @@ function resync(pinia: ReturnType<typeof useRoomCharactersStore>, slice: RoomCha
   pinia.replace(materialize(slice))
   reconcileAliveDiff(pinia.list)
   reconcileTagKnockdownHpZeroDiff(pinia.list)
-  reconcileHpFxDiff(pinia.list)
+  reconcileSlotFxDiff(pinia.list, 'hp', hpFxCache, { up: 'heal', down: 'damage' })
+  reconcileSlotFxDiff(pinia.list, 'mp', mpFxCache, { up: 'mp-restore', down: 'mp-drain' })
 }
 
 // 用 rAF 把一帧内的多次 store 通知合并成一次重算;fire 时读最新 state,保证不丢更新。
@@ -247,4 +257,5 @@ export function stopRoomCharactersSync(): void {
   aliveCache = new Map()
   hpZeroCache = new Map()
   hpFxCache = new Map()
+  mpFxCache = new Map()
 }

@@ -1,8 +1,9 @@
-// 战斗 FX 内部事件总线。生产者目前是 room-characters-store 的 HP diff watcher
-// (见 reconcileHpFxDiff),投递跨 tab:每个客户端的 onSnapshot 各自跑 diff 喷自己的演出。
+// 战斗 FX 内部事件总线。生产者目前是 room-characters-store 的 HP/MP diff watcher
+// (见 reconcileHpFxDiff / reconcileMpFxDiff),投递跨 tab:每个客户端的 onSnapshot 各自跑 diff 喷自己的演出。
 // 消费者:scene overlay 的 FxLayer,按 charId 查 piece 坐标渲染对应特效。
 
-export type FxKind = 'damage' | 'heal'
+// damage/heal 是 HP 演出;mp-drain/mp-restore 是 MP 演出(蓝色、比 HP 小一号)。
+export type FxKind = 'damage' | 'heal' | 'mp-drain' | 'mp-restore'
 
 export interface FxEvent {
   kind: FxKind
