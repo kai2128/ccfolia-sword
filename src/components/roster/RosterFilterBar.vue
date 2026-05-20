@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TickPrompt } from '@/ccfolia/writers/tick-buff-turns'
-import { nextTick, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import TickPromptDialog from '@/components/combat/TickPromptDialog.vue'
 import BatchApplySheet from '@/components/roster/BatchApplySheet.vue'
@@ -17,6 +17,37 @@ const encounter = useEncounterStore()
 const chars = useRoomCharactersStore()
 const settings = useSettingsStore()
 const selection = useRosterSelectionStore()
+
+// 搜索防抖:输入框走本地 ref(即时回显),实际过滤(触发 groups 全量重算 + 重渲染)延迟到停止输入后。
+// 角色多时每个按键都重算列表会卡,这里把它收敛到一次。
+const queryInput = ref(view.nameQuery)
+let queryTimer: number | null = null
+function onQueryInput(value: string) {
+  queryInput.value = value
+  if (queryTimer !== null)
+    window.clearTimeout(queryTimer)
+  queryTimer = window.setTimeout(() => {
+    queryTimer = null
+    view.setNameQuery(value)
+  }, 180)
+}
+function clearQuery() {
+  if (queryTimer !== null) {
+    window.clearTimeout(queryTimer)
+    queryTimer = null
+  }
+  queryInput.value = ''
+  view.clearNameQuery()
+}
+// 外部改了 nameQuery(如别处清空)时同步回输入框。
+watch(() => view.nameQuery, (v) => {
+  if (v !== queryInput.value)
+    queryInput.value = v
+})
+onBeforeUnmount(() => {
+  if (queryTimer !== null)
+    window.clearTimeout(queryTimer)
+})
 
 function toggleSelectionMode() {
   if (selection.selectionMode)
@@ -221,18 +252,18 @@ function onTurnKey(ev: KeyboardEvent) {
     <div class="relative">
       <span class="i-lucide-search pointer-events-none absolute left-2 top-1/2 text-3 text-white/40 -translate-y-1/2" />
       <input
-        :value="view.nameQuery"
+        :value="queryInput"
         type="text"
         placeholder="按名称搜索"
         class="h-6 w-full border border-white/20 rounded bg-black/30 pl-7 pr-7 text-xs text-white focus:border-accent placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-accent"
-        @input="view.setNameQuery(($event.target as HTMLInputElement).value)"
+        @input="onQueryInput(($event.target as HTMLInputElement).value)"
       >
       <button
-        v-if="view.nameQuery"
+        v-if="queryInput"
         type="button"
         class="absolute right-1 top-1/2 h-4 w-4 flex items-center justify-center rounded text-white/40 -translate-y-1/2 hover:bg-white/10 hover:text-white"
         title="清除搜索"
-        @click="view.clearNameQuery()"
+        @click="clearQuery"
       >
         <span class="i-lucide-x text-3" />
       </button>

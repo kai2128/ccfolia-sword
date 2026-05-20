@@ -176,7 +176,9 @@ onBeforeUnmount(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roster" class="min-h-0 flex flex-1 flex-col p-3">
+        <!-- force-mount + data-state 隐藏:角色 tab 保持挂载,切走只是 display:none,
+             切回不再重新挂载几十个重型 RosterRow(否则每次切 tab 都卡几秒)。 -->
+        <TabsContent value="roster" force-mount class="min-h-0 flex flex-1 flex-col p-3 data-[state=inactive]:hidden">
           <RosterTab />
         </TabsContent>
         <TabsContent value="battle" class="flex-1 overflow-auto p-3">

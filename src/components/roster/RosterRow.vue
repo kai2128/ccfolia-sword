@@ -17,8 +17,8 @@ import { setCharacterHideStatus } from '@/ccfolia/writers/set-character-hide-sta
 import BuffRow from '@/components/buffs/BuffRow.vue'
 import TagAttachPopover from '@/components/roster/TagAttachPopover.vue'
 import { CellEdit, Checkbox, NumberEdit, PopConfirm } from '@/components/ui'
-import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { collectBuffsForPart } from '@/core/buff/collect'
+import { extractParts } from '@/core/character/parts'
 import { extractStatusChips } from '@/core/overlay/status-chip'
 import { readParkedLocation } from '@/core/parked-location'
 import { formatCellRef, isPieceOffBoard, pieceBottomCenter, pxToCell } from '@/core/range'
@@ -69,9 +69,9 @@ const isCanvasSelected = computed(() => selectionStore.selectedCharacterIds.has(
 
 // roster 内联 selection mode:勾在名字前面;char 级聚合 → 多部位一次切全部 part
 const selection = useRosterSelectionStore()
-const partsByCharId = usePartsByCharId()
+// 只算本行角色的 parts,不再每行各建一份全房间 Map(原先 O(N²),且任一角色变化牵动所有行)。
 const partKeysForSelection = computed<string[]>(() => {
-  const parts = partsByCharId.value.get(props.char._id) ?? []
+  const parts = extractParts(props.char, props.labelMap)
   return parts.length === 0 ? [''] : parts.map(p => p.partKey)
 })
 const charCheckState = computed<boolean | 'indeterminate'>(() => {
