@@ -60,6 +60,9 @@ const groups = computed(() => groupRoster({
   positionOf,
 }))
 
+// 当前 roster 视图(含 只看画布上 / 名称搜索)下可见的角色
+const visibleChars = computed(() => groups.value.flatMap(g => g.chars))
+
 // 当前 roster 视图下可见的 part 级 actorRef
 const visibleRefs = computed<string[]>(() => {
   const out: string[] = []
@@ -240,7 +243,8 @@ const tagBuckets = computed<TagBucket[]>(() => {
   const out: TagBucket[] = []
   for (const def of defs) {
     const charIds: string[] = []
-    for (const char of chars.all) {
+    // 跟随当前视图过滤(只看画布上 / 名称搜索),与批量抽屉口径一致
+    for (const char of visibleChars.value) {
       const tagIds = readTagInstances(char).map(t => t.definitionId)
       if (tagIds.includes(def.id))
         charIds.push(char._id)
