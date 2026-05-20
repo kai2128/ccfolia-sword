@@ -3,7 +3,7 @@ import type { SelectedActor } from './batch-apply/types'
 import type { CharacterPartView } from '@/core/character/parts'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
 import type { TagDefinition } from '@/types/tag'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
@@ -128,6 +128,34 @@ function importFromCanvas() {
     selection.add(parts.map(p => formatActorRef(charId, p.partKey)))
   }
 }
+
+// --- 单向同步:ccfolia 画布选中 → 此列表(replace,不写回画布)。与 roster 多选共用 store flag ---
+function canvasRefs(): string[] {
+  const refs: string[] = []
+  for (const charId of canvasSelection.selectedCharacterIds) {
+    const parts = partsOf(charId)
+    if (parts.length === 0) {
+      refs.push(formatActorRef(charId, ''))
+      continue
+    }
+    for (const p of parts)
+      refs.push(formatActorRef(charId, p.partKey))
+  }
+  return refs
+}
+// 画布集合签名:成员变化才触发(避免 getter 每次返回新 Set 导致空转)
+const canvasSig = computed(() =>
+  [...canvasSelection.selectedCharacterIds].sort().join(','),
+)
+watch(
+  [() => selection.syncFromCanvas, () => open.value, canvasSig],
+  () => {
+    if (!selection.syncFromCanvas || !open.value)
+      return
+    selection.replace(canvasRefs())
+  },
+  { immediate: true },
+)
 
 // --- 按 tag 选择 ---
 // tag 在 char 级,toggle 时把 char 下的所有 part 一并加/减
@@ -386,6 +414,19 @@ async function writeRow(
           <Button size="xs" variant="ghost" :disabled="selectedCount === 0" @click="clearAll">
             清空
           </Button>
+          <label
+            class="h-5 flex cursor-pointer select-none items-center gap-1 border rounded px-1.5 text-xs transition-colors"
+            :class="selection.syncFromCanvas
+              ? 'border-accent bg-accent/20 text-white'
+              : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+            title="开启后:ccfolia 画布的选中会实时同步到此列表(整体替换)。在此处手动改动不会写回画布。"
+          >
+            <Checkbox
+              :model-value="selection.syncFromCanvas"
+              @update:model-value="selection.toggleSyncFromCanvas()"
+            />
+            同步选中
+          </label>
           <button
             type="button"
             class="h-5 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-1.5 text-xs text-white/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:enabled:bg-accent/20 hover:enabled:text-white"

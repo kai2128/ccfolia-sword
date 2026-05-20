@@ -5,13 +5,13 @@
 // 行 3:HP/MP popover + 上场 + 送回板外 + 送回 + 回满 + 保存板外位置(动作执行时显示进度)
 // selectionMode === false 时整条不渲染。其它批量动作(Buff / Tag / Overlay)仍走 BatchApplySheet。
 import type { BatchProgress } from '@/components/roster/batch-apply/types'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { applyBatchMoveToCell } from '@/ccfolia/writers/apply-move-batch'
 import { applyBatchSavePark, applyBatchSendToPark } from '@/ccfolia/writers/apply-parked-batch'
-import { TagChip } from '@/components/ui'
+import { Checkbox, TagChip } from '@/components/ui'
 import { useOnCanvasIds } from '@/composables/useOnCanvasIds'
 import { usePartsByCharId } from '@/composables/usePartsByCharId'
 import { useRosterSelectionActors } from '@/composables/useRosterSelectionActors'
@@ -99,6 +99,36 @@ function onImportFromCanvas() {
     selection.add(parts.map(p => formatActorRef(charId, p.partKey)))
   }
 }
+
+// 把画布选中的角色展开成 part 级 actorRef
+function canvasRefs(): string[] {
+  const refs: string[] = []
+  for (const charId of canvasSelection.selectedCharacterIds) {
+    const parts = partsByCharId.value.get(charId) ?? []
+    if (parts.length === 0) {
+      refs.push(formatActorRef(charId, ''))
+      continue
+    }
+    for (const p of parts)
+      refs.push(formatActorRef(charId, p.partKey))
+  }
+  return refs
+}
+
+// --- 单向同步:ccfolia 画布选中 → roster 选中(replace,不写回画布)---
+// 画布集合签名:成员变化才触发(避免 getter 每次返回新 Set 导致空转)
+const canvasSig = computed(() =>
+  [...canvasSelection.selectedCharacterIds].sort().join(','),
+)
+watch(
+  [() => selection.syncFromCanvas, () => selection.selectionMode, canvasSig],
+  () => {
+    if (!selection.selectionMode || !selection.syncFromCanvas)
+      return
+    selection.replace(canvasRefs())
+  },
+  { immediate: true },
+)
 
 // --- 移动:复用 RosterRowBoardMenu,自己写批量 handler ---
 const offBoardCharIds = computed(() =>
@@ -295,6 +325,20 @@ function toggleTagBucket(bucket: TagBucket) {
       >
         清空
       </button>
+      <label
+        class="h-6 flex cursor-pointer select-none items-center gap-1 border rounded px-1.5 text-xs transition-colors"
+        :class="selection.syncFromCanvas
+          ? 'border-accent bg-accent/20 text-white'
+          : 'border-white/20 bg-black/30 text-white/70 hover:bg-white/10'"
+        title="开启后:ccfolia 画布的选中会实时同步到这里(整体替换)。在此处手动改动不会写回画布。"
+      >
+        <Checkbox
+          :model-value="selection.syncFromCanvas"
+          @update:model-value="selection.toggleSyncFromCanvas()"
+        />
+        同步选中
+      </label>
+
       <button
         type="button"
         class="h-6 flex items-center gap-1 border border-white/20 rounded bg-black/30 px-1.5 text-xs text-white/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:enabled:bg-white/10 hover:enabled:text-white"

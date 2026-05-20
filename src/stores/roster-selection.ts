@@ -8,6 +8,9 @@ import { formatActorRef, parseActorRef } from '@/core/encounter/actor-ref'
 export const useRosterSelectionStore = defineStore('rosterSelection', () => {
   const selectionMode = ref(false)
   const selected = reactive(new Set<string>())
+  // 单向同步:ccfolia 画布选中 → roster 选中(replace 语义,不写回画布)。默认开。
+  // 实际的 watch 在 RosterSelectionBar 里(需要 partsByCharId 把 char 展开成 part)。
+  const syncFromCanvas = ref(true)
 
   const size = computed(() => selected.size)
 
@@ -17,6 +20,15 @@ export const useRosterSelectionStore = defineStore('rosterSelection', () => {
   function exit() {
     selectionMode.value = false
     selected.clear()
+  }
+  function toggleSyncFromCanvas() {
+    syncFromCanvas.value = !syncFromCanvas.value
+  }
+  // 整体替换(给画布同步用):清空后写入新集合
+  function replace(refs: Iterable<string>) {
+    selected.clear()
+    for (const r of refs)
+      selected.add(r)
   }
   function toggle(ref: string) {
     if (selected.has(ref))
@@ -101,10 +113,13 @@ export const useRosterSelectionStore = defineStore('rosterSelection', () => {
   return {
     selectionMode,
     selected,
+    syncFromCanvas,
     size,
     uniqueSelectedCharIds,
     enter,
     exit,
+    toggleSyncFromCanvas,
+    replace,
     toggle,
     add,
     remove,
