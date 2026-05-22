@@ -2,7 +2,9 @@
 // 画布上的格网校准叠加层。仅在 settings.gridOverlayVisible=true 时渲染。
 // 坐标系与 SceneOverlayLayer 一致(绝对定位到 ccfolia canvas 原点),用 translate
 // 把 SVG 整体平移到 originPx,线段从 (0,0) 起画到 cols*cellSize × rows*cellSize。
+// 由 GridLayerRoot 挂在低 z(棋子之下)的独立 host,所以网格落在背景之上、角色之下。
 import { computed } from 'vue'
+import { formatCol, formatRow } from '@/core/range'
 import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
@@ -20,8 +22,41 @@ const hLines = computed(() => {
   return Array.from({ length: rows + 1 }, (_, i) => i * cellSizePx)
 })
 
+// 每格两个标签:左上角列字母、右下角行号。坐标都是世界单位(随 Scaler 缩放)。
+const labelPad = computed(() => grid.value.cellSizePx * 0.08)
+const labelFontSize = computed(() => grid.value.cellSizePx * 0.24)
+
+const cells = computed(() => {
+  const { cols, rows, cellSizePx } = grid.value
+  const pad = labelPad.value
+  const out: {
+    key: string
+    col: string
+    row: string
+    colX: number
+    colY: number
+    rowX: number
+    rowY: number
+  }[] = []
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      out.push({
+        key: `${c}-${r}`,
+        col: formatCol(c),
+        row: formatRow(r),
+        colX: c * cellSizePx + pad,
+        colY: r * cellSizePx + pad,
+        rowX: (c + 1) * cellSizePx - pad,
+        rowY: (r + 1) * cellSizePx - pad,
+      })
+    }
+  }
+  return out
+})
+
 const svgStyle = computed(() => ({
   transform: `translate(${grid.value.originPx.x}px, ${grid.value.originPx.y}px)`,
+  opacity: settings.gridOpacity,
 }))
 </script>
 
@@ -41,7 +76,7 @@ const svgStyle = computed(() => ({
       :y1="0"
       :x2="x"
       :y2="totalH"
-      stroke="rgba(255,255,255,0.25)"
+      stroke="white"
       stroke-width="1"
     />
     <line
@@ -51,8 +86,35 @@ const svgStyle = computed(() => ({
       :y1="y"
       :x2="totalW"
       :y2="y"
-      stroke="rgba(255,255,255,0.25)"
+      stroke="white"
       stroke-width="1"
     />
+    <g
+      v-if="settings.gridLabelsVisible"
+      fill="white"
+      font-family="Cinzel, 'Noto Serif SC', serif"
+      font-weight="400"
+    >
+      <template v-for="cell in cells" :key="cell.key">
+        <text
+          :x="cell.colX"
+          :y="cell.colY"
+          :font-size="labelFontSize"
+          text-anchor="start"
+          dominant-baseline="hanging"
+        >
+          {{ cell.col }}
+        </text>
+        <text
+          :x="cell.rowX"
+          :y="cell.rowY"
+          :font-size="labelFontSize"
+          text-anchor="end"
+          dominant-baseline="alphabetic"
+        >
+          {{ cell.row }}
+        </text>
+      </template>
+    </g>
   </svg>
 </template>

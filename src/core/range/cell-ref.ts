@@ -23,6 +23,16 @@ export function formatCellRef(ref: CellRef): string {
   return `${ref.row + 1}${letter}`
 }
 
+// 网格标签用:列 → 字母(A、B…),行 → 行号(1、2…)。
+// 单字母,SW 默认 19 列(A–S)够用;超过 26 列会越过 'Z',届时再扩成多字母。
+export function formatCol(col: number): string {
+  return String.fromCharCode(LETTER_A + col)
+}
+
+export function formatRow(row: number): string {
+  return String(row + 1)
+}
+
 // 解析相对位移输入。和 parseCellRef 不冲突 —— parseCellRef 是 <数字><字母>,这里是
 //   "u10" / "d3" / "l2" / "r5"   方向字母 + 正整数(<字母><数字>,顺序刚好相反)
 //   "+2,-3" / "2,-3"             dRow,dCol(逗号分隔,符号可选;dy=row 方向,dx=col 方向)

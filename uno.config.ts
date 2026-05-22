@@ -14,7 +14,7 @@ export default defineConfig({
     presetWebFonts({
       provider: 'google',
       fonts: {
-        serif: ['Cinzel:700', 'Noto Serif SC:600,700'],
+        serif: ['Cinzel:400,700', 'Noto Serif SC:600,700'],
         mono: ['JetBrains Mono:700'],
       },
     }),

@@ -18,7 +18,6 @@ import { useEncounterStore } from '@/stores/encounter'
 import { useHpmpVariantOverrideStore } from '@/stores/hpmp-variant-override'
 import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useSettingsStore } from '@/stores/settings'
-import GridOverlay from './GridOverlay.vue'
 import RangeCircle from './RangeCircle.vue'
 
 // HP/MP 指示器贴在棋子底边下方,留出与 ccfolia 原生角色名的视觉缓冲。
@@ -148,7 +147,6 @@ const decoratedEntries = computed(() =>
 
 <template>
   <div class="scene-overlay-layer">
-    <GridOverlay />
     <RangeCircle
       v-for="rc in rangeCircleEntries"
       :key="`range-${rc.characterId}`"

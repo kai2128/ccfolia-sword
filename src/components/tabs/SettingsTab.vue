@@ -158,6 +158,40 @@ function resetAllData() {
 
 <template>
   <div class="flex flex-col gap-3">
+    <!-- 网格显示 -->
+    <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
+      <h4 class="text-sm text-white font-medium">
+        网格
+      </h4>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.gridOverlayVisible"
+          @update:model-value="settings.setGridOverlayVisible($event ?? false)"
+        />
+        显示网格
+      </label>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.gridLabelsVisible"
+          @update:model-value="settings.setGridLabelsVisible($event ?? false)"
+        />
+        显示标签(A1 坐标)
+      </label>
+      <label class="flex items-center justify-between gap-3 text-xs text-white/80">
+        <span class="shrink-0">透明度</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          class="grow accent-accent"
+          :value="settings.gridOpacity"
+          @input="settings.setGridOpacity(Number(($event.target as HTMLInputElement).value))"
+        >
+        <span class="w-8 text-right text-white/60 tabular-nums">{{ Math.round(settings.gridOpacity * 100) }}%</span>
+      </label>
+    </section>
+
     <!-- 格网校准 -->
     <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">
       <div class="flex items-center justify-between">
@@ -182,14 +216,6 @@ function resetAllData() {
       >
         {{ calibrateStatus.msg }}
       </p>
-
-      <label class="flex items-center gap-2 text-xs text-white/80">
-        <Switch
-          :model-value="settings.gridOverlayVisible"
-          @update:model-value="settings.setGridOverlayVisible($event ?? false)"
-        />
-        显示场上
-      </label>
 
       <div class="grid grid-cols-2 gap-2">
         <Field label="Cols">

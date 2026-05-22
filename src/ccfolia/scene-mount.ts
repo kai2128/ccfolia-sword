@@ -7,15 +7,21 @@ import { setupShadowRoot } from '@/infra/shadow-mount'
 
 const log = createLogger('scene-mount')
 
-interface MountedOverlay {
-  host: HTMLDivElement
-  app: App
-  rootComponent: unknown
-  pinia: Pinia
-  portalTarget: HTMLElement
+// 一层 = 一个独立 Vue app + 自己的 host(各带 zIndex)。
+// 之所以分多层:网格要落在棋子(z=101)之下,而 HP/MP 条等要在棋子之上,
+// 单一 host 的 z-index 没法同时满足,于是拆成高 z(overlay)+低 z(grid)两层。
+export interface SceneLayerSpec {
+  component: unknown
+  zIndex: number
 }
 
-let mounted: MountedOverlay | null = null
+interface MountedLayer {
+  spec: SceneLayerSpec
+  host: HTMLDivElement
+  app: App
+}
+
+let mounted: MountedLayer[] = []
 let observer: MutationObserver | null = null
 
 // 找 ccfolia 画布容器:所有 .movable 的最深公共祖先。
@@ -56,40 +62,52 @@ function ancestorChain(el: HTMLElement): HTMLElement[] {
 //     传主 app 的 portalTarget(来自 createShadowMount())让所有 portal 渲染到同一处,
 //     避免 scene 的 overlay 自己再造一个 Shadow 导致事件/样式割裂。
 export function startSceneMount(
-  rootComponent: unknown,
+  layers: SceneLayerSpec[],
   pinia: Pinia,
   portalTarget: HTMLElement,
 ): void {
-  if (mounted || observer)
+  if (mounted.length > 0 || observer)
     return
-  tryMount(rootComponent, pinia, portalTarget)
+  tryMount(layers, pinia, portalTarget)
 
   // 不要 disconnect:ccfolia 切房间 / 切场景 / 画布重建 会把 host 连窝端走,
-  // 这里永久监听 body,每次 mutation 核对 host 还在不在 DOM,掉线就重新定位 canvas 再 append 回去。
+  // 这里永久监听 body,每次 mutation 核对每层 host 还在不在 DOM,掉线就重新定位 canvas 再 append 回去。
   // host 和 ShadowRoot + Vue app 不动,保留 overlay 内部状态。
   observer = new MutationObserver(() => {
-    if (!mounted) {
-      tryMount(rootComponent, pinia, portalTarget)
+    if (mounted.length === 0) {
+      tryMount(layers, pinia, portalTarget)
       return
     }
-    if (!mounted.host.isConnected) {
-      const canvas = findCanvasContainer()
-      if (!canvas)
-        return
-      canvas.appendChild(mounted.host)
-      // 不再自动校准:settings.grid 持久化,用户手动在 Settings tab 点校准即可。
-      log.info('overlay host re-appended after canvas remount')
+    const canvas = findCanvasContainer()
+    if (!canvas)
+      return
+    for (const layer of mounted) {
+      if (!layer.host.isConnected) {
+        canvas.appendChild(layer.host)
+        // 不再自动校准:settings.grid 持久化,用户手动在 Settings tab 点校准即可。
+        log.info('overlay host re-appended after canvas remount')
+      }
     }
   })
   observer.observe(document.body, { subtree: true, childList: true })
 }
 
-function tryMount(rootComponent: unknown, pinia: Pinia, portalTarget: HTMLElement): void {
+function tryMount(layers: SceneLayerSpec[], pinia: Pinia, portalTarget: HTMLElement): void {
   const canvas = findCanvasContainer()
   if (!canvas)
     return
   // 不再在 mount 时自动校准。settings.grid 持久化,用户刷新后保留上次的值;
   // 第一次进入房间 / 房间尺寸变化时,去 Settings tab 点「校准」手动触发。
+  mounted = layers.map(spec => mountLayer(spec, canvas, pinia, portalTarget))
+  log.info('overlay layers mounted in canvas')
+}
+
+function mountLayer(
+  spec: SceneLayerSpec,
+  canvas: HTMLElement,
+  pinia: Pinia,
+  portalTarget: HTMLElement,
+): MountedLayer {
   const host = document.createElement('div')
   host.setAttribute('data-ccs-overlay-root', '')
   Object.assign(host.style, {
@@ -97,7 +115,7 @@ function tryMount(rootComponent: unknown, pinia: Pinia, portalTarget: HTMLElemen
     top: '0',
     left: '0',
     pointerEvents: 'none',
-    zIndex: '9999',
+    zIndex: String(spec.zIndex),
     width: '0',
     height: '0',
   })
@@ -106,19 +124,20 @@ function tryMount(rootComponent: unknown, pinia: Pinia, portalTarget: HTMLElemen
   // 复用 Panel 的 Shadow 引导(HOST_RESET + UnoCSS 注入);Scene 不自建 portal,复用主 app 的。
   const { mountPoint } = setupShadowRoot(host, { withPortalTarget: false })
 
-  const app = createApp(rootComponent as any)
+  const app = createApp(spec.component as any)
   app.use(pinia) // 同主 app 的 pinia 单例
   app.provide(PortalTargetKey, portalTarget) // 同主 app 的 portal 目标,Reka Portal 有家可归
   app.mount(mountPoint)
 
-  mounted = { host, app, rootComponent, pinia, portalTarget }
-  log.info('overlay root mounted in canvas')
+  return { spec, host, app }
 }
 
 export function stopSceneMount(): void {
   observer?.disconnect()
   observer = null
-  mounted?.app.unmount()
-  mounted?.host.remove()
-  mounted = null
+  for (const layer of mounted) {
+    layer.app.unmount()
+    layer.host.remove()
+  }
+  mounted = []
 }

@@ -7,6 +7,7 @@ import { usePiecesStore } from './ccfolia/pieces-store'
 import { startRoomCharactersSync, useRoomCharactersStore } from './ccfolia/room-characters-store'
 import { startSceneMount } from './ccfolia/scene-mount'
 import { initWebpackHook } from './ccfolia/webpack-hook'
+import GridLayerRoot from './components/scene/GridLayerRoot.vue'
 import SceneOverlayRoot from './components/scene/SceneOverlayRoot.vue'
 import { PortalTargetKey } from './components/ui/portal'
 import { bindHotkey } from './core/shell/hotkey'
@@ -67,7 +68,15 @@ function mount() {
   // 否则派生 store 看不到数据 / Reka Portal 无家可归)。
   startRoomCharactersSync()
   startCcfoliaSelectionSync()
-  startSceneMount(SceneOverlayRoot, pinia, portalTarget)
+  // 两层:overlay(z 9999,棋子之上,承载 HP/MP 条/buff/FX)+ grid(z 100,棋子之下,只画网格)
+  startSceneMount(
+    [
+      { component: SceneOverlayRoot, zIndex: 9999 },
+      { component: GridLayerRoot, zIndex: 100 },
+    ],
+    pinia,
+    portalTarget,
+  )
 
   // devtools 验收桥;生产里只是几个对象引用,无运行时开销。
   // 必须走 unsafeWindow —— userscript 的 window 是沙箱,页面 console 里看不到。

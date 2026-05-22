@@ -27,6 +27,9 @@ interface SettingsState {
   panelVisible: boolean
   grid: GridConfig
   gridOverlayVisible: boolean
+  // 网格坐标标签开关 + 网格整体透明度(线条与标签共用)
+  gridLabelsVisible: boolean
+  gridOpacity: number
   statusLabelMap: StatusLabelMap
   combatFxEnabled: boolean
   // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
@@ -48,6 +51,14 @@ function normalizeSize(size: Partial<PanelSize> | undefined, fallback: PanelSize
     width: normalizeLength(size?.width ?? Number.NaN, fallback.width),
     height: normalizeLength(size?.height ?? Number.NaN, fallback.height),
   }
+}
+
+// 透明度脏值(NaN / 越界)统一夹到 [0,1],默认回落 0.35。
+function clampOpacity(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n))
+    return 0.35
+  return Math.min(1, Math.max(0, n))
 }
 
 function normalizeGridConfig(raw: unknown): GridConfig {
@@ -144,6 +155,8 @@ export const useSettingsStore = defineStore('settings', {
     panelVisible: false,
     grid: normalizeGridConfig(undefined),
     gridOverlayVisible: false,
+    gridLabelsVisible: true,
+    gridOpacity: 0.4,
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
     autoSwitchOnCrowded: true,
@@ -201,6 +214,12 @@ export const useSettingsStore = defineStore('settings', {
     setGridOverlayVisible(v: boolean) {
       this.gridOverlayVisible = v
     },
+    setGridLabelsVisible(v: boolean) {
+      this.gridLabelsVisible = v
+    },
+    setGridOpacity(n: number) {
+      this.gridOpacity = clampOpacity(n)
+    },
     setCombatFxEnabled(v: boolean) {
       this.combatFxEnabled = v
     },
@@ -215,6 +234,7 @@ export const useSettingsStore = defineStore('settings', {
       const s = store as ReturnType<typeof useSettingsStore>
       // GM_setValue 里的值可能来自旧版本 / 手改 / 损坏,统一走一遍 normalizer。
       s.grid = normalizeGridConfig(s.grid)
+      s.gridOpacity = clampOpacity(s.gridOpacity)
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
       s.ensurePanelVisible()
       bindSharedSettingsCrossTabSync(s)
@@ -222,9 +242,15 @@ export const useSettingsStore = defineStore('settings', {
   },
 })
 
-// 只同步"全局/自动化"维度的字段。per-tab UX(panelPos / panelVisible / panelCollapsed /
-// gridOverlayVisible)不同步 —— 否则一个 tab 拖动面板会把另一个 tab 的视图也拽走。
-const SHARED_FIELDS = ['combatFxEnabled', 'autoSwitchOnCrowded'] as const
+// 跨 tab 同步"全局/自动化/网格显示"维度的字段。真正 per-tab 的 UX
+// (panelPos / panelVisible / panelCollapsed)不同步 —— 否则一个 tab 拖动面板会把另一个 tab 的视图也拽走。
+const SHARED_FIELDS = [
+  'combatFxEnabled',
+  'autoSwitchOnCrowded',
+  'gridOverlayVisible',
+  'gridLabelsVisible',
+  'gridOpacity',
+] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
 function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStore>): void {
@@ -235,15 +261,20 @@ function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStor
         return
       // 先收集真正发生变化的字段,再 $patch。空 patch 也会触发 persist 插件的 $subscribe,
       // 写回 GM 后远端再回弹,可能形成事件回路。
-      const updates: Partial<Record<SharedField, boolean>> = {}
+      const updates: Partial<Record<SharedField, boolean | number>> = {}
       for (const key of SHARED_FIELDS) {
         const v = parsed[key]
-        if (typeof v === 'boolean' && store[key] !== v)
-          updates[key] = v
+        // 只接受与当前值同类型的有效值(boolean / 有限 number),挡掉旧版本 / 脏数据。
+        // 源 tab 写入前已经 clamp 过 gridOpacity,这里信源端即可。
+        const ok = typeof v === typeof store[key]
+          && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)))
+        if (ok && store[key] !== v)
+          updates[key] = v as boolean | number
       }
       if (Object.keys(updates).length === 0)
         return
-      store.$patch(updates)
+      // updates 把每个字段都标成 boolean | number,$patch 要的是各字段精确类型,这里收窄。
+      store.$patch(updates as Partial<SettingsState>)
     },
     'settings',
   )
