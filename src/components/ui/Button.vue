@@ -4,7 +4,8 @@ import { computed, useAttrs } from 'vue'
 defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<{
-  variant?: 'solid' | 'ghost' | 'danger'
+  // hp = 绿(capsule 生命色)、mp = 蓝(capsule 法力色)、success = 翠绿(增益动作)
+  variant?: 'solid' | 'ghost' | 'danger' | 'success' | 'hp' | 'mp'
   size?: 'xs' | 'sm' | 'md'
   disabled?: boolean
   loading?: boolean
@@ -38,6 +39,9 @@ const variantCls = computed(() => {
   switch (props.variant) {
     case 'ghost': return 'bg-transparent text-white hover:bg-white/10'
     case 'danger': return 'bg-hp/80 text-white hover:bg-hp'
+    case 'success': return 'bg-emerald-600 text-white hover:bg-emerald-500'
+    case 'hp': return 'bg-capsule-hp-2 text-white hover:brightness-110'
+    case 'mp': return 'bg-capsule-mp-2 text-white hover:brightness-110'
     case 'solid':
     default: return 'bg-accent/80 text-white hover:bg-accent'
   }

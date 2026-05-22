@@ -2,7 +2,8 @@
 // roster tab 内联多选模式的顶部 action bar(三行紧凑布局)。
 // 行 1:计数 + 全选 / 反选 / 清空 / 添加已选中 + 退出
 // 行 2:盟友 / 敌人 tag 快选(label 匹配,无匹配时不渲染)
-// 行 3:HP/MP popover + 上场 + 送回场外 + 送回 + 回满 + 保存场外位置(动作执行时显示进度)
+// 行 3:上场 + 送回场外 + 送回 + 回满 + 保存场外位置(动作执行时显示进度)
+// 行 4:内联 HpMpPanel(compact)—— HP/MP 增减 / 回满。
 // selectionMode === false 时整条不渲染。其它批量动作(Buff / Tag / Overlay)仍走 BatchApplySheet。
 import type { BatchProgress } from '@/components/roster/batch-apply/types'
 import { computed, ref, watch } from 'vue'
@@ -24,7 +25,7 @@ import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useRosterViewStore } from '@/stores/roster-view'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
-import HpMpQuickPopover from './selection-actions/HpMpQuickPopover.vue'
+import HpMpPanel from './batch-apply/HpMpPanel.vue'
 
 const selection = useRosterSelectionStore()
 const chars = useRoomCharactersStore()
@@ -36,7 +37,7 @@ const partsByCharId = usePartsByCharId()
 const pieces = usePiecesStore()
 const canvasSelection = useCcfoliaSelectionStore()
 
-const { uniqueSelectedChars } = useRosterSelectionActors()
+const { uniqueSelectedChars, selectedActors, selectedCount } = useRosterSelectionActors()
 
 // 同 RosterList:量化 y 防止 piece 在格中心边界跳行
 function positionOf(charId: string) {
@@ -388,12 +389,9 @@ function toggleTagBucket(bucket: TagBucket) {
       </button>
     </div>
 
-    <!-- 行 3:批量动作(HP/MP · 上场 · 送回场外 · 送回+回满 · 保存场外位置) -->
-    <div class="flex flex-wrap items-center gap-1">
-      <HpMpQuickPopover />
-
-      <span class="mx-1 h-4 w-px bg-white/20" />
-
+    <!-- 行 3:移动动作(上场 · 送回场外 · 送回+回满 · 保存场外位置)— 独立分区 -->
+    <div class="flex flex-wrap items-center gap-1 border-t border-white/10 pt-1.5">
+      <span class="px-1 text-[10px] text-white/40">移动:</span>
       <!-- 上场:全员场外才启用,放到场上中央格 -->
       <button
         type="button"
@@ -460,5 +458,13 @@ function toggleTagBucket(bucket: TagBucket) {
         <span v-else>保存场外位置</span>
       </button>
     </div>
+
+    <!-- HP/MP 编辑分区:内联挂在动作行下方(紧凑两行布局) -->
+    <HpMpPanel
+      compact
+      :selected-actors="selectedActors"
+      :selected-count="selectedCount"
+      class="border-t border-white/10 pt-1.5"
+    />
   </div>
 </template>

@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
     v-show="settings.panelVisible"
     ref="containerRef"
     class="fixed left-0 top-0 w-[34rem] flex flex-col overflow-hidden border border-white/10 rounded-md bg-surface text-white shadow-xl"
-    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[32rem]'"
+    :class="settings.panelCollapsed ? 'h-auto' : 'max-h-[min(88vh,44rem)]'"
     :style="{ transform }"
   >
     <!-- 设置 tab 的背景图:固定在面板内,不会随 TabsContent 的滚动而移动 -->
