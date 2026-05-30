@@ -9,7 +9,9 @@ import { readTagInstances } from '@/core/tag/read'
 import { emitFx } from '@/infra/fx-bus'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
+import { diffActiveCharacters } from './diff-active-characters'
 import { getReduxStore, subscribeSlice } from './redux-store'
+import { makeResyncScheduler } from './resync-scheduler'
 import { batchSetBuffsEnabledForCharacter } from './writers/batch-toggle-buff-enabled'
 import { setCharacterAngle } from './writers/set-character-angle'
 
@@ -48,6 +50,10 @@ type HpZeroState = 'alive' | 'down'
 const ANGLE_DOWN = 90
 const ANGLE_UP = 0
 
+// snapshot 回放节流:burst 时最多每 50ms(~20fps)跑一次 resync,把 ccfolia
+// 逐条回放(实测 ~73 次/秒)压下来,让出主线程给拖动/重绘。可按实测微调。
+const RESYNC_THROTTLE_MS = 50
+
 export const useRoomCharactersStore = defineStore('roomCharacters', {
   state: (): RoomCharactersState => ({ list: [] }),
   getters: {
@@ -74,7 +80,7 @@ export const useRoomCharactersStore = defineStore('roomCharacters', {
 
 let unsub: (() => void) | null = null
 let bootstrapTimer: number | null = null
-let resyncRafId: number | null = null
+let scheduler: ReturnType<typeof makeResyncScheduler> | null = null
 let aliveCache = new Map<string, AliveState>()
 let hpZeroCache = new Map<string, HpZeroState>()
 // 跨 tab FX 同步:每个客户端的 onSnapshot 都会推 HP 变化,各自跑 diff 喷自己 tab 的演出。
@@ -83,6 +89,9 @@ let hpZeroCache = new Map<string, HpZeroState>()
 let hpFxCache = new Map<string, number>()
 // MP FX 同 HP:cache 上一帧观察到的 MP 总和(累加多部位),冷启动一帧只填不喷。
 let mpFxCache = new Map<string, number>()
+// 上一帧的 active id→entity 快照。靠 RTK/Immer 引用复用做增量 diff:
+// 没变的角色跨帧同引用,不进 changedSet,跳过昂贵 reconcile。
+let prevActiveMap = new Map<string, CcfoliaCharacter>()
 
 // 冷启动时 ccfolia Redux store 可能要几百 ms ~ 几秒才就位(用户先打开首页再进房间时尤其明显)。
 // 和 composables/useCcfoliaCharacters 一致,用退避轮询直到 store 出现,subscribe 成功后立刻停轮询。
@@ -103,8 +112,10 @@ function classifyCharacter(character: CcfoliaCharacter): AliveState {
   return hp > 0 ? 'alive' : 'down'
 }
 
-function reconcileAliveDiff(list: CcfoliaCharacter[]) {
+function reconcileAliveDiff(list: CcfoliaCharacter[], changedSet: Set<string>) {
   for (const character of list) {
+    if (!changedSet.has(character._id))
+      continue
     const nextState = classifyCharacter(character)
     const previousState = aliveCache.get(character._id)
     aliveCache.set(character._id, nextState)
@@ -147,6 +158,7 @@ function totalSlot(character: CcfoliaCharacter, slot: 'hp' | 'mp', labelMap: Sta
 // 切回开启:第一帧 prev===undefined 静默重新填 cache,语义和首次进房间一致。
 function reconcileSlotFxDiff(
   list: CcfoliaCharacter[],
+  changedSet: Set<string>,
   slot: 'hp' | 'mp',
   cache: Map<string, number>,
   kinds: { up: FxKind, down: FxKind },
@@ -159,6 +171,8 @@ function reconcileSlotFxDiff(
   }
   const labelMap = settings.statusLabelMap
   for (const character of list) {
+    if (!changedSet.has(character._id))
+      continue
     const next = totalSlot(character, slot, labelMap)
     const prev = cache.get(character._id)
     cache.set(character._id, next)
@@ -178,8 +192,10 @@ function reconcileSlotFxDiff(
 // 角色 HP 跨过 0 时旋转 token:倒地 -> 90°,复活 -> 0°。
 // 触发条件改成"角色任一 tag 开启 autoKnockdownOnHpZero",取代原先 hard-coded 盟友 + 全局开关。
 // 冷启动(prev === undefined)只填 cache 不写 Firestore,避免进房间时把已经躺着的角色再 set 一遍。
-function reconcileTagKnockdownHpZeroDiff(list: CcfoliaCharacter[]) {
+function reconcileTagKnockdownHpZeroDiff(list: CcfoliaCharacter[], changedSet: Set<string>) {
   for (const character of list) {
+    if (!changedSet.has(character._id))
+      continue
     const next = classifyHpZero(character)
     const prev = hpZeroCache.get(character._id)
     hpZeroCache.set(character._id, next)
@@ -196,25 +212,65 @@ function reconcileTagKnockdownHpZeroDiff(list: CcfoliaCharacter[]) {
 
 // materialize + 三趟 reconcile + 写回 pinia(随后触发 Vue 重渲染)。
 // 拖动棋子时 ccfolia 每帧派发多次 character/update,逐次跑这个会把开销放大到 60×/s。
+// 角色离开 active 集合时,清掉它在各 diff cache 里的残留键,避免泄漏 + 过期 FX 基线。
+function pruneCachesFor(removedIds: string[]) {
+  for (const id of removedIds) {
+    aliveCache.delete(id)
+    hpZeroCache.delete(id)
+    hpFxCache.delete(id)
+    mpFxCache.delete(id)
+  }
+}
+
 function resync(pinia: ReturnType<typeof useRoomCharactersStore>, slice: RoomCharactersSlice) {
-  pinia.replace(materialize(slice))
-  reconcileAliveDiff(pinia.list)
-  reconcileTagKnockdownHpZeroDiff(pinia.list)
-  reconcileSlotFxDiff(pinia.list, 'hp', hpFxCache, { up: 'heal', down: 'damage' })
-  reconcileSlotFxDiff(pinia.list, 'mp', mpFxCache, { up: 'mp-restore', down: 'mp-drain' })
+  const list = materialize(slice)
+  const { changedIds, removedIds, membershipChanged } = diffActiveCharacters(prevActiveMap, list)
+
+  // no-op 短路:active 子集这帧没动、成员也没增减 → 不 replace、不 reconcile,
+  // 下游 pieces.list / overlay entries / roster 因引用未变完全不触发。
+  if (changedIds.length === 0 && !membershipChanged)
+    return
+
+  // 重建上一帧快照(下次 diff 用)
+  const nextMap = new Map<string, CcfoliaCharacter>()
+  for (const c of list)
+    nextMap.set(c._id, c)
+  prevActiveMap = nextMap
+
+  pruneCachesFor(removedIds)
+
+  pinia.replace(list)
+
+  const changedSet = new Set(changedIds)
+  reconcileAliveDiff(list, changedSet)
+  reconcileTagKnockdownHpZeroDiff(list, changedSet)
+  reconcileSlotFxDiff(list, changedSet, 'hp', hpFxCache, { up: 'heal', down: 'damage' })
+  reconcileSlotFxDiff(list, changedSet, 'mp', mpFxCache, { up: 'mp-restore', down: 'mp-drain' })
 }
 
 // 用 rAF 把一帧内的多次 store 通知合并成一次重算;fire 时读最新 state,保证不丢更新。
+function getScheduler() {
+  if (!scheduler) {
+    scheduler = makeResyncScheduler({
+      now: () => performance.now(),
+      requestFrame: cb => window.requestAnimationFrame(cb),
+      cancelFrame: h => window.cancelAnimationFrame(h),
+      setTimer: (cb, ms) => window.setTimeout(cb, ms),
+      clearTimer: h => window.clearTimeout(h),
+      run: () => {
+        const store = getReduxStore()
+        if (!store)
+          return
+        resync(useRoomCharactersStore(), selectRoomCharacters(store.getState()))
+      },
+    }, RESYNC_THROTTLE_MS)
+  }
+  return scheduler
+}
+
+// 用节流调度器把一段时间内的多次 store 通知合并成有限频率的 resync。
 function scheduleResync() {
-  if (resyncRafId !== null)
-    return
-  resyncRafId = window.requestAnimationFrame(() => {
-    resyncRafId = null
-    const store = getReduxStore()
-    if (!store)
-      return
-    resync(useRoomCharactersStore(), selectRoomCharacters(store.getState()))
-  })
+  getScheduler().notify()
 }
 
 function trySubscribe(): boolean {
@@ -248,14 +304,13 @@ export function startRoomCharactersSync(bootstrapIntervalMs = 1000): void {
 
 export function stopRoomCharactersSync(): void {
   stopBootstrap()
-  if (resyncRafId !== null) {
-    window.cancelAnimationFrame(resyncRafId)
-    resyncRafId = null
-  }
+  scheduler?.cancel()
+  scheduler = null
   unsub?.()
   unsub = null
   aliveCache = new Map()
   hpZeroCache = new Map()
   hpFxCache = new Map()
   mpFxCache = new Map()
+  prevActiveMap = new Map()
 }
