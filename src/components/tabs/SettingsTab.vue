@@ -17,6 +17,16 @@ const anchorOptions = [
   { value: 'top-left', label: 'top-left' },
 ]
 
+const gridColorOptions = [
+  { value: 'white', label: '白色' },
+  { value: 'black', label: '黑色' },
+]
+
+function onGridColorChange(v: string | undefined) {
+  if (v === 'white' || v === 'black')
+    settings.setGridColor(v)
+}
+
 // 本地 draft。不能直接把 `:model-value="settings.grid.xxx"` 绑到 input —— 下方
 // logSize 的 setInterval 每秒触发 SettingsTab 重渲染,Vue 会把 input DOM value 回填成
 // store 值,用户输到一半(比如 "20" 只输了 "2" 停顿 > 1s)会被打回旧值。
@@ -189,6 +199,16 @@ function resetAllData() {
           @input="settings.setGridOpacity(Number(($event.target as HTMLInputElement).value))"
         >
         <span class="w-8 text-right text-white/60 tabular-nums">{{ Math.round(settings.gridOpacity * 100) }}%</span>
+      </label>
+      <label class="flex items-center justify-between gap-3 text-xs text-white/80">
+        <span class="shrink-0">颜色</span>
+        <div class="grow">
+          <Select
+            :model-value="settings.gridColor"
+            :options="gridColorOptions"
+            @update:model-value="onGridColorChange"
+          />
+        </div>
       </label>
     </section>
 

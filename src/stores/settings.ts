@@ -18,6 +18,8 @@ export interface PanelSize {
   height: number
 }
 
+export type GridColor = 'white' | 'black'
+
 interface SettingsState {
   defaultPowerTableId: string | null
   logMaxLines: number
@@ -30,6 +32,8 @@ interface SettingsState {
   // 网格坐标标签开关 + 网格整体透明度(线条与标签共用)
   gridLabelsVisible: boolean
   gridOpacity: number
+  // 网格线条与标签的颜色,深色背景用 white、浅色背景用 black
+  gridColor: GridColor
   statusLabelMap: StatusLabelMap
   combatFxEnabled: boolean
   // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
@@ -59,6 +63,11 @@ function clampOpacity(value: unknown): number {
   if (!Number.isFinite(n))
     return 0.35
   return Math.min(1, Math.max(0, n))
+}
+
+// 颜色脏值统一回落 white。
+function normalizeGridColor(raw: unknown): GridColor {
+  return raw === 'black' ? 'black' : 'white'
 }
 
 function normalizeGridConfig(raw: unknown): GridConfig {
@@ -157,6 +166,7 @@ export const useSettingsStore = defineStore('settings', {
     gridOverlayVisible: false,
     gridLabelsVisible: true,
     gridOpacity: 0.4,
+    gridColor: 'white',
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
     autoSwitchOnCrowded: true,
@@ -220,6 +230,9 @@ export const useSettingsStore = defineStore('settings', {
     setGridOpacity(n: number) {
       this.gridOpacity = clampOpacity(n)
     },
+    setGridColor(c: GridColor) {
+      this.gridColor = normalizeGridColor(c)
+    },
     setCombatFxEnabled(v: boolean) {
       this.combatFxEnabled = v
     },
@@ -235,6 +248,7 @@ export const useSettingsStore = defineStore('settings', {
       // GM_setValue 里的值可能来自旧版本 / 手改 / 损坏,统一走一遍 normalizer。
       s.grid = normalizeGridConfig(s.grid)
       s.gridOpacity = clampOpacity(s.gridOpacity)
+      s.gridColor = normalizeGridColor(s.gridColor)
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
       s.ensurePanelVisible()
       bindSharedSettingsCrossTabSync(s)
@@ -250,6 +264,7 @@ const SHARED_FIELDS = [
   'gridOverlayVisible',
   'gridLabelsVisible',
   'gridOpacity',
+  'gridColor',
 ] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
@@ -261,15 +276,17 @@ function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStor
         return
       // 先收集真正发生变化的字段,再 $patch。空 patch 也会触发 persist 插件的 $subscribe,
       // 写回 GM 后远端再回弹,可能形成事件回路。
-      const updates: Partial<Record<SharedField, boolean | number>> = {}
+      const updates: Partial<Record<SharedField, boolean | number | string>> = {}
       for (const key of SHARED_FIELDS) {
         const v = parsed[key]
-        // 只接受与当前值同类型的有效值(boolean / 有限 number),挡掉旧版本 / 脏数据。
-        // 源 tab 写入前已经 clamp 过 gridOpacity,这里信源端即可。
+        // 只接受与当前值同类型的有效值(boolean / 有限 number / 非空 string),挡掉旧版本 / 脏数据。
+        // 源 tab 写入前已经 clamp 过 gridOpacity、normalize 过 gridColor,这里信源端即可。
         const ok = typeof v === typeof store[key]
-          && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)))
+          && (typeof v === 'boolean'
+            || (typeof v === 'number' && Number.isFinite(v))
+            || (typeof v === 'string' && v.length > 0))
         if (ok && store[key] !== v)
-          updates[key] = v as boolean | number
+          updates[key] = v as boolean | number | string
       }
       if (Object.keys(updates).length === 0)
         return

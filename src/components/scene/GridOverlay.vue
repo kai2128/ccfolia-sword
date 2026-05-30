@@ -58,6 +58,9 @@ const svgStyle = computed(() => ({
   transform: `translate(${grid.value.originPx.x}px, ${grid.value.originPx.y}px)`,
   opacity: settings.gridOpacity,
 }))
+
+// 线条与标签共用同一颜色,跟随 settings.gridColor(white / black)。
+const strokeColor = computed(() => settings.gridColor)
 </script>
 
 <template>
@@ -76,7 +79,7 @@ const svgStyle = computed(() => ({
       :y1="0"
       :x2="x"
       :y2="totalH"
-      stroke="white"
+      :stroke="strokeColor"
       stroke-width="1"
     />
     <line
@@ -86,12 +89,12 @@ const svgStyle = computed(() => ({
       :y1="y"
       :x2="totalW"
       :y2="y"
-      stroke="white"
+      :stroke="strokeColor"
       stroke-width="1"
     />
     <g
       v-if="settings.gridLabelsVisible"
-      fill="white"
+      :fill="strokeColor"
       font-family="Cinzel, 'Noto Serif SC', serif"
       font-weight="400"
     >
