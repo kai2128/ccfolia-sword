@@ -6,7 +6,7 @@ import { DEFAULT_GRID_CONFIG } from '@/core/range'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
 import { bindGmCrossTabSync } from '@/infra/gm-cross-tab'
 import { setRingSize } from '@/infra/log'
-import { gmStorage } from '@/infra/pinia-persist-adapter'
+import { createDebouncedGmStorage } from '@/infra/pinia-persist-adapter'
 
 export interface PanelPos {
   x: number
@@ -241,7 +241,8 @@ export const useSettingsStore = defineStore('settings', {
     },
   },
   persist: {
-    storage: gmStorage,
+    // 去抖 200ms:拖动 slider 等高频写入合并成尾帧一次广播,避免多 tab 回弹竞态。
+    storage: createDebouncedGmStorage(200),
     key: 'ccs:store:settings',
     afterHydrate: ({ store }) => {
       const s = store as ReturnType<typeof useSettingsStore>
