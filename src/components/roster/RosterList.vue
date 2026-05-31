@@ -63,6 +63,17 @@ function toggleExpand(ref: string) {
     expandedRefs.add(ref)
 }
 
+// 稳定 handler:在 setup 里定义一次,引用恒定。模板不再用 inline 箭头闭包,
+// 否则每次 render 都生成新函数,Vue 认定监听器变了 → 该行强制重渲染,B 层失效。
+// 行组件 emit 时带上自己的 charId / partKey,这里据此分发。
+function onToggleExpand(charId: string, partKey: string) {
+  toggleExpand(formatActorRef(charId, partKey))
+}
+
+function onAttachBuff(charId: string, partKey: string) {
+  attachingRef.value = formatActorRef(charId, partKey)
+}
+
 async function onChange(charId: string, slot: StatusSlot, newValue: number, partKey: string) {
   const char = chars.byId(charId)
   if (!char)
@@ -116,9 +127,9 @@ function partRowsFor(charId: string): CharacterPartView[] {
               :label-map="settings.statusLabelMap"
               :expanded="expandedRefs.has(formatActorRef(char._id, ''))"
               :part-view="mainRowPartView(char._id)"
-              @change="(slot, v, partKey) => onChange(char._id, slot, v, partKey)"
-              @toggle-expand="toggleExpand(formatActorRef(char._id, ''))"
-              @attach-buff="attachingRef = formatActorRef(char._id, '')"
+              @change="onChange"
+              @toggle-expand="onToggleExpand"
+              @attach-buff="onAttachBuff"
             />
             <RosterPartRow
               v-for="part in partRowsFor(char._id)"
@@ -126,9 +137,9 @@ function partRowsFor(charId: string): CharacterPartView[] {
               :char="char"
               :part="part"
               :expanded="expandedRefs.has(formatActorRef(char._id, part.partKey))"
-              @change="(slot, v, partKey) => onChange(char._id, slot, v, partKey)"
-              @toggle-expand="toggleExpand(formatActorRef(char._id, part.partKey))"
-              @attach-buff="attachingRef = formatActorRef(char._id, part.partKey)"
+              @change="onChange"
+              @toggle-expand="onToggleExpand"
+              @attach-buff="onAttachBuff"
             />
           </template>
         </ul>

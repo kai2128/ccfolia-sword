@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { PieceSnapshot } from '@/ccfolia/pieces-store'
+import type { MemoEntry } from '@/core/overlay/memoize-by-key'
 import type { BuffInstance } from '@/types/buff-v3'
 import type { CcfoliaStatus } from '@/types/ccfolia'
 import { computed } from 'vue'
@@ -11,6 +13,7 @@ import StatusChipRow from '@/components/overlay/StatusChipRow.vue'
 import { collectBuffs } from '@/core/buff/collect'
 import { extractParts } from '@/core/character/parts'
 import { computeCrowded } from '@/core/overlay/crowd-detect'
+import { memoizeByKey } from '@/core/overlay/memoize-by-key'
 import { resolveDisplayMode } from '@/core/overlay/resolve-display-mode'
 import { readStatusSlot } from '@/core/status-slot'
 import { useBuffsDerivedStore } from '@/stores/buffs-derived'
@@ -83,43 +86,71 @@ interface OverlayEntry {
   isMultipart: boolean
 }
 
+// per-character 记忆化缓存,跨 computed 运行保留(组件生命周期内)。
+// 没变的角色复用上次的 entry / decorated 对象(连同引用),让下游 overlay 子组件跳过重渲染。
+// burst 期间 onSnapshot 逐条回放时,只有真正变了的角色会重建 entry,其余几百个直接复用。
+const entryCache = new Map<string, MemoEntry<OverlayEntry>>()
+const decoratedCache = new Map<string, MemoEntry<OverlayEntry & { mode: 'C' | 'E' }>>()
+
+// 构造单个 entry。只有签名变化时才会被 memoizeByKey 调用。
+function buildEntry(p: PieceSnapshot, sizeMap: Map<string, { width: number, height: number }>): OverlayEntry {
+  const char = chars.byId(p.characterId)
+  const partsList = char ? extractParts(char, settings.statusLabelMap) : []
+  const showLabel = partsList.length > 1
+  const parts: OverlayPart[] = char
+    ? partsList.map(pv => ({
+        key: pv.partKey || 'main',
+        label: showLabel ? pv.partKey : '',
+        isMain: pv.isMain,
+        hp: readStatusSlot(char.status, 'hp', settings.statusLabelMap, pv.partKey),
+        mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
+      }))
+    : []
+  const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
+  const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
+  const buffs = [...self, ...aoe]
+  const sized = sizeMap.get(p.characterId)
+  const widthPx = sized?.width ?? p.widthCells * settings.grid.cellSizePx
+  const heightPx = sized?.height ?? widthPx
+  return {
+    key: p.characterId,
+    characterId: p.characterId,
+    centerX: p.x + widthPx / 2,
+    topY: p.y,
+    pieceBottomY: p.y + heightPx,
+    centerY: p.y + heightPx / 2,
+    widthPx,
+    parts,
+    buffs,
+    status: char?.status ?? [],
+    isMultipart: partsList.length > 1,
+  }
+}
+
 const entries = computed<OverlayEntry[]>(() => {
   const sizeMap = getMovableSizes()
-  return pieces.list
-    .filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
-    .map((p) => {
+  const labelMap = settings.statusLabelMap
+  const cellSizePx = settings.grid.cellSizePx
+  const visible = pieces.list.filter(p => !p.invisible && overlayVis.isVisible(p.characterId))
+  return memoizeByKey(
+    entryCache,
+    visible,
+    p => p.characterId,
+    (p) => {
+      // 签名:char 引用(RTK/Immer 保证未变 entity 同引用,覆盖 status/params/x/y/size/invisible)
+      // + labelMap + size px(ccfolia 可能在 char 不变时重算尺寸)+ AoE 覆盖 token(跨角色依赖)。
       const char = chars.byId(p.characterId)
-      const partsList = char ? extractParts(char, settings.statusLabelMap) : []
-      const showLabel = partsList.length > 1
-      const parts: OverlayPart[] = char
-        ? partsList.map(pv => ({
-            key: pv.partKey || 'main',
-            label: showLabel ? pv.partKey : '',
-            isMain: pv.isMain,
-            hp: readStatusSlot(char.status, 'hp', settings.statusLabelMap, pv.partKey),
-            mp: pv.mpLabel ? readStatusSlot(char.status, 'mp', settings.statusLabelMap, pv.partKey) : null,
-          }))
-        : []
-      const self = char ? collectBuffs(char).filter(b => b.attachedTo.kind === 'single') : []
-      const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
-      const buffs = [...self, ...aoe]
       const sized = sizeMap.get(p.characterId)
-      const widthPx = sized?.width ?? p.widthCells * settings.grid.cellSizePx
+      const widthPx = sized?.width ?? p.widthCells * cellSizePx
       const heightPx = sized?.height ?? widthPx
-      return {
-        key: p.characterId,
-        characterId: p.characterId,
-        centerX: p.x + widthPx / 2,
-        topY: p.y,
-        pieceBottomY: p.y + heightPx,
-        centerY: p.y + heightPx / 2,
-        widthPx,
-        parts,
-        buffs,
-        status: char?.status ?? [],
-        isMultipart: partsList.length > 1,
-      }
-    })
+      const aoe = buffsDerived.aoeBuffsCoveringCharacter(p.characterId)
+      const aoeToken = aoe.length === 0
+        ? ''
+        : aoe.map(b => `${b.id}:${b.enabled ? 1 : 0}`).join(',')
+      return [char, labelMap, widthPx, heightPx, aoeToken]
+    },
+    p => buildEntry(p, sizeMap),
+  )
 })
 
 // 拥挤集合:邻距判定基于全部可见棋子,而非筛过的 entries(后者有 buffs 等冗余)。
@@ -139,10 +170,16 @@ function modeFor(entry: OverlayEntry): 'C' | 'E' {
 }
 
 // mode 依赖 crowdedSet(又依赖 entries),不能塞进 entries 自身。
-// 这里二次 map 一次性算好,模板里直接读 entry.mode,免去原先每 entry 在模板里调 3-4 次 modeFor。
-const decoratedEntries = computed(() =>
-  entries.value.map(entry => ({ ...entry, mode: modeFor(entry) })),
-)
+// 二次 memoize:entry 引用稳定 + mode 不变 → 复用 decorated 对象,模板 v-for 的子组件 props 不变 → 不重渲染。
+const decoratedEntries = computed(() => {
+  return memoizeByKey(
+    decoratedCache,
+    entries.value,
+    entry => entry.characterId,
+    entry => [entry, modeFor(entry)],
+    entry => ({ ...entry, mode: modeFor(entry) }),
+  )
+})
 </script>
 
 <template>

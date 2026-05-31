@@ -41,10 +41,12 @@ const props = defineProps<{
   partView: CharacterPartView | null
 }>()
 
+// emit 带上 charId(及 partKey)让父级用稳定 handler 分发,避免 RosterList 模板里
+// 用 inline 闭包(每次 render 新函数 → 行强制重渲染)。change 的 partKey 仍由子级给出。
 const emit = defineEmits<{
-  (e: 'change', slot: StatusSlot, newValue: number, partKey: string): void
-  (e: 'toggleExpand'): void
-  (e: 'attachBuff'): void
+  (e: 'change', charId: string, slot: StatusSlot, newValue: number, partKey: string): void
+  (e: 'toggleExpand', charId: string, partKey: string): void
+  (e: 'attachBuff', charId: string, partKey: string): void
 }>()
 
 const hasEditor = computed(() => props.partView !== null)
@@ -313,7 +315,7 @@ async function onClearBuffs() {
           v-if="hp"
           :value="hp.value"
           :max="hp.max"
-          @change="v => emit('change', 'hp', v, partKey)"
+          @change="v => emit('change', char._id, 'hp', v, partKey)"
         />
         <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
 
@@ -321,7 +323,7 @@ async function onClearBuffs() {
           v-if="mp"
           :value="mp.value"
           :max="mp.max"
-          @change="v => emit('change', 'mp', v, partKey)"
+          @change="v => emit('change', char._id, 'mp', v, partKey)"
         />
         <span v-else aria-hidden="true" class="invisible h-5 w-18 inline-flex shrink-0 items-center" />
       </template>
@@ -415,7 +417,7 @@ async function onClearBuffs() {
         type="button"
         class="h-5 w-5 flex shrink-0 items-center justify-center rounded text-xs text-white/60 hover:bg-white/10 hover:text-white"
         :title="expanded ? '收起 buff' : '展开 buff'"
-        @click="emit('toggleExpand')"
+        @click="emit('toggleExpand', char._id, '')"
       >
         {{ expanded ? '▾' : '▸' }}
       </button>
@@ -442,7 +444,7 @@ async function onClearBuffs() {
           <button
             type="button"
             class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-            @click="emit('attachBuff')"
+            @click="emit('attachBuff', char._id, '')"
           >
             + 挂 buff
           </button>
