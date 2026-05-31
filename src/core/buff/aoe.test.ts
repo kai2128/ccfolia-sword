@@ -50,16 +50,16 @@ describe('computeCoverage', () => {
   const center = piece('center', 5, 5)
 
   it('includes center itself', () => {
-    // radius=1 → 严格 < 1,只有自身格(d=0)被覆盖
+    // radius=1 → 像素半径 = 1*40 = 40(1 格),自身格中心(d=0)被覆盖
     const cov = computeCoverage(aoeBuff({ radius: 1 }), [center], GRID)
     expect(cov.has('center')).toBe(true)
   })
 
-  it('includes pieces strictly within Chebyshev radius', () => {
-    // radius=3 → 严格距离 < 3 覆盖(距离 0/1/2),距离 3 正好落在可视圆边上,不算。
-    const a = piece('a', 5, 6) // distance 1 → in
-    const b = piece('b', 7, 5) // distance 2 → in
-    const c = piece('c', 8, 5) // distance 3 → out
+  it('covers a radius of N cells from center (1 cell = 1m)', () => {
+    // radius=3 → 像素半径 = 3*40 = 120(3 格)。从格心向外 半格+1+1+半格 触及第 3 格中心。
+    const a = piece('a', 5, 6) // 正交距离 1 = 40px → in
+    const b = piece('b', 8, 5) // 正交距离 3 = 120px → in(正好在圆边)
+    const c = piece('c', 9, 5) // 正交距离 4 = 160px → out
     const cov = computeCoverage(aoeBuff({ radius: 3 }), [center, a, b, c], GRID)
     expect(cov.has('a')).toBe(true)
     expect(cov.has('b')).toBe(true)
@@ -67,10 +67,10 @@ describe('computeCoverage', () => {
   })
 
   it('uses Euclidean distance (excludes Chebyshev-corner cells outside pixel circle)', () => {
-    // radius=3 → 像素半径 = (2*3-1)*40/2 = 100. 对角角落格欧氏距离 > 100 不算覆盖。
-    const diag1 = piece('diag1', 6, 6) // both 1, 距离 40√2 ≈ 56.6 → in
-    const diag2 = piece('diag2', 7, 7) // both 2, 距离 80√2 ≈ 113 → out(Chebyshev 下是 2 却在圆外)
-    const ortho = piece('ortho', 7, 5) // 2 横, 距离 80 → in
+    // radius=3 → 像素半径 = 3*40 = 120(3 格)。对角角落格欧氏距离 > 120 不算覆盖。
+    const diag1 = piece('diag1', 7, 7) // both 2, 距离 80√2 ≈ 113 → in
+    const diag2 = piece('diag2', 8, 8) // both 3, 距离 120√2 ≈ 170 → out(Chebyshev 下是 3 却在圆外)
+    const ortho = piece('ortho', 8, 5) // 3 横, 距离 120 → in
     const cov = computeCoverage(aoeBuff({ radius: 3 }), [center, diag1, diag2, ortho], GRID)
     expect(cov.has('diag1')).toBe(true)
     expect(cov.has('diag2')).toBe(false)
@@ -150,10 +150,10 @@ describe('computeCoverage', () => {
       enabled: true,
       attachedAtTurn: 1,
     }
-    // radius=2 严格 < 2 → 距离 1 的格被覆盖,距离 2 的格不被覆盖
+    // radius=2 → 像素半径 = 2*40 = 80(2 格)。正交距离 2 被覆盖(圆边),距离 3 不被覆盖。
     buff.attachedTo = { kind: 'aoe', centerCharacterId: 'big', radius: 2 }
-    const near = piece('near', 4, 4) // distance 1 → in
-    const far = piece('far', 3, 3) // distance 2 → out (在圆边)
+    const near = piece('near', 5, 3) // 正交距离 2 = 80px → in
+    const far = piece('far', 5, 2) // 正交距离 3 = 120px → out
     const cov = computeCoverage(buff, [big, near, far], GRID)
     expect(cov.has('near')).toBe(true)
     expect(cov.has('far')).toBe(false)

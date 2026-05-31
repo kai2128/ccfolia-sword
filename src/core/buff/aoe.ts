@@ -22,9 +22,10 @@ export function computeCoverage(
   if (!pxToCell(centerPx, grid))
     return new Set() // 中心 piece 不在格网内,覆盖无意义
 
-  // "Nm" 可视圆直径 = (2N-1) 格 → 像素半径 = (2N-1) * cellSize / 2。
-  // 用欧氏距离严格匹配圆内,Chebyshev 2√2 那种对角角落格视觉上在圆外就不算覆盖。
-  const pxRadius = ((2 * attach.radius - 1) * grid.cellSizePx) / 2
+  // "Nm" 可视圆半径 = N 格(1 格 = 1m),圆心锚在格心。
+  // radius=3 时从格心向外 半格(出自身)+1+1+半格,触及第 3 格中心,共 3 格半径。
+  // 用欧氏距离严格匹配圆内,Chebyshev 那种对角角落格视觉上在圆外就不算覆盖。
+  const pxRadius = attach.radius * grid.cellSizePx
   const pxRadiusSq = pxRadius * pxRadius
   const auto = new Set<string>()
   for (const p of pieces) {

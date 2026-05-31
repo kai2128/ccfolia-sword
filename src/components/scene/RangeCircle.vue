@@ -16,9 +16,9 @@ const centerPiece = computed(() =>
   pieces.list.find(p => p.characterId === props.characterId) ?? null,
 )
 
-// 直径语义:"Nm" → 直径 (2N-1) 格。配合 aoe.ts 的 `d < radius`,可视圆严格包含所有被覆盖格的中心。
-// 即:r=1 仅自身 1 格,r=2 是 3×3 区域 3 格宽,r=3 是 5×5 区域 5 格宽。
-const diameterPx = computed(() => (2 * props.radius - 1) * settings.grid.cellSizePx)
+// 半径语义:"Nm" → 半径 N 格(1 格 = 1m,圆心锚在格心)。配合 aoe.ts 同一像素半径,可视圆严格包含所有被覆盖格的中心。
+// r=3 时从格心向外 ½+1+1+½ = 3 格半径,触及第 3 格中心,直径 6 格。
+const diameterPx = computed(() => 2 * props.radius * settings.grid.cellSizePx)
 
 const style = computed(() => {
   const p = centerPiece.value
