@@ -376,6 +376,26 @@ function resetAllData() {
       </div>
     </section>
 
+    <div class="flex items-center justify-center gap-3 pt-1 text-xs text-white/60">
+      <a
+        href="https://github.com/kai2128/ccfolia-sword"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 transition-colors hover:text-white"
+      >
+        GitHub
+      </a>
+      <a
+        href="https://github.com/kai2128/ccfolia-sword/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 transition-colors hover:text-white"
+      >
+        <span class="i-lucide-download text-3" />
+        下载
+      </a>
+    </div>
+
     <p class="pt-1 text-center text-sm text-white/40 italic">
       - by rara -
       <span class="ml-1 not-italic">v{{ appVersion }}</span>

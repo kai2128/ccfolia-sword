@@ -20,6 +20,9 @@ const settings = useSettingsStore()
 const ui = useUiStore()
 const undoHistory = useUndoHistoryStore()
 
+// 由 vite define 注入,值来自 package.json#version。
+const appVersion = __APP_VERSION__
+
 const canUndo = computed(() => undoHistory.undoStack.length > 0)
 const undoTitle = computed(() => {
   if (!canUndo.value)
@@ -108,6 +111,7 @@ onBeforeUnmount(() => {
     >
       <Logo :size="16" class="text-hp" />
       <span class="text-sm font-medium">ccfolia-sword</span>
+      <span class="text-xs text-white/40 tabular-nums">v{{ appVersion }}</span>
       <button
         type="button"
         class="ml-auto h-6 w-6 flex items-center justify-center rounded disabled:cursor-not-allowed hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent"
