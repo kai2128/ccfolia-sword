@@ -196,24 +196,37 @@ const inkColor = computed(() => PALETTE_INK[state.value])
     <!-- 微调 -->
     <div class="flex flex-col gap-2">
       <span class="text-xs text-white/50">微调</span>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-600)">
+          -10m
+        </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-300)">
           -5m
         </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-60)">
           -1m
         </Button>
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-30)">
+          -30s
+        </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(-10)">
           -10s
         </Button>
+        <span class="mx-1 h-5 w-px bg-white/20" />
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(10)">
           +10s
+        </Button>
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(30)">
+          +30s
         </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(60)">
           +1m
         </Button>
         <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(300)">
           +5m
+        </Button>
+        <Button size="sm" variant="ghost" :disabled="timer.totalSec <= 0" @click="timer.adjust(600)">
+          +10m
         </Button>
       </div>
     </div>

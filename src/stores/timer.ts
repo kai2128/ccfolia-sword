@@ -60,10 +60,9 @@ export function bindTimerCrossTabSync(store: ReturnType<typeof useTimerStore>): 
   })
 }
 
-// 微调上限:允许越过 totalSec(GM 临时加时间),但不超过总时长 2 倍 —— 跟 HP 项目惯例一致(允许过量)。
-function clampAdjust(value: number, totalSec: number): number {
-  const upper = Math.max(totalSec * 2, 60)
-  return Math.max(0, Math.min(upper, value))
+// 微调只防负数,不设上限 —— GM 操作,想加多少加多少(原来卡总时长 2 倍太碍事)。
+function clampAdjust(value: number): number {
+  return Math.max(0, value)
 }
 
 export const useTimerStore = defineStore('timer', {
@@ -108,11 +107,10 @@ export const useTimerStore = defineStore('timer', {
     toggleHidden() {
       this.hidden = !this.hidden
     },
-    // 直接设当前剩余 —— 跟 adjust 区别:这是绝对值覆盖,且严格 clamp 在 [0, totalSec]
-    // (用户要求"current time 不能超 total time")。
+    // 直接设当前剩余 —— 跟 adjust 区别:这是绝对值覆盖。只防负数,允许超过 totalSec(GM 临时加时间)。
     // running 中调用要把 startedAt 重置成"现在",否则 wall-clock elapsed 会立刻把这个值扣掉。
     setRemaining(sec: number) {
-      const safe = Math.max(0, Math.min(this.totalSec, Math.floor(sec)))
+      const safe = Math.max(0, Math.floor(sec))
       this.remainingSec = safe
       if (this.startedAt != null)
         this.startedAt = Date.now()
@@ -122,11 +120,11 @@ export const useTimerStore = defineStore('timer', {
     adjust(deltaSec: number) {
       if (this.startedAt != null) {
         const live = computeRemaining(this.$state, Date.now())
-        this.remainingSec = clampAdjust(live + deltaSec, this.totalSec)
+        this.remainingSec = clampAdjust(live + deltaSec)
         this.startedAt = Date.now()
       }
       else {
-        this.remainingSec = clampAdjust(this.remainingSec + deltaSec, this.totalSec)
+        this.remainingSec = clampAdjust(this.remainingSec + deltaSec)
       }
     },
   },
