@@ -211,23 +211,17 @@ function onTurnKey(ev: KeyboardEvent) {
               {{ encounter.shared.turn }}
             </button>
           </span>
-          <!-- 还有人未行动才弹气泡确认;全员已行动直接 bypass 推进 -->
-          <PopConfirm
-            :message="`还有 ${encounter.local.pendingIds.length} 人未行动,确认推进回合?`"
-            :bypass="encounter.local.pendingIds.length === 0"
-            confirm-text="推进"
-            @confirm="nextTurn"
+          <!-- 直接推进回合,不再弹气泡确认 -->
+          <button
+            type="button"
+            class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            :title="encounter.local.pendingIds.length > 0
+              ? `下一回合(还 ${encounter.local.pendingIds.length} 人未行动)`
+              : '下一回合'"
+            @click="nextTurn"
           >
-            <button
-              type="button"
-              class="h-6 w-6 flex items-center justify-center border border-white/20 rounded bg-black/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-              :title="encounter.local.pendingIds.length > 0
-                ? `下一回合(还 ${encounter.local.pendingIds.length} 人未行动)`
-                : '下一回合'"
-            >
-              <span class="i-lucide-skip-forward text-3.5" />
-            </button>
-          </PopConfirm>
+            <span class="i-lucide-skip-forward text-3.5" />
+          </button>
           <PopConfirm
             message="确认结束战斗?"
             confirm-text="结束"
