@@ -28,16 +28,12 @@ export function computeSnapWrite(
   return target
 }
 
-// 用调用方传入的"新鲜"角色实体(直接来自 Redux,不再回读节流镜像 store)算吸附目标并写回。
-// 写回与 setCharacterCell 同范式:乐观先动 Redux,setDoc 失败回滚。
-export async function snapCharacterToGrid(char: CcfoliaCharacter, grid: GridConfig): Promise<void> {
-  const target = computeSnapWrite(
-    { x: char.x, y: char.y, width: char.width, height: char.height },
-    grid,
-  )
-  if (!target)
-    return
-
+// 把角色写到调用方算好的吸附落点。写回与 setCharacterCell 同范式:乐观先动 Redux,setDoc 失败回滚。
+// target 由 computeSnapWrite 在控制器里算好并传入 —— 控制器负责 diff / 去重 / 防再入。
+export async function writeSnappedPosition(
+  char: CcfoliaCharacter,
+  target: { x: number, y: number },
+): Promise<void> {
   const roomId = getCurrentRoomId()
   if (!roomId)
     return
