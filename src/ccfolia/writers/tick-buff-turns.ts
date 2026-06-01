@@ -2,6 +2,7 @@ import type { CcfoliaParam } from '@/types/ccfolia'
 import { serializedParamsUpdate } from '@/ccfolia/params-queue'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import { buffLabel, decodeBuff, encodeBuff, isBuffLabel } from '@/core/buff/codec'
+import { applyAoeTickToParams } from '@/core/range'
 import { readStatusSlot } from '@/core/status-slot'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -86,7 +87,8 @@ export async function tickBuffTurnsForCharacter(characterId: string): Promise<Ti
     const { next, prompts } = applyBuffTickToParams(current, characterId)
     if (alive)
       collected.push(...prompts)
-    return next
+    // AOE 指示器与 buff 同住 params,同一次 RMW 一并衰减,避免两次写。
+    return applyAoeTickToParams(next)
   })
 
   return collected

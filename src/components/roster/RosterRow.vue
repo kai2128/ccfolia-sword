@@ -2,7 +2,7 @@
 import type { CharacterPartView } from '@/core/character/parts'
 import type { StatusLabelMap, StatusSlot } from '@/core/status-slot'
 import type { CcfoliaCharacter } from '@/types/ccfolia'
-import { computed } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useCcfoliaSelectionStore } from '@/ccfolia/ccfolia-selection-store'
 import { num } from '@/ccfolia/pieces-store'
 import { applyBuffBatch } from '@/ccfolia/writers/apply-buff-batch'
@@ -30,6 +30,7 @@ import { useOverlayVisibilityStore } from '@/stores/overlay-visibility'
 import { useRosterSelectionStore } from '@/stores/roster-selection'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagLibraryStore } from '@/stores/tag-library'
+import RosterRowAoeMenu from './RosterRowAoeMenu.vue'
 import RosterRowBoardMenu from './RosterRowBoardMenu.vue'
 import StatusBuffMenu from './StatusBuffMenu.vue'
 
@@ -119,6 +120,17 @@ const rangeRadius = computed(() => encounter.shared.rangeCircles[props.char._id]
 
 function toggleRange() {
   encounter.toggleRangeCircle(props.char._id, 3)
+}
+
+const aoeMenu = useTemplateRef<{ openMenu: () => void }>('aoeMenu')
+function openAoeMenu() {
+  aoeMenu.value?.openMenu()
+}
+
+// 展开行里的「AOE 领域」按钮:点击弹出同一个管理面板(不常驻占空间)。
+const aoeSectionMenu = useTemplateRef<{ openMenu: () => void }>('aoeSectionMenu')
+function openAoeSection() {
+  aoeSectionMenu.value?.openMenu()
 }
 
 function onRangeInput(e: Event) {
@@ -299,15 +311,18 @@ async function onClearBuffs() {
           title="射程半径(格=米)"
           @change="onRangeInput"
         >
-        <button
-          type="button"
-          class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
-          :class="rangeActive ? 'text-white' : 'text-white/30'"
-          :title="rangeActive ? '关闭射程圈' : '显示射程圈'"
-          @click="toggleRange"
-        >
-          <span class="i-lucide-ruler text-3.5" />
-        </button>
+        <RosterRowAoeMenu ref="aoeMenu" :character-id="char._id">
+          <button
+            type="button"
+            class="h-5 w-5 flex items-center justify-center rounded hover:bg-white/10"
+            :class="rangeActive ? 'text-white' : 'text-white/30'"
+            :title="rangeActive ? '左键关闭射程圈 · 右键 AOE 领域' : '左键显示射程圈 · 右键 AOE 领域'"
+            @click="toggleRange"
+            @contextmenu.prevent="openAoeMenu"
+          >
+            <span class="i-lucide-ruler text-3.5" />
+          </button>
+        </RosterRowAoeMenu>
       </div>
 
       <template v-if="hasEditor">
@@ -448,6 +463,15 @@ async function onClearBuffs() {
           >
             + 挂 buff
           </button>
+          <RosterRowAoeMenu ref="aoeSectionMenu" :character-id="char._id">
+            <button
+              type="button"
+              class="border border-white/15 rounded bg-black/20 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+              @click="openAoeSection"
+            >
+              + AOE 领域
+            </button>
+          </RosterRowAoeMenu>
         </div>
         <div class="flex items-center gap-1.5">
           <StatusBuffMenu v-if="hasStatusChips" :char="char" />
