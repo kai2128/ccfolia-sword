@@ -133,6 +133,19 @@
   }
 }
 
+/* SessionTimer 运行中状态点呼吸 — 色无关(只动 opacity/scale),非 critical 的 running 用 */
+@keyframes session-timer-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.65);
+  }
+}
+
 /* 慢转 — heal 符文圈用;6s 一圈,组件实际只活 ~1.4s,只播 ~25% 一圈 */
 @keyframes auraSpin {
   0% {

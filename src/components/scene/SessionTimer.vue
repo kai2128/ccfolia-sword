@@ -46,7 +46,10 @@ const PALETTE: Record<SessionState, Palette> = {
   expired: { ink: '#7a6a5a', rim: '#6b5a3a', glow: 'rgba(0,0,0,.4)' },
 }
 
-const palette = computed(() => PALETTE[state.value])
+// 暂停态:统一切到冷色(slate-blue)"冻结"色,跟走行中的暖色 palette 一眼区分。
+const PAUSED_PALETTE: Palette = { ink: '#a9bdd9', rim: '#6f86b0', glow: 'rgba(111,134,176,.4)' }
+
+const palette = computed(() => timer.isRunning ? PALETTE[state.value] : PAUSED_PALETTE)
 </script>
 
 <template>
@@ -63,7 +66,7 @@ const palette = computed(() => PALETTE[state.value])
       -webkit-backdrop-filter: blur(10px);
     "
     :style="{
-      border: `1px solid ${state === 'critical' ? palette.rim : 'rgba(231,198,106,.5)'}`,
+      border: `1px solid ${!timer.isRunning ? palette.rim : (state === 'critical' ? palette.rim : 'rgba(231,198,106,.5)')}`,
       boxShadow: `0 4px 14px rgba(0,0,0,.5), 0 0 14px ${palette.glow}`,
     }"
   >
@@ -73,7 +76,11 @@ const palette = computed(() => PALETTE[state.value])
       :style="{
         background: palette.rim,
         boxShadow: `0 0 6px ${palette.rim}`,
-        animation: state === 'critical' ? 'session-timer-pulse 1s infinite' : 'none',
+        animation: !timer.isRunning
+          ? 'none'
+          : state === 'critical'
+            ? 'session-timer-pulse 1s infinite'
+            : 'session-timer-breathe 2s ease-in-out infinite',
       }"
     />
     <!-- 时间数字 -->

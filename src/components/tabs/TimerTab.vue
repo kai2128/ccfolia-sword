@@ -62,7 +62,10 @@ const PALETTE_INK: Record<SessionState, string> = {
   expired: '#7a6a5a',
 }
 
-const inkColor = computed(() => PALETTE_INK[state.value])
+// 暂停态:冷色 slate-blue,跟 chip 一致 —— 走行中才用残量暖色 palette。
+const PAUSED_INK = '#a9bdd9'
+
+const inkColor = computed(() => timer.isRunning ? PALETTE_INK[state.value] : PAUSED_INK)
 </script>
 
 <template>
