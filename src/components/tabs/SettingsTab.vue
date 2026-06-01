@@ -187,6 +187,13 @@ function resetAllData() {
         />
         显示标签(A1 坐标)
       </label>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.snapToGrid"
+          @update:model-value="settings.setSnapToGrid($event ?? false)"
+        />
+        吸附拖动
+      </label>
       <label class="flex items-center justify-between gap-3 text-xs text-white/80">
         <span class="shrink-0">透明度</span>
         <input

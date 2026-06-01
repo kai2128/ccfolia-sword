@@ -6,6 +6,7 @@ import { startCcfoliaSelectionSync, useCcfoliaSelectionStore } from './ccfolia/c
 import { usePiecesStore } from './ccfolia/pieces-store'
 import { startRoomCharactersSync, useRoomCharactersStore } from './ccfolia/room-characters-store'
 import { startSceneMount } from './ccfolia/scene-mount'
+import { startSnapToGrid } from './ccfolia/snap-to-grid'
 import { initWebpackHook } from './ccfolia/webpack-hook'
 import GridLayerRoot from './components/scene/GridLayerRoot.vue'
 import SceneOverlayRoot from './components/scene/SceneOverlayRoot.vue'
@@ -68,6 +69,7 @@ function mount() {
   // 否则派生 store 看不到数据 / Reka Portal 无家可归)。
   startRoomCharactersSync()
   startCcfoliaSelectionSync()
+  startSnapToGrid()
   // 两层:overlay(z 9999,棋子之上,承载 HP/MP 条/buff/FX)+ grid(z 100,棋子之下,只画网格)
   startSceneMount(
     [

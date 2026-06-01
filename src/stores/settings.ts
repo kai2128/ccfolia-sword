@@ -34,6 +34,8 @@ interface SettingsState {
   gridOpacity: number
   // 网格线条与标签的颜色,深色背景用 white、浅色背景用 black
   gridColor: GridColor
+  // 拖动棋子松手后吸附到格子。与 gridOverlayVisible 单向联动(显隐网格会带动它,反之不动)。
+  snapToGrid: boolean
   statusLabelMap: StatusLabelMap
   combatFxEnabled: boolean
   // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
@@ -167,6 +169,7 @@ export const useSettingsStore = defineStore('settings', {
     gridLabelsVisible: true,
     gridOpacity: 0.4,
     gridColor: 'white',
+    snapToGrid: true,
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
     autoSwitchOnCrowded: true,
@@ -224,6 +227,10 @@ export const useSettingsStore = defineStore('settings', {
     setGridOverlayVisible(v: boolean) {
       this.gridOverlayVisible = v
     },
+    // 吸附是独立偏好,不与网格可见性联动。但实际生效还要求网格可见 —— 见 snap-to-grid 控制器。
+    setSnapToGrid(v: boolean) {
+      this.snapToGrid = v
+    },
     setGridLabelsVisible(v: boolean) {
       this.gridLabelsVisible = v
     },
@@ -250,6 +257,7 @@ export const useSettingsStore = defineStore('settings', {
       s.grid = normalizeGridConfig(s.grid)
       s.gridOpacity = clampOpacity(s.gridOpacity)
       s.gridColor = normalizeGridColor(s.gridColor)
+      s.snapToGrid = s.snapToGrid === true
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
       s.ensurePanelVisible()
       bindSharedSettingsCrossTabSync(s)
@@ -266,6 +274,7 @@ const SHARED_FIELDS = [
   'gridLabelsVisible',
   'gridOpacity',
   'gridColor',
+  'snapToGrid',
 ] as const
 type SharedField = typeof SHARED_FIELDS[number]
 

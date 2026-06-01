@@ -1,5 +1,5 @@
 import type { GridConfig } from './types'
-import { pxToCell } from './grid'
+import { cellToPx, pxToCell } from './grid'
 
 export interface PieceBoxLike {
   x: number
@@ -136,4 +136,14 @@ export function boxTopLeftForCellCenter(
     x: cellTopLeft.x + grid.cellSizePx / 2 - sizePx.width / 2,
     y: cellTopLeft.y + grid.cellSizePx / 2 - sizePx.height / 2,
   }
+}
+
+// 把一个自由摆放的 piece 吸附到它"脚下"那一格:取 bottomCenter 所在 cell,再按脚下锚点反推 box 左上角。
+// 脚下落在格网外 → 返回 null,调用方据此保持自由(不跟"故意放到场外"较劲)。
+export function snapPieceToGrid(p: PieceBoxLike, grid: GridConfig): { x: number, y: number } | null {
+  const bc = pieceBottomCenter(p, grid)
+  const cell = pxToCell({ x: bc.x, y: bc.y - CELL_BOUNDARY_EPS }, grid)
+  if (!cell)
+    return null
+  return boxTopLeftForCellBottomCenter(cellToPx(cell, grid), { widthCells: p.widthCells, heightCells: p.heightCells }, grid)
 }

@@ -2,6 +2,7 @@
 // 浮层主壳：固定定位 + translate 控制拖动 + 折叠态只留标题栏。
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import logoUrl from '@/assets/logo.png'
+import GridQuickMenu from '@/components/shell/GridQuickMenu.vue'
 import PanelLauncher from '@/components/shell/PanelLauncher.vue'
 import BattleTab from '@/components/tabs/BattleTab.vue'
 import BuffLibraryTab from '@/components/tabs/BuffLibraryTab.vue'
@@ -178,6 +179,7 @@ onBeforeUnmount(() => {
           >
             设置
           </TabsTrigger>
+          <GridQuickMenu />
         </TabsList>
 
         <!-- force-mount + data-state 隐藏:角色 tab 保持挂载,切走只是 display:none,
