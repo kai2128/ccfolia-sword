@@ -2,7 +2,7 @@
 import type { GridConfig } from '@/core/range'
 import type { StatusLabelMap } from '@/core/status-slot'
 import { defineStore } from 'pinia'
-import { DEFAULT_GRID_CONFIG } from '@/core/range'
+import { DEFAULT_GRID_CONFIG, formatHiddenCells, parseHiddenCells } from '@/core/range'
 import { DEFAULT_STATUS_LABEL_MAP } from '@/core/status-slot'
 import { bindGmCrossTabSync } from '@/infra/gm-cross-tab'
 import { setRingSize } from '@/infra/log'
@@ -36,6 +36,9 @@ interface SettingsState {
   gridColor: GridColor
   // 拖动棋子松手后吸附到格子。与 gridOverlayVisible 单向联动(显隐网格会带动它,反之不动)。
   snapToGrid: boolean
+  // 逐格网格可见性:总开关 + 被隐藏格集合(编码 "col,row;col,row")。纯视觉,不影响吸附。
+  gridRegionRestricted: boolean
+  gridHiddenCells: string
   statusLabelMap: StatusLabelMap
   combatFxEnabled: boolean
   // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
@@ -70,6 +73,11 @@ function clampOpacity(value: unknown): number {
 // 颜色脏值统一回落 white。
 function normalizeGridColor(raw: unknown): GridColor {
   return raw === 'black' ? 'black' : 'white'
+}
+
+// 隐藏格字符串脏值统一走 parse -> format round-trip:去非法 token、去重、稳定排序。
+function normalizeHiddenCells(raw: unknown): string {
+  return typeof raw === 'string' ? formatHiddenCells(parseHiddenCells(raw)) : ''
 }
 
 function normalizeGridConfig(raw: unknown): GridConfig {
@@ -170,6 +178,8 @@ export const useSettingsStore = defineStore('settings', {
     gridOpacity: 0.4,
     gridColor: 'white',
     snapToGrid: true,
+    gridRegionRestricted: false,
+    gridHiddenCells: '',
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
     autoSwitchOnCrowded: true,
@@ -231,6 +241,12 @@ export const useSettingsStore = defineStore('settings', {
     setSnapToGrid(v: boolean) {
       this.snapToGrid = v
     },
+    setGridRegionRestricted(v: boolean) {
+      this.gridRegionRestricted = v
+    },
+    setGridHiddenCells(str: string) {
+      this.gridHiddenCells = normalizeHiddenCells(str)
+    },
     setGridLabelsVisible(v: boolean) {
       this.gridLabelsVisible = v
     },
@@ -258,6 +274,8 @@ export const useSettingsStore = defineStore('settings', {
       s.gridOpacity = clampOpacity(s.gridOpacity)
       s.gridColor = normalizeGridColor(s.gridColor)
       s.snapToGrid = s.snapToGrid === true
+      s.gridRegionRestricted = s.gridRegionRestricted === true
+      s.gridHiddenCells = normalizeHiddenCells(s.gridHiddenCells)
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
       s.ensurePanelVisible()
       bindSharedSettingsCrossTabSync(s)
@@ -275,6 +293,8 @@ const SHARED_FIELDS = [
   'gridOpacity',
   'gridColor',
   'snapToGrid',
+  'gridRegionRestricted',
+  'gridHiddenCells',
 ] as const
 type SharedField = typeof SHARED_FIELDS[number]
 
@@ -294,7 +314,8 @@ function bindSharedSettingsCrossTabSync(store: ReturnType<typeof useSettingsStor
         const ok = typeof v === typeof store[key]
           && (typeof v === 'boolean'
             || (typeof v === 'number' && Number.isFinite(v))
-            || (typeof v === 'string' && v.length > 0))
+            // gridHiddenCells 允许空串(清空隐藏集也要能同步);其它 string 字段要求非空
+            || (typeof v === 'string' && (key === 'gridHiddenCells' || v.length > 0)))
         if (ok && store[key] !== v)
           updates[key] = v as boolean | number | string
       }

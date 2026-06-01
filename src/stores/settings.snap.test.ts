@@ -13,8 +13,8 @@ beforeEach(() => {
 })
 
 describe('snapToGrid 设置', () => {
-  it('默认关闭', () => {
-    expect(useSettingsStore().snapToGrid).toBe(false)
+  it('默认开启', () => {
+    expect(useSettingsStore().snapToGrid).toBe(true)
   })
 
   it('与网格可见性互不联动:改可见性不动吸附', () => {

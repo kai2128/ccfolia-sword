@@ -1,5 +1,6 @@
 export * from './cell-ref'
 export * from './distance'
 export * from './grid'
+export * from './hidden-cells'
 export * from './piece-geometry'
 export * from './types'

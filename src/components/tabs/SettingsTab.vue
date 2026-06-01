@@ -2,12 +2,15 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { detectGridFromCanvas } from '@/ccfolia/grid-detect'
 import { findCanvasContainer } from '@/ccfolia/scene-mount'
+import GridRegionDialog from '@/components/scene/GridRegionDialog.vue'
 import { Button, Field, Input, PopConfirm, Select, Switch } from '@/components/ui'
 import { deleteValuesByPrefix } from '@/infra/gm-values'
 import { clearLog, getLogEntries, getLogSize } from '@/infra/log'
 import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
+// 控制「编辑网格区域」对话框的开关
+const regionDialogOpen = ref(false)
 
 // 由 vite define 注入,值来自 package.json#version。
 const appVersion = __APP_VERSION__
@@ -194,6 +197,22 @@ function resetAllData() {
         />
         吸附拖动
       </label>
+      <label class="flex items-center gap-2 text-xs text-white/80">
+        <Switch
+          :model-value="settings.gridRegionRestricted"
+          @update:model-value="settings.setGridRegionRestricted($event ?? false)"
+        />
+        限制网格显示区域
+      </label>
+      <div class="flex items-center justify-between gap-2">
+        <Button size="sm" variant="ghost" @click="regionDialogOpen = true">
+          <span class="i-lucide-grid-2x2 text-3" />
+          编辑区域…
+        </Button>
+        <span v-if="!settings.gridRegionRestricted" class="text-[11px] text-white/40">
+          需开启「限制网格显示区域」才生效
+        </span>
+      </div>
       <label class="flex items-center justify-between gap-3 text-xs text-white/80">
         <span class="shrink-0">透明度</span>
         <input
@@ -218,6 +237,7 @@ function resetAllData() {
         </div>
       </label>
     </section>
+    <GridRegionDialog v-model:open="regionDialogOpen" />
 
     <!-- 格网校准 -->
     <section class="flex flex-col gap-2 rounded bg-surface/75 p-3">

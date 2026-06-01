@@ -4,7 +4,7 @@
 // 把 SVG 整体平移到 originPx,线段从 (0,0) 起画到 cols*cellSize × rows*cellSize。
 // 由 GridLayerRoot 挂在低 z(棋子之下)的独立 host,所以网格落在背景之上、角色之下。
 import { computed } from 'vue'
-import { formatCol, formatRow } from '@/core/range'
+import { formatCol, formatRow, parseHiddenCells } from '@/core/range'
 import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
@@ -31,6 +31,10 @@ const cells = computed(() => {
   const pad = labelPad.value
   const out: {
     key: string
+    hiddenKey: string
+    x: number
+    y: number
+    size: number
     col: string
     row: string
     colX: number
@@ -42,6 +46,10 @@ const cells = computed(() => {
     for (let r = 0; r < rows; r++) {
       out.push({
         key: `${c}-${r}`,
+        hiddenKey: `${c},${r}`,
+        x: c * cellSizePx,
+        y: r * cellSizePx,
+        size: cellSizePx,
         col: formatCol(c),
         row: formatRow(r),
         colX: c * cellSizePx + pad,
@@ -53,6 +61,18 @@ const cells = computed(() => {
   }
   return out
 })
+
+// restricted 模式:被隐藏格集合。非 restricted 时不参与渲染。
+const hiddenSet = computed(() => parseHiddenCells(settings.gridHiddenCells))
+
+// 可见格 = 全部格 ⊖ 隐藏集。几何复用 cells,只做过滤。
+const visibleCells = computed(() => {
+  const hidden = hiddenSet.value
+  return cells.value.filter(cell => !hidden.has(cell.hiddenKey))
+})
+
+// 标签渲染源:restricted 模式只标可见格,否则标全部格。
+const labelCells = computed(() => settings.gridRegionRestricted ? visibleCells.value : cells.value)
 
 const svgStyle = computed(() => ({
   transform: `translate(${grid.value.originPx.x}px, ${grid.value.originPx.y}px)`,
@@ -72,33 +92,48 @@ const strokeColor = computed(() => settings.gridColor)
     :style="svgStyle"
     shape-rendering="crispEdges"
   >
-    <line
-      v-for="x in vLines"
-      :key="`v-${x}`"
-      :x1="x"
-      :y1="0"
-      :x2="x"
-      :y2="totalH"
-      :stroke="strokeColor"
-      stroke-width="1"
-    />
-    <line
-      v-for="y in hLines"
-      :key="`h-${y}`"
-      :x1="0"
-      :y1="y"
-      :x2="totalW"
-      :y2="y"
-      :stroke="strokeColor"
-      stroke-width="1"
-    />
+    <template v-if="!settings.gridRegionRestricted">
+      <line
+        v-for="x in vLines"
+        :key="`v-${x}`"
+        :x1="x"
+        :y1="0"
+        :x2="x"
+        :y2="totalH"
+        :stroke="strokeColor"
+        stroke-width="1"
+      />
+      <line
+        v-for="y in hLines"
+        :key="`h-${y}`"
+        :x1="0"
+        :y1="y"
+        :x2="totalW"
+        :y2="y"
+        :stroke="strokeColor"
+        stroke-width="1"
+      />
+    </template>
+    <template v-else>
+      <rect
+        v-for="cell in visibleCells"
+        :key="`r-${cell.key}`"
+        :x="cell.x"
+        :y="cell.y"
+        :width="cell.size"
+        :height="cell.size"
+        fill="none"
+        :stroke="strokeColor"
+        stroke-width="1"
+      />
+    </template>
     <g
       v-if="settings.gridLabelsVisible"
       :fill="strokeColor"
       font-family="Cinzel, 'Noto Serif SC', serif"
       font-weight="400"
     >
-      <template v-for="cell in cells" :key="cell.key">
+      <template v-for="cell in labelCells" :key="cell.key">
         <text
           :x="cell.colX"
           :y="cell.colY"
