@@ -51,7 +51,18 @@ const ratio = computed(() => {
 })
 const fillW = computed(() => innerW.value * ratio.value)
 
-const id = computed(() => `cb-${props.kind}-${w.value}-${h.value}`)
+// HP 走血量分档:>50% hp / ≤50% warn / ≤25% danger。其它 kind(mp/sp/shield/显式 danger)原样。
+const fillKind = computed(() => {
+  if (props.kind !== 'hp')
+    return props.kind
+  if (ratio.value <= 0.25)
+    return 'danger'
+  if (ratio.value <= 0.5)
+    return 'warn'
+  return 'hp'
+})
+
+const id = computed(() => `cb-${fillKind.value}-${w.value}-${h.value}`)
 
 // SVG path 字符串 — 三段共用,提一处。
 const barPath = computed(() => {
@@ -123,9 +134,9 @@ const downed = computed(() => props.cur <= 0)
     >
       <defs>
         <linearGradient :id="`${id}-fill`" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" :stop-color="`var(--cap-${kind}-1)`" />
-          <stop offset=".5" :stop-color="`var(--cap-${kind}-2)`" />
-          <stop offset="1" :stop-color="`var(--cap-${kind}-2)`" stop-opacity=".75" />
+          <stop offset="0" :stop-color="`var(--cap-${fillKind}-1)`" />
+          <stop offset=".5" :stop-color="`var(--cap-${fillKind}-2)`" />
+          <stop offset="1" :stop-color="`var(--cap-${fillKind}-2)`" stop-opacity=".75" />
         </linearGradient>
         <linearGradient :id="`${id}-rim`" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stop-color="var(--cap-rim-top)" />
@@ -174,7 +185,7 @@ const downed = computed(() => props.cur <= 0)
           stroke-width="1.2"
           stroke-linejoin="round"
         />
-        <path :d="sparklePath" :fill="`var(--cap-${kind}-1)`" opacity=".95" />
+        <path :d="sparklePath" :fill="`var(--cap-${fillKind}-1)`" opacity=".95" />
         <circle :cx="dia / 2" :cy="h / 2" :r="dotR" fill="#fff" />
       </g>
     </svg>

@@ -3,6 +3,7 @@
 // 设计稿原版只为单角色单 HP 设计;为支持多部位 C 堆叠,新增可选 label 前缀
 // (Noto Serif SC,与 PartInlinePill 的 part label 视觉同源)。
 import { computed } from 'vue'
+import { hpTier } from './hp-tier'
 
 const props = withDefaults(defineProps<{
   hp: { cur: number, max: number }
@@ -19,7 +20,7 @@ const props = withDefaults(defineProps<{
 
 const hr = computed(() => props.hp.max > 0 ? Math.max(0, Math.min(1, props.hp.cur / props.hp.max)) : 0)
 const mr = computed(() => (props.mp && props.mp.max > 0) ? Math.max(0, Math.min(1, props.mp.cur / props.mp.max)) : 0)
-const lowHp = computed(() => !props.broken && hr.value <= 0.25)
+const tier = computed(() => hpTier(hr.value, props.broken))
 const hasMp = computed(() => !!(props.mp && props.mp.max > 0))
 
 const dia = 8
@@ -82,14 +83,14 @@ const uid = computed(() => `md-rim-${Math.random().toString(36).slice(2, 9)}`)
           :x="dia / 2 + .5" y=".5"
           :width="(barW - 1) * hr"
           :height="(barH - 1) / 2"
-          :fill="lowHp ? '#d04a4a' : '#3aa86a'"
+          :fill="tier.fill"
           :style="{ transition }"
         />
         <rect
           :x="dia / 2 + .5" y=".5"
           :width="(barW - 1) * hr"
           :height="(barH - 1) / 4"
-          :fill="lowHp ? '#ffb3b3' : '#b8f5c8'"
+          :fill="tier.shine"
           opacity=".7"
           :style="{ transition }"
         />
@@ -136,7 +137,7 @@ const uid = computed(() => `md-rim-${Math.random().toString(36).slice(2, 9)}`)
         textShadow: '0 1px 1px #000',
       }"
     >
-      <span :style="{ color: lowHp ? '#ffb3b3' : '#b8f5c8' }">
+      <span :style="{ color: tier.shine }">
         {{ hp.cur }}<span style="opacity: .5">/{{ hp.max }}</span>
       </span>
       <span v-if="hasMp" style="color: #b8d8ff">
