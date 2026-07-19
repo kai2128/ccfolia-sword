@@ -212,7 +212,7 @@ const decoratedEntries = computed(() => {
       >
         <div
           class="hpmp-stack"
-          :style="{ '--mini-scale': calcIndicatorScale(entry.widthPx, entry.mode) }"
+          :style="{ '--mini-scale': calcIndicatorScale(entry.widthPx, entry.mode) * settings.hpmpIndicatorScale }"
         >
           <OverlayCharacterIndicator
             :parts="entry.parts"

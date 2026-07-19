@@ -43,6 +43,8 @@ interface SettingsState {
   combatFxEnabled: boolean
   // 角色密集时把单部位 C 自动降级为 E,避免遮挡。设置面板可关。
   autoSwitchOnCrowded: boolean
+  // HP/MP 指示器整体尺寸倍率,叠在按棋子宽度自适应的 scale 之上。默认 1。
+  hpmpIndicatorScale: number
 }
 
 const DEFAULT_PANEL_SIZE: PanelSize = { width: 320, height: 360 }
@@ -68,6 +70,14 @@ function clampOpacity(value: unknown): number {
   if (!Number.isFinite(n))
     return 0.35
   return Math.min(1, Math.max(0, n))
+}
+
+// 指示器尺寸倍率脏值(NaN / 越界)夹到 [0.6, 3],默认回落 1。
+function clampIndicatorScale(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n))
+    return 1
+  return Math.min(3, Math.max(0.6, n))
 }
 
 // 颜色脏值统一回落 white。
@@ -183,6 +193,7 @@ export const useSettingsStore = defineStore('settings', {
     statusLabelMap: normalizeStatusLabelMap(undefined),
     combatFxEnabled: true,
     autoSwitchOnCrowded: true,
+    hpmpIndicatorScale: 1,
   }),
   actions: {
     setDefaultPowerTable(id: string | null) {
@@ -262,6 +273,9 @@ export const useSettingsStore = defineStore('settings', {
     setAutoSwitchOnCrowded(v: boolean) {
       this.autoSwitchOnCrowded = v
     },
+    setHpmpIndicatorScale(n: number) {
+      this.hpmpIndicatorScale = clampIndicatorScale(n)
+    },
   },
   persist: {
     // 去抖 200ms:拖动 slider 等高频写入合并成尾帧一次广播,避免多 tab 回弹竞态。
@@ -277,6 +291,7 @@ export const useSettingsStore = defineStore('settings', {
       s.gridRegionRestricted = s.gridRegionRestricted === true
       s.gridHiddenCells = normalizeHiddenCells(s.gridHiddenCells)
       s.statusLabelMap = normalizeStatusLabelMap(s.statusLabelMap)
+      s.hpmpIndicatorScale = clampIndicatorScale(s.hpmpIndicatorScale)
       s.ensurePanelVisible()
       bindSharedSettingsCrossTabSync(s)
     },
@@ -288,6 +303,7 @@ export const useSettingsStore = defineStore('settings', {
 const SHARED_FIELDS = [
   'combatFxEnabled',
   'autoSwitchOnCrowded',
+  'hpmpIndicatorScale',
   'gridOverlayVisible',
   'gridLabelsVisible',
   'gridOpacity',

@@ -354,6 +354,22 @@ function resetAllData() {
       <p class="text-[11px] text-white/60 leading-relaxed">
         单部位角色默认用条状(C);当周围 3 格内有其它棋子时,临时切到药丸版(E)避免遮挡。在 roster 用变体按钮可对单个角色锁死特定版本。
       </p>
+      <label class="flex items-center justify-between gap-3 text-xs text-white/80">
+        <span class="shrink-0">指示器尺寸</span>
+        <input
+          type="range"
+          min="0.6"
+          max="3"
+          step="0.05"
+          class="grow accent-accent"
+          :value="settings.hpmpIndicatorScale"
+          @input="settings.setHpmpIndicatorScale(Number(($event.target as HTMLInputElement).value))"
+        >
+        <span class="w-10 text-right text-white/60 tabular-nums">{{ Math.round(settings.hpmpIndicatorScale * 100) }}%</span>
+      </label>
+      <p class="text-[11px] text-white/60 leading-relaxed">
+        棋子下方 HP/MP 指示器的整体大小,叠在按棋子宽度自适应的缩放之上。
+      </p>
     </section>
 
     <!-- 重置 -->
