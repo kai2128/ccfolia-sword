@@ -6,10 +6,13 @@ import TurnIndicator from '@/components/scene/TurnIndicator.vue'
 // 不能挂在 scene overlay —— 那里 ccfolia canvas 有 transform: scale,
 // position: fixed 会被 containing-block 提升劫持,效果失效。
 import PanelShell from '@/components/shell/PanelShell.vue'
+import { useRulerHotkey } from '@/composables/useRulerHotkey'
 import { useUndoHotkey } from '@/composables/useUndoHotkey'
 
 // 全局 Ctrl+` / Ctrl+Shift+`(redo)。让出 Ctrl/Cmd+Z 给 ccfolia 原生 undo。
 useUndoHotkey()
+// 全局 M 切换测距、Esc 清空。
+useRulerHotkey()
 </script>
 
 <template>

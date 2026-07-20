@@ -15,6 +15,7 @@ import { bindHotkey } from './core/shell/hotkey'
 import { installLogPanel } from './infra/log'
 import { createShadowMount } from './infra/shadow-mount'
 import { bindSharedCrossTabSync, persistLocal, persistShared, useEncounterStore } from './stores/encounter'
+import { bindRulerCrossTabSync, persistRuler, useRulerStore } from './stores/ruler'
 import { useSettingsStore } from './stores/settings'
 import { bindTimerCrossTabSync, persistTimer, useTimerStore } from './stores/timer'
 // 先 reset(p/h1-h6/blockquote/ul/ol/figure/pre 等 UA 边距清零,button/input 字体 / 颜色继承),
@@ -55,6 +56,10 @@ function mount() {
   const timer = useTimerStore()
   timer.$subscribe((_mutation, state) => persistTimer(state))
   bindTimerCrossTabSync(timer)
+
+  const ruler = useRulerStore()
+  ruler.$subscribe((_mutation, state) => persistRuler(state))
+  bindRulerCrossTabSync(ruler)
 
   // pinia 挂完,把持久化的 logMaxLines 推到日志环
   const settings = useSettingsStore()

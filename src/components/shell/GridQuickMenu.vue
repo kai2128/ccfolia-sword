@@ -6,9 +6,11 @@ import { PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-
 import { ref } from 'vue'
 import { Switch } from '@/components/ui'
 import { usePortalTarget } from '@/components/ui/portal'
+import { useRulerStore } from '@/stores/ruler'
 import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
+const ruler = useRulerStore()
 const target = usePortalTarget()
 const open = ref(false)
 
@@ -20,18 +22,29 @@ function onContextMenu(e: MouseEvent) {
 
 <template>
   <PopoverRoot :open="open" @update:open="open = $event">
-    <PopoverAnchor as-child>
+    <div class="my-1 ml-auto flex items-center self-center gap-0.5">
       <button
         type="button"
-        class="my-1 ml-auto h-6 w-6 flex items-center self-center justify-center rounded hover:bg-white/10"
-        :class="settings.gridOverlayVisible ? 'text-accent' : 'text-white/60'"
-        title="显示网格(右键:更多设置)"
-        @click="settings.setGridOverlayVisible(!settings.gridOverlayVisible)"
-        @contextmenu="onContextMenu"
+        class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+        :class="ruler.active ? 'text-[#e0973a]' : 'text-white/60'"
+        title="测距工具(M)"
+        @click="ruler.toggle()"
       >
-        <div class="i-lucide-grid-3x3 text-4" />
+        <div class="i-lucide-ruler text-4" />
       </button>
-    </PopoverAnchor>
+      <PopoverAnchor as-child>
+        <button
+          type="button"
+          class="h-6 w-6 flex items-center justify-center rounded hover:bg-white/10"
+          :class="settings.gridOverlayVisible ? 'text-accent' : 'text-white/60'"
+          title="显示网格(右键:更多设置)"
+          @click="settings.setGridOverlayVisible(!settings.gridOverlayVisible)"
+          @contextmenu="onContextMenu"
+        >
+          <div class="i-lucide-grid-3x3 text-4" />
+        </button>
+      </PopoverAnchor>
+    </div>
     <PopoverPortal :to="target ?? undefined">
       <PopoverContent
         align="end"

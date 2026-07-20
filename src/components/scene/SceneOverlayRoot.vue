@@ -4,6 +4,7 @@
 import { usePiecesStore } from '@/ccfolia/pieces-store'
 import { useRoomCharactersStore } from '@/ccfolia/room-characters-store'
 import FxLayer from './FxLayer.vue'
+import RulerLayer from './RulerLayer.vue'
 import SceneOverlayLayer from './SceneOverlayLayer.vue'
 
 declare const unsafeWindow: Window & typeof globalThis
@@ -26,6 +27,7 @@ catch { /* ignore */ }
   <div class="ccs-scene-overlay">
     <SceneOverlayLayer />
     <FxLayer />
+    <RulerLayer />
   </div>
 </template>
 
