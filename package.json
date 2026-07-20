@@ -1,7 +1,7 @@
 {
   "name": "ccfolia-sword",
   "type": "module",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "private": true,
   "license": "MIT",
   "scripts": {
